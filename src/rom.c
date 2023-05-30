@@ -59,6 +59,7 @@ rom_header_t get_rom_header(const char *buffer) {
     header.mapper = (((short)buffer[8] & 0xf) << 8) |
                     ((short)buffer[7] & 0xf0) |
                     (((short)buffer[6] & 0xf0) >> 4);
+    header.submapper = buffer[8] & 0xf0;
 
     // Console type
     switch (buffer[7] & 0x03) {

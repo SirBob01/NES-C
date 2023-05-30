@@ -21,6 +21,7 @@ void print_rom(rom_t *rom) {
            : rom->header.console_type == CONSOLE_PLAYCHOICE ? "PlayChoice"
                                                             : "Extended");
     printf("* Mapper number: %d\n", rom->header.mapper);
+    printf("* Submapper number: %d\n", rom->header.submapper);
 }
 
 rom_t parse_args(int argc, char **argv) {

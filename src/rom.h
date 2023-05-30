@@ -90,6 +90,12 @@ typedef struct {
     unsigned short mapper;
 
     /**
+     * @brief Submapper number.
+     *
+     */
+    unsigned short submapper;
+
+    /**
      * @brief Console type.
      *
      */
