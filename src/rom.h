@@ -17,6 +17,26 @@ typedef enum {
 } rom_type_t;
 
 /**
+ * @brief ROM mirroring type.
+ *
+ */
+typedef enum {
+    MIRROR_HORIZONTAL,
+    MIRROR_VERTICAL,
+} rom_mirroring_t;
+
+/**
+ * @brief Nintendo console type.
+ *
+ */
+typedef enum {
+    CONSOLE_NES,
+    CONSOLE_VS,
+    CONSOLE_PLAYCHOICE,
+    CONSOLE_EXTENDED,
+} rom_console_type_t;
+
+/**
  * @brief ROM header.
  *
  */
@@ -38,6 +58,42 @@ typedef struct {
      *
      */
     unsigned long chr_rom_size;
+
+    /**
+     * @brief ROM mirroring mode.
+     *
+     */
+    rom_mirroring_t mirroring;
+
+    /**
+     * @brief Existence of non-volatile memory.
+     *
+     */
+    bool battery;
+
+    /**
+     * @brief 512-byte trainer segment exists.
+     *
+     */
+    bool trainer;
+
+    /**
+     * @brief Hardwired four-screen VRAM.
+     *
+     */
+    bool four_screen;
+
+    /**
+     * @brief Mapper number.
+     *
+     */
+    unsigned short mapper;
+
+    /**
+     * @brief Console type.
+     *
+     */
+    rom_console_type_t console_type;
 } rom_header_t;
 
 typedef struct {

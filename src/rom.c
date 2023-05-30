@@ -35,8 +35,9 @@ rom_t load_rom(char *path) {
 
 rom_header_t get_rom_header(const char *buffer) {
     rom_header_t header;
-    header.type = NES_INVALID;
 
+    // Determine format type
+    header.type = NES_INVALID;
     if (buffer[0] == 'N' && buffer[1] == 'E' && buffer[2] == 'S' &&
         buffer[3] == 0x1A) {
         header.type = NES_1;
@@ -47,8 +48,32 @@ rom_header_t get_rom_header(const char *buffer) {
     if ((buffer[7] & 0x0c) == 0x08) {
         header.type = NES_2;
     }
+
+    // Metadata
     header.prg_rom_size = buffer[4] * (1 << 14);
     header.chr_rom_size = buffer[5] * (1 << 13);
+    header.mirroring = (buffer[6] & 0x1) ? MIRROR_VERTICAL : MIRROR_HORIZONTAL;
+    header.battery = buffer[6] & 0x2;
+    header.trainer = buffer[6] & 0x4;
+    header.four_screen = buffer[6] & 0x8;
+    header.mapper = (buffer[7] & 0xf0) | ((buffer[6] & 0xf0) >> 4);
+
+    // Console type
+    switch (buffer[7] & 0x03) {
+    case 0:
+        header.console_type = CONSOLE_NES;
+        break;
+    case 1:
+        header.console_type = CONSOLE_VS;
+        break;
+    case 2:
+        header.console_type = CONSOLE_PLAYCHOICE;
+        break;
+    case 3:
+    default:
+        header.console_type = CONSOLE_EXTENDED;
+        break;
+    }
     return header;
 }
 

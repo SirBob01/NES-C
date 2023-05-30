@@ -6,16 +6,21 @@ void print_usage() {
 
 void print_rom(rom_t *rom) {
     printf("ROM loaded successfully...\n");
-    if (rom->header.type == NES_1) {
-        printf("ROM type: NES 1\n");
-    } else if (rom->header.type == NES_2) {
-        printf("ROM type: NES 2\n");
-    } else {
-        // This should never happen
-        printf("ROM type: Unknown\n");
-    }
-    printf("PRG ROM %lu\n", rom->header.prg_rom_size);
-    printf("CHR ROM %lu\n", rom->header.chr_rom_size);
+    printf("* ROM type: %s\n", rom->header.type == NES_1 ? "NES 1" : "NES 2");
+    printf("* PRG ROM %lu\n", rom->header.prg_rom_size);
+    printf("* CHR ROM %lu\n", rom->header.chr_rom_size);
+    printf("* Mirroring: %s\n",
+           rom->header.mirroring == MIRROR_HORIZONTAL ? "Horizontal"
+                                                      : "Vertical");
+    printf("* Battery: %s\n", rom->header.battery ? "Yes" : "No");
+    printf("* Trainer: %s\n", rom->header.trainer ? "Yes" : "No");
+    printf("* Four-screen: %s\n", rom->header.four_screen ? "Yes" : "No");
+    printf("* Console type: %s\n",
+           rom->header.console_type == CONSOLE_NES          ? "NES"
+           : rom->header.console_type == CONSOLE_VS         ? "VS"
+           : rom->header.console_type == CONSOLE_PLAYCHOICE ? "PlayChoice"
+                                                            : "Extended");
+    printf("* Mapper number: %d\n", rom->header.mapper);
 }
 
 rom_t parse_args(int argc, char **argv) {
