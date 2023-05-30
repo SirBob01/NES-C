@@ -1,21 +1,26 @@
-#define ARG_INPUT_FILE "-i"
-
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "./memory.h"
-#include "./rom.h"
+#include "./emunes.h"
 
 void print_usage() {
     printf("Usage: emunes %s <input_file>\n", ARG_INPUT_FILE);
 }
 
-memory_t parse_args(int argc, char **argv) {
-    memory_t rom;
-    rom.buffer = NULL;
-    rom.size = 0;
+void print_rom(rom_t *rom) {
+    printf("ROM loaded successfully...\n");
+    if (rom->header.type == NES_1) {
+        printf("ROM type: NES 1\n");
+    } else if (rom->header.type == NES_2) {
+        printf("ROM type: NES 2\n");
+    } else {
+        // This should never happen
+        printf("ROM type: Unknown\n");
+    }
+    printf("PRG ROM %lu\n", rom->header.prg_rom_size);
+    printf("CHR ROM %lu\n", rom->header.chr_rom_size);
+}
+
+rom_t parse_args(int argc, char **argv) {
+    rom_t rom;
+    rom.data.buffer = NULL;
 
     // Verify arguments
     if (argc < 3) {
@@ -31,14 +36,17 @@ memory_t parse_args(int argc, char **argv) {
 
 int main(int argc, char **argv) {
     // Load a ROM into memory
-    memory_t rom = parse_args(argc, argv);
-    if (rom.buffer == NULL) {
+    rom_t rom = parse_args(argc, argv);
+    if (rom.data.buffer == NULL || rom.header.type == NES_INVALID) {
         return 1;
     }
 
-    // TODO: Execute instructions in main loop
+    // Print ROM information
+    print_rom(&rom);
+
+    // Run main program loop
 
     // Cleanup
-    free_memory(&rom);
+    free_rom(&rom);
     return 0;
 }
