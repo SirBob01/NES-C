@@ -1,8 +1,6 @@
 #ifndef NES_H
 #define NES_H
 
-#define ARG_INPUT_FILE "-i"
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,6 +9,8 @@
 #include "./cpu.h"
 #include "./memory.h"
 #include "./rom.h"
+
+#define ARG_INPUT_FILE "-i"
 
 /**
  * @brief Print usage (help) information.
