@@ -1,4 +1,4 @@
-#include "./emunes.h"
+#include "./nes.h"
 
 void print_usage() {
     printf("Usage: emunes %s <input_file>\n", ARG_INPUT_FILE);
@@ -49,8 +49,6 @@ int main(int argc, char **argv) {
 
     // Print ROM information
     print_rom(&rom);
-
-    // Run main program loop
 
     // Cleanup
     free_rom(&rom);

@@ -1,5 +1,5 @@
-#ifndef EMUNES_H
-#define EMUNES_H
+#ifndef NES_H
+#define NES_H
 
 #define ARG_INPUT_FILE "-i"
 
