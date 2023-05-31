@@ -33,7 +33,7 @@ rom_t load_rom(char *path) {
     return rom;
 }
 
-rom_header_t get_rom_header(const char *buffer) {
+rom_header_t get_rom_header(const unsigned char *buffer) {
     rom_header_t header;
 
     // Determine format type
@@ -78,6 +78,15 @@ rom_header_t get_rom_header(const char *buffer) {
         break;
     }
     return header;
+}
+
+unsigned char *get_prg_rom(rom_t *rom) {
+    unsigned char *base = rom->data.buffer;
+    return base + 0x10 + (rom->header.trainer ? 0x200 : 0);
+}
+
+unsigned char *get_chr_rom(rom_t *rom) {
+    return get_prg_rom(rom) + rom->header.prg_rom_size;
 }
 
 void free_rom(rom_t *rom) { free(rom->data.buffer); }

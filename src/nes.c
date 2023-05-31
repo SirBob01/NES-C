@@ -1,4 +1,5 @@
 #include "./nes.h"
+#include "rom.h"
 
 void print_usage() {
     printf("Usage: emunes %s <input_file>\n", ARG_INPUT_FILE);
@@ -7,8 +8,12 @@ void print_usage() {
 void print_rom(rom_t *rom) {
     printf("ROM loaded successfully...\n");
     printf("* ROM type: %s\n", rom->header.type == NES_1 ? "NES 1" : "NES 2");
-    printf("* PRG ROM %lu\n", rom->header.prg_rom_size);
-    printf("* CHR ROM %lu\n", rom->header.chr_rom_size);
+    printf("* PRG ROM: %lu\n", rom->header.prg_rom_size);
+    printf("* CHR ROM: %lu\n", rom->header.chr_rom_size);
+    printf("* PRG ROM Offset: 0x%02X\n",
+           (unsigned)(get_prg_rom(rom) - rom->data.buffer));
+    printf("* CHR ROM Offset: 0x%02X\n",
+           (unsigned)(get_chr_rom(rom) - rom->data.buffer));
     printf("* Mirroring: %s\n",
            rom->header.mirroring == MIRROR_HORIZONTAL ? "Horizontal"
                                                       : "Vertical");

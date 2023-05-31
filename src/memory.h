@@ -13,7 +13,7 @@ typedef struct {
      * @brief Heap allocated buffer.
      *
      */
-    char *buffer;
+    unsigned char *buffer;
 
     /**
      * @brief Size of the buffer.

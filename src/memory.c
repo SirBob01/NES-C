@@ -3,7 +3,7 @@
 memory_t allocate_memory(unsigned long size) {
     memory_t memory;
     memory.size = size;
-    memory.buffer = (char *)malloc(size);
+    memory.buffer = (unsigned char *)malloc(size);
     assert(memory.buffer != NULL);
 
     return memory;

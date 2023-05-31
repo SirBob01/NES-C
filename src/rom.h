@@ -130,7 +130,23 @@ rom_t load_rom(char *path);
  * @param buffer
  * @return rom_header_t
  */
-rom_header_t get_rom_header(const char *buffer);
+rom_header_t get_rom_header(const unsigned char *buffer);
+
+/**
+ * @brief Get the pointer to PRG ROM.
+ *
+ * @param rom
+ * @return unsigned char*
+ */
+unsigned char *get_prg_rom(rom_t *rom);
+
+/**
+ * @brief Get the pointer to CHR ROM.
+ *
+ * @param rom
+ * @return unsigned char*
+ */
+unsigned char *get_chr_rom(rom_t *rom);
 
 /**
  * @brief Free the ROM.
