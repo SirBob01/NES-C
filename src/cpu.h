@@ -1,10 +1,37 @@
 #ifndef CPU_H
 #define CPU_H
 
-#define CPU_RAM_SIZE 1 << 16
-
 #include "./memory.h"
 #include "./rom.h"
+
+#define CPU_RAM_SIZE 1 << 16
+
+// Indices to the CPU_MEMORY_MAP array
+#define CPU_MAP_RAM          0
+#define CPU_MAP_MIRROR_0     1
+#define CPU_MAP_MIRROR_1     2
+#define CPU_MAP_MIRROR_2     3
+#define CPU_MAP_PPU_REG      4
+#define CPU_MAP_PPU_MIRROR   5
+#define CPU_MAP_APU_IO       6
+#define CPU_MAP_APU_IO_DEBUG 7
+#define CPU_MAP_CARTRIDGE    8
+
+/**
+ * @brief Memory map
+ *
+ */
+static const unsigned short CPU_MEMORY_MAP[] = {
+    0x0000, // 2k RAM
+    0x0800, // Mirror 0
+    0x1000, // Mirror 1
+    0x1800, // Mirror 2
+    0x2000, // PPU registers
+    0x2008, // Mirror of 0x2000-0x2007 (every 8 bytes)
+    0x4000, // APU I/O
+    0x4018, // APU I/O (debug)
+    0x4020, // Cartridge
+};
 
 /**
  * @brief Registers of the 6502 processor.
