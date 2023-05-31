@@ -51,10 +51,7 @@ rom_header_t get_rom_header(const unsigned char *buffer) {
     header.battery = buffer[6] & 0x2;
     header.trainer = buffer[6] & 0x4;
     header.four_screen = buffer[6] & 0x8;
-    header.mapper = (((short)buffer[8] & 0xf) << 8) |
-                    ((short)buffer[7] & 0xf0) |
-                    (((short)buffer[6] & 0xf0) >> 4);
-    header.submapper = buffer[8] & 0xf0;
+    header.mapper = (buffer[7] & 0xf0) | ((buffer[6] & 0xf0) >> 4);
 
     // Console type
     switch (buffer[7] & 0x03) {
@@ -75,9 +72,13 @@ rom_header_t get_rom_header(const unsigned char *buffer) {
     return header;
 }
 
-unsigned char *get_prg_rom(rom_t *rom) {
+unsigned char *get_trainer(rom_t *rom) {
     unsigned char *base = rom->data.buffer;
-    return base + 0x10 + (rom->header.trainer ? 0x200 : 0);
+    return base + 0x10;
+}
+
+unsigned char *get_prg_rom(rom_t *rom) {
+    return get_trainer(rom) + (rom->header.trainer ? 0x200 : 0);
 }
 
 unsigned char *get_chr_rom(rom_t *rom) {

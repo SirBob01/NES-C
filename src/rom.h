@@ -90,12 +90,6 @@ typedef struct {
     unsigned short mapper;
 
     /**
-     * @brief Submapper number.
-     *
-     */
-    unsigned short submapper;
-
-    /**
      * @brief Console type.
      *
      */
@@ -131,6 +125,14 @@ rom_t load_rom(char *path);
  * @return rom_header_t
  */
 rom_header_t get_rom_header(const unsigned char *buffer);
+
+/**
+ * @brief Get the pointer to the trainer.
+ *
+ * @param rom
+ * @return unsigned char*
+ */
+unsigned char *get_trainer(rom_t *rom);
 
 /**
  * @brief Get the pointer to PRG ROM.
