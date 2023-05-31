@@ -18,12 +18,7 @@ rom_t load_rom(char *path) {
     fseek(file, 0, SEEK_SET);
 
     // Write the contents of the file to the buffer
-    unsigned long i = 0;
-    char c = 0;
-    while ((c = getc(file)) != EOF) {
-        assert(i < rom.data.size);
-        rom.data.buffer[i++] = c;
-    }
+    fread(rom.data.buffer, 1, rom.data.size, file);
 
     // Parse the header
     rom.header = get_rom_header(rom.data.buffer);
