@@ -50,7 +50,11 @@ int main(int argc, char **argv) {
     // Print ROM information
     print_rom(&rom);
 
+    // Setup subsystems
+    cpu_t cpu = create_cpu();
+
     // Cleanup
+    destroy_cpu(&cpu);
     free_rom(&rom);
     return 0;
 }
