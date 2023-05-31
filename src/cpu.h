@@ -4,6 +4,7 @@
 #include "./memory.h"
 #include "./rom.h"
 
+// 6502 has a 16-bit address bus (64k)
 #define CPU_RAM_SIZE 1 << 16
 
 // Indices to the CPU_MEMORY_MAP array
@@ -17,20 +18,26 @@
 #define CPU_MAP_APU_IO_DEBUG 7
 #define CPU_MAP_CARTRIDGE    8
 
+// Interrupt vector positions
+#define CPU_VEC_NMI     0xfffa
+#define CPU_VEC_RESET   0xfffc
+#define CPU_VEC_IRQ_BRK 0xfffe
+
 /**
- * @brief Memory map
+ * @brief CPU memory map offsets.
  *
  */
-static const unsigned short CPU_MEMORY_MAP[] = {
-    0x0000, // 2k RAM
-    0x0800, // Mirror 0
-    0x1000, // Mirror 1
-    0x1800, // Mirror 2
-    0x2000, // PPU registers
-    0x2008, // Mirror of 0x2000-0x2007 (every 8 bytes)
-    0x4000, // APU I/O
-    0x4018, // APU I/O (debug)
-    0x4020, // Cartridge
+static const unsigned CPU_MEMORY_MAP[] = {
+    0x0000,  // 2k RAM
+    0x0800,  // Mirror 0
+    0x1000,  // Mirror 1
+    0x1800,  // Mirror 2
+    0x2000,  // PPU registers
+    0x2008,  // Mirror of 0x2000-0x2007 (every 8 bytes)
+    0x4000,  // APU I/O
+    0x4018,  // APU I/O (debug)
+    0x4020,  // Cartridge
+    0x10000, // End-of-memory
 };
 
 /**
