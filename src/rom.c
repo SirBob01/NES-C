@@ -1,6 +1,6 @@
 #include "./rom.h"
 
-rom_t load_rom(char *path) {
+rom_t load_rom(const char *path) {
     rom_t rom;
     rom.data.buffer = NULL;
     rom.data.size = 0;

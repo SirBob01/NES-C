@@ -104,6 +104,38 @@ typedef struct {
 cpu_t create_cpu();
 
 /**
+ * @brief Get the true address, accounting for the ROM mapping mode and
+ * mirrored memory segments.
+ *
+ * @param short
+ * @return unsigned short
+ */
+unsigned short map_address_cpu(rom_t *rom, unsigned short address);
+
+/**
+ * @brief Read from the CPU memory.
+ *
+ * @param cpu
+ * @param rom
+ * @param address
+ * @return unsigned char
+ */
+unsigned char read_cpu(cpu_t *cpu, rom_t *rom, unsigned short address);
+
+/**
+ * @brief Write to the CPU memory.
+ *
+ * @param cpu
+ * @param rom
+ * @param address
+ * @param data
+ */
+void write_cpu(cpu_t *cpu,
+               rom_t *rom,
+               unsigned short address,
+               unsigned char data);
+
+/**
  * @brief Destroy the CPU.
  *
  * @param cpu
