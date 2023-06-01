@@ -29,6 +29,11 @@ emulator_t create_emulator2(const char *rom_path, unsigned short pc) {
     return emu;
 }
 
+bool update_emulator(emulator_t *emulator) {
+    // TODO: Implement
+    return true;
+}
+
 void destroy_emulator(emulator_t *emulator) {
     destroy_cpu(&emulator->cpu);
     unload_rom(&emulator->rom);

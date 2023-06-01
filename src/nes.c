@@ -44,7 +44,7 @@ emulator_t parse_args(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
-    // Load a ROM into memory
+    // Boot up the emulator
     emulator_t emu = parse_args(argc, argv);
     if (emu.rom.data.buffer == NULL || emu.rom.header.type == NES_INVALID) {
         return 1;
@@ -53,7 +53,13 @@ int main(int argc, char **argv) {
     // Print ROM information
     print_rom(&emu.rom);
 
-    // TODO: Run the emulator
+    // Run the emulator until it finishes
+    while (true) {
+        bool cont = update_emulator(&emu);
+        if (!cont) {
+            break;
+        }
+    }
 
     // Cleanup
     destroy_emulator(&emu);
