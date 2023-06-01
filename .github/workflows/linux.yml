@@ -1,0 +1,39 @@
+name: linux
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Setup Repository
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install system libraries
+        run: |
+          sudo apt update
+          sudo apt install -y libxinerama-dev libxcursor-dev libxi-dev libgl-dev
+
+      - name: Build
+        run: |
+          threads=`nproc`
+          cmake .
+          make -j $threads
+
+      - name: Build Tests
+        working-directory: tests
+        run: |
+          threads=`nproc`
+          cmake .
+          make -j $threads
+
+      - name: Test
+        working-directory: tests
+        env:
+          CTEST_OUTPUT_ON_FAILURE: 1
+        run: |
+          ctest --verbose
