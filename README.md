@@ -11,7 +11,6 @@ An NES Emulator built for fun (and education)!
 
 * Implement the 151 op codes
 * Main emulation loop to test CPU
-* Design framework for handling memory mapping systems
 
 ## License
 

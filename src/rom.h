@@ -116,7 +116,7 @@ typedef struct {
  * @param path
  * @return rom_t
  */
-rom_t load_rom(char *path);
+rom_t load_rom(const char *path);
 
 /**
  * @brief Get the header of the ROM.
