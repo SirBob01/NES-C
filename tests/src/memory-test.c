@@ -55,10 +55,23 @@ static char *test_mirror_apu() {
     return 0;
 }
 
+static char *test_mapper0() {
+    rom_t rom = load_rom("../roms/nestest.nes");
+    cpu_t cpu = create_cpu();
+
+    unsigned char pc0 = read_cpu(&cpu, &rom, CPU_VEC_RESET);
+    unsigned char pc1 = read_cpu(&cpu, &rom, CPU_VEC_RESET + 1);
+    mu_assert("MAPPER 0 RESET VECTOR", (pc0 | (pc1 << 8)) == 0xc004);
+
+    free_rom(&rom);
+    return 0;
+}
+
 static char *all_tests() {
     mu_run_test(test_mirror_ram);
     mu_run_test(test_mirror_ppu);
     mu_run_test(test_mirror_apu);
+    mu_run_test(test_mapper0);
     return 0;
 }
 

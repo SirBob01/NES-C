@@ -21,14 +21,18 @@ jobs:
       - name: Build
         run: |
           threads=`nproc`
-          cmake .
+          mkdir build
+          cd build
+          cmake ..
           make -j $threads
 
       - name: Build Tests
         working-directory: tests
         run: |
           threads=`nproc`
-          cmake .
+          mkdir build
+          cd build
+          cmake ..
           make -j $threads
 
       - name: Test
