@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "./cpu.h"
+#include "./emulator.h"
 #include "./memory.h"
 #include "./rom.h"
 
@@ -26,12 +27,12 @@ void print_usage();
 void print_rom(rom_t *rom);
 
 /**
- * @brief Parse command line arguments to load the NES ROM file.
+ * @brief Parse command line arguments to boot up the emulator.
  *
  * @param argc
  * @param argv
- * @return rom_t
+ * @return emulator_t
  */
-rom_t parse_args(int argc, char **argv);
+emulator_t parse_args(int argc, char **argv);
 
 #endif

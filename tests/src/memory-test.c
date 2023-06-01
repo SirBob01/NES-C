@@ -63,7 +63,7 @@ static char *test_mapper0() {
     unsigned char pc1 = read_cpu(&cpu, &rom, CPU_VEC_RESET + 1);
     mu_assert("MAPPER 0 RESET VECTOR", (pc0 | (pc1 << 8)) == 0xc004);
 
-    free_rom(&rom);
+    unload_rom(&rom);
     return 0;
 }
 

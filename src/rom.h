@@ -151,10 +151,10 @@ unsigned char *get_prg_rom(rom_t *rom);
 unsigned char *get_chr_rom(rom_t *rom);
 
 /**
- * @brief Free the ROM.
+ * @brief Release the ROM.
  *
  * @param rom
  */
-void free_rom(rom_t *rom);
+void unload_rom(rom_t *rom);
 
 #endif

@@ -85,4 +85,4 @@ unsigned char *get_chr_rom(rom_t *rom) {
     return get_prg_rom(rom) + rom->header.prg_rom_size;
 }
 
-void free_rom(rom_t *rom) { free(rom->data.buffer); }
+void unload_rom(rom_t *rom) { free_memory(&rom->data); }
