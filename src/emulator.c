@@ -4,9 +4,6 @@ emulator_t create_emulator(const char *rom_path) {
     emulator_t emu;
     emu.rom = load_rom(rom_path);
     emu.cpu = create_cpu();
-    if (emu.rom.data.buffer == NULL) {
-        return emu;
-    }
 
     // Set the program counter
     unsigned char *rv = get_memory_cpu(&emu.cpu, &emu.rom, CPU_VEC_RESET);
@@ -19,9 +16,6 @@ emulator_t create_emulator2(const char *rom_path, unsigned short pc) {
     emulator_t emu;
     emu.rom = load_rom(rom_path);
     emu.cpu = create_cpu();
-    if (emu.rom.data.buffer == NULL) {
-        return emu;
-    }
 
     // Set the program counter
     emu.cpu.registers.pc = pc;

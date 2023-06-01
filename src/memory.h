@@ -1,7 +1,7 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-#include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 /**

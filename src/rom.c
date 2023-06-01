@@ -9,15 +9,22 @@ rom_t load_rom(const char *path) {
     FILE *file = fopen(path, "rb");
     if (file == NULL) {
         fprintf(stderr, "Error: Could not open file \"%s\"\n", path);
-        return rom;
+        exit(1);
     }
 
-    // Allocate memory
+    // Get file size
     fseek(file, 0, SEEK_END);
-    rom.data = allocate_memory(ftell(file));
+    unsigned long size = ftell(file);
     fseek(file, 0, SEEK_SET);
 
+    if (size < 16) {
+        fprintf(stderr, "Error: ROM is too small\n");
+        fclose(file);
+        exit(1);
+    }
+
     // Write the contents of the file to the buffer
+    rom.data = allocate_memory(size);
     fread(rom.data.buffer, 1, rom.data.size, file);
 
     // Parse the header
@@ -38,7 +45,7 @@ rom_header_t get_rom_header(const unsigned char *buffer) {
         header.type = NES_1;
     } else {
         fprintf(stderr, "Error: Invalid ROM\n");
-        return header;
+        exit(1);
     }
     if ((buffer[7] & 0x0c) == 0x08) {
         header.type = NES_2;

@@ -28,17 +28,14 @@ void print_rom(rom_t *rom) {
 }
 
 emulator_t parse_args(int argc, char **argv) {
-    emulator_t emulator;
-    emulator.rom.data.buffer = NULL;
-
     // Verify arguments
     if (argc < 3) {
         print_usage();
-        return emulator;
+        exit(1);
     }
     if (strcmp(argv[1], ARG_INPUT_FILE) != 0) {
         print_usage();
-        return emulator;
+        exit(1);
     }
     return create_emulator(argv[2]);
 }
