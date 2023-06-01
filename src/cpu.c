@@ -66,7 +66,7 @@ unsigned char *apply_mapper0(cpu_t *cpu, rom_t *rom, unsigned short address) {
     unsigned short rom_offset = 0x8000;
     if (address >= rom_offset) {
         unsigned short rom_addr = address - rom_offset;
-        return rom->data.buffer + (rom_addr % (nrom128 * 0x4000));
+        return get_prg_rom(rom) + (rom_addr % (nrom128 * 0x4000));
     } else {
         return cpu->memory.buffer + address;
     }
