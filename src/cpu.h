@@ -27,17 +27,16 @@
  * @brief CPU memory map offsets.
  *
  */
-static const unsigned CPU_MEMORY_MAP[] = {
-    0x0000,  // 2k RAM
-    0x0800,  // Mirror 0
-    0x1000,  // Mirror 1
-    0x1800,  // Mirror 2
-    0x2000,  // PPU registers
-    0x2008,  // Mirror of 0x2000-0x2007 (every 8 bytes)
-    0x4000,  // APU I/O
-    0x4018,  // APU I/O (debug)
-    0x4020,  // Cartridge
-    0x10000, // End-of-memory
+static const unsigned short CPU_MEMORY_MAP[] = {
+    0x0000, // 2k RAM
+    0x0800, // Mirror 0
+    0x1000, // Mirror 1
+    0x1800, // Mirror 2
+    0x2000, // PPU registers
+    0x2008, // Mirror of 0x2000-0x2007 (every 8 bytes)
+    0x4000, // APU I/O
+    0x4018, // APU I/O (debug)
+    0x4020, // Cartridge
 };
 
 /**
@@ -104,13 +103,36 @@ typedef struct {
 cpu_t create_cpu();
 
 /**
- * @brief Get the true address, accounting for the ROM mapping mode and
- * mirrored memory segments.
+ * @brief Convert mirrored addresses to actual addresses.
  *
- * @param short
+ * @param address
  * @return unsigned short
  */
-unsigned short map_address_cpu(rom_t *rom, unsigned short address);
+unsigned short mirror_address_cpu(unsigned short address);
+
+/**
+ * @brief Apply mapper to address that lies on the ROM cartridge section.
+ *
+ * @param cpu
+ * @param rom
+ * @param address
+ * @return unsigned char*
+ */
+unsigned char *
+apply_memory_mapper(cpu_t *cpu, rom_t *rom, unsigned short address);
+
+/**
+ * @brief Get the pointer to memory at an address.
+ *
+ * This is an abstraction to allow accessing the different memory sections
+ * available to the CPU (RAM, PRG ROM, CHR ROM, PPU registers, etc.).
+ *
+ * @param cpu
+ * @param rom
+ * @param address
+ * @return unsigned char*
+ */
+unsigned char *get_memory_cpu(cpu_t *cpu, rom_t *rom, unsigned short address);
 
 /**
  * @brief Read from the CPU memory.
@@ -141,5 +163,16 @@ void write_cpu(cpu_t *cpu,
  * @param cpu
  */
 void destroy_cpu(cpu_t *cpu);
+
+/**
+ * @brief Apply the NROM mapper to get a pointer either to the cartridge ROM or
+ * CPU memory.
+ *
+ * @param cpu
+ * @param rom
+ * @param address
+ * @return unsigned char*
+ */
+unsigned char *apply_mapper0(cpu_t *cpu, rom_t *rom, unsigned short address);
 
 #endif
