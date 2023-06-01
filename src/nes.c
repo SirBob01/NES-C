@@ -1,5 +1,4 @@
 #include "./nes.h"
-#include "rom.h"
 
 void print_usage() {
     printf("Usage: emunes %s <input_file>\n", ARG_INPUT_FILE);
@@ -28,37 +27,35 @@ void print_rom(rom_t *rom) {
     printf("* Mapper number: %d\n", rom->header.mapper);
 }
 
-rom_t parse_args(int argc, char **argv) {
-    rom_t rom;
-    rom.data.buffer = NULL;
+emulator_t parse_args(int argc, char **argv) {
+    emulator_t emulator;
+    emulator.rom.data.buffer = NULL;
 
     // Verify arguments
     if (argc < 3) {
         print_usage();
-        return rom;
+        return emulator;
     }
     if (strcmp(argv[1], ARG_INPUT_FILE) != 0) {
         print_usage();
-        return rom;
+        return emulator;
     }
-    return load_rom(argv[2]);
+    return create_emulator(argv[2]);
 }
 
 int main(int argc, char **argv) {
     // Load a ROM into memory
-    rom_t rom = parse_args(argc, argv);
-    if (rom.data.buffer == NULL || rom.header.type == NES_INVALID) {
+    emulator_t emu = parse_args(argc, argv);
+    if (emu.rom.data.buffer == NULL || emu.rom.header.type == NES_INVALID) {
         return 1;
     }
 
     // Print ROM information
-    print_rom(&rom);
+    print_rom(&emu.rom);
 
-    // Setup subsystems
-    cpu_t cpu = create_cpu();
+    // TODO: Run the emulator
 
     // Cleanup
-    destroy_cpu(&cpu);
-    free_rom(&rom);
+    destroy_emulator(&emu);
     return 0;
 }

@@ -1,0 +1,40 @@
+#ifndef EMULATOR_H
+#define EMULATOR_H
+
+#include "./cpu.h"
+#include "./memory.h"
+#include "./opcode.h"
+#include "./rom.h"
+
+typedef struct {
+    rom_t rom;
+    cpu_t cpu;
+} emulator_t;
+
+/**
+ * @brief Create the emulator.
+ *
+ * @param rom_path
+ * @return emulator_t
+ */
+emulator_t create_emulator(const char *rom_path);
+
+/**
+ * @brief Create the emulator with a hard-coded initial program counter.
+ *
+ * This is useful for debugging.
+ *
+ * @param rom_path
+ * @param pc
+ * @return emulator_t
+ */
+emulator_t create_emulator2(const char *rom_path, unsigned short pc);
+
+/**
+ * @brief Free all resources held by the emulator.
+ *
+ * @param emulator
+ */
+void destroy_emulator(emulator_t *emulator);
+
+#endif
