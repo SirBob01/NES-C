@@ -6,6 +6,10 @@
 #include "./opcode.h"
 #include "./rom.h"
 
+/**
+ * @brief Emulator structure holding all its subsystems.
+ *
+ */
 typedef struct {
     rom_t rom;
     cpu_t cpu;
@@ -29,6 +33,15 @@ emulator_t create_emulator(const char *rom_path);
  * @return emulator_t
  */
 emulator_t create_emulator2(const char *rom_path, unsigned short pc);
+
+/**
+ * @brief Run the emulator.
+ *
+ * @param emulator
+ * @return true
+ * @return false
+ */
+bool update_emulator(emulator_t *emulator);
 
 /**
  * @brief Free all resources held by the emulator.
