@@ -37,17 +37,17 @@ emulator_t create_emulator2(const char *rom_path, unsigned short pc);
 /**
  * @brief Run the emulator.
  *
- * @param emulator
+ * @param emu
  * @return true
  * @return false
  */
-bool update_emulator(emulator_t *emulator);
+bool update_emulator(emulator_t *emu);
 
 /**
  * @brief Free all resources held by the emulator.
  *
- * @param emulator
+ * @param emu
  */
-void destroy_emulator(emulator_t *emulator);
+void destroy_emulator(emulator_t *emu);
 
 #endif
