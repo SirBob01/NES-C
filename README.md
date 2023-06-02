@@ -1,4 +1,4 @@
-# EmuNES
+# NES-C
 
 An NES Emulator built for fun (and education)!
 

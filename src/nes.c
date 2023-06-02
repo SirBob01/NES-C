@@ -1,8 +1,6 @@
 #include "./nes.h"
 
-void print_usage() {
-    printf("Usage: emunes %s <input_file>\n", ARG_INPUT_FILE);
-}
+void print_usage() { printf("Usage: nesc %s <input_file>\n", ARG_INPUT_FILE); }
 
 void print_rom(rom_t *rom) {
     printf("ROM loaded successfully...\n");
