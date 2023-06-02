@@ -35,6 +35,8 @@ rom_t load_rom(const char *path) {
     return rom;
 }
 
+void unload_rom(rom_t *rom) { free_memory(&rom->data); }
+
 rom_header_t get_rom_header(const unsigned char *buffer) {
     rom_header_t header;
 
@@ -91,5 +93,3 @@ unsigned char *get_prg_rom(rom_t *rom) {
 unsigned char *get_chr_rom(rom_t *rom) {
     return get_prg_rom(rom) + rom->header.prg_rom_size;
 }
-
-void unload_rom(rom_t *rom) { free_memory(&rom->data); }

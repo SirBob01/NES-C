@@ -119,6 +119,13 @@ typedef struct {
 rom_t load_rom(const char *path);
 
 /**
+ * @brief Release the ROM.
+ *
+ * @param rom
+ */
+void unload_rom(rom_t *rom);
+
+/**
  * @brief Get the header of the ROM.
  *
  * @param buffer
@@ -149,12 +156,5 @@ unsigned char *get_prg_rom(rom_t *rom);
  * @return unsigned char*
  */
 unsigned char *get_chr_rom(rom_t *rom);
-
-/**
- * @brief Release the ROM.
- *
- * @param rom
- */
-void unload_rom(rom_t *rom);
 
 #endif
