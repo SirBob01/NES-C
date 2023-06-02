@@ -103,6 +103,13 @@ typedef struct {
 cpu_t create_cpu();
 
 /**
+ * @brief Destroy the CPU.
+ *
+ * @param cpu
+ */
+void destroy_cpu(cpu_t *cpu);
+
+/**
  * @brief Convert mirrored addresses to actual addresses.
  *
  * @param address
@@ -133,36 +140,6 @@ apply_memory_mapper(cpu_t *cpu, rom_t *rom, unsigned short address);
  * @return unsigned char*
  */
 unsigned char *get_memory_cpu(cpu_t *cpu, rom_t *rom, unsigned short address);
-
-/**
- * @brief Read from the CPU memory.
- *
- * @param cpu
- * @param rom
- * @param address
- * @return unsigned char
- */
-unsigned char read_cpu(cpu_t *cpu, rom_t *rom, unsigned short address);
-
-/**
- * @brief Write to the CPU memory.
- *
- * @param cpu
- * @param rom
- * @param address
- * @param data
- */
-void write_cpu(cpu_t *cpu,
-               rom_t *rom,
-               unsigned short address,
-               unsigned char data);
-
-/**
- * @brief Destroy the CPU.
- *
- * @param cpu
- */
-void destroy_cpu(cpu_t *cpu);
 
 /**
  * @brief Apply the NROM mapper to get a pointer either to the cartridge ROM or

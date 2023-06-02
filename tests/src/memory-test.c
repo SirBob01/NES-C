@@ -2,8 +2,7 @@
 
 #include "./ctest.h"
 
-#include "../../src/cpu.h"
-#include "../../src/rom.h"
+#include "../../src/emulator.h"
 
 int tests_run = 0;
 
@@ -56,14 +55,12 @@ static char *test_mirror_apu() {
 }
 
 static char *test_mapper0() {
-    rom_t rom = load_rom("../roms/nestest.nes");
-    cpu_t cpu = create_cpu();
+    emulator_t emu = create_emulator("../roms/nestest.nes");
 
-    unsigned char pc0 = read_cpu(&cpu, &rom, CPU_VEC_RESET);
-    unsigned char pc1 = read_cpu(&cpu, &rom, CPU_VEC_RESET + 1);
-    mu_assert("MAPPER 0 RESET VECTOR", (pc0 | (pc1 << 8)) == 0xc004);
+    unsigned short pc = read_cpu_short(&emu, CPU_VEC_RESET);
+    mu_assert("MAPPER 0 RESET VECTOR", pc == 0xc004);
 
-    unload_rom(&rom);
+    destroy_emulator(&emu);
     return 0;
 }
 

@@ -13,6 +13,8 @@ cpu_t create_cpu() {
     return cpu;
 }
 
+void destroy_cpu(cpu_t *cpu) { free_memory(&cpu->memory); }
+
 unsigned short mirror_address_cpu(unsigned short address) {
     if (address < CPU_MEMORY_MAP[CPU_MAP_PPU_REG]) {
         // Mirrored RAM region
@@ -45,21 +47,6 @@ unsigned char *get_memory_cpu(cpu_t *cpu, rom_t *rom, unsigned short address) {
     }
     return NULL;
 }
-
-unsigned char read_cpu(cpu_t *cpu, rom_t *rom, unsigned short address) {
-    unsigned char *ptr = get_memory_cpu(cpu, rom, address);
-    return ptr[0];
-}
-
-void write_cpu(cpu_t *cpu,
-               rom_t *rom,
-               unsigned short address,
-               unsigned char data) {
-    unsigned char *ptr = get_memory_cpu(cpu, rom, address);
-    ptr[0] = data;
-}
-
-void destroy_cpu(cpu_t *cpu) { free_memory(&cpu->memory); }
 
 unsigned char *apply_mapper0(cpu_t *cpu, rom_t *rom, unsigned short address) {
     bool nrom128 = rom->header.prg_rom_size == 0x4000;
