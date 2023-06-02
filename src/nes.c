@@ -1,5 +1,4 @@
 #include "./nes.h"
-#include "emulator.h"
 
 void print_usage() {
     printf("Usage: emunes %s <input_file>\n", ARG_INPUT_FILE);
@@ -39,7 +38,7 @@ emulator_t parse_args(int argc, char **argv) {
         exit(1);
     }
     if (argc == 4) {
-        unsigned pc = strtol(argv[3], NULL, 16);
+        address_t pc = strtol(argv[3], NULL, 16);
         return create_emulator2(argv[2], pc);
     }
     return create_emulator(argv[2]);

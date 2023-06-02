@@ -32,7 +32,7 @@ emulator_t create_emulator(const char *rom_path);
  * @param pc
  * @return emulator_t
  */
-emulator_t create_emulator2(const char *rom_path, unsigned short pc);
+emulator_t create_emulator2(const char *rom_path, address_t pc);
 
 /**
  * @brief Free all resources held by the emulator.
@@ -48,7 +48,7 @@ void destroy_emulator(emulator_t *emu);
  * @param address
  * @return unsigned char
  */
-unsigned char read_cpu_byte(emulator_t *emu, unsigned short address);
+unsigned char read_cpu_byte(emulator_t *emu, address_t address);
 
 /**
  * @brief Read a short from the CPU's memory.
@@ -57,7 +57,7 @@ unsigned char read_cpu_byte(emulator_t *emu, unsigned short address);
  * @param address
  * @return unsigned short
  */
-unsigned short read_cpu_short(emulator_t *emu, unsigned short address);
+unsigned short read_cpu_short(emulator_t *emu, address_t address);
 
 /**
  * @brief Write a byte to the CPU's memory.
@@ -66,9 +66,7 @@ unsigned short read_cpu_short(emulator_t *emu, unsigned short address);
  * @param address
  * @param value
  */
-void write_cpu_byte(emulator_t *emu,
-                    unsigned short address,
-                    unsigned char value);
+void write_cpu_byte(emulator_t *emu, address_t address, unsigned char value);
 
 /**
  * @brief Write a short to the CPU's memory.
@@ -77,9 +75,7 @@ void write_cpu_byte(emulator_t *emu,
  * @param address
  * @param value
  */
-void write_cpu_short(emulator_t *emu,
-                     unsigned short address,
-                     unsigned short value);
+void write_cpu_short(emulator_t *emu, address_t address, unsigned short value);
 
 /**
  * @brief Run the emulator.
