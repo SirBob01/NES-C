@@ -23,6 +23,12 @@ typedef struct {
 } memory_t;
 
 /**
+ * @brief Address type.
+ *
+ */
+typedef unsigned short address_t;
+
+/**
  * @brief Allocate memory.
  *
  * @param size

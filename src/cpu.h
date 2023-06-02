@@ -27,7 +27,7 @@
  * @brief CPU memory map offsets.
  *
  */
-static const unsigned short CPU_MEMORY_MAP[] = {
+static const address_t CPU_MEMORY_MAP[] = {
     0x0000, // 2k RAM
     0x0800, // Mirror 0
     0x1000, // Mirror 1
@@ -60,7 +60,7 @@ typedef struct {
      * @brief Program counter (2-bytes wide).
      *
      */
-    unsigned short pc;
+    address_t pc;
 
     /**
      * @brief Stack pointer.
@@ -113,9 +113,9 @@ void destroy_cpu(cpu_t *cpu);
  * @brief Convert mirrored addresses to actual addresses.
  *
  * @param address
- * @return unsigned short
+ * @return address_t
  */
-unsigned short mirror_address_cpu(unsigned short address);
+address_t mirror_address_cpu(address_t address);
 
 /**
  * @brief Apply mapper to address that lies on the ROM cartridge section.
@@ -125,8 +125,7 @@ unsigned short mirror_address_cpu(unsigned short address);
  * @param address
  * @return unsigned char*
  */
-unsigned char *
-apply_memory_mapper(cpu_t *cpu, rom_t *rom, unsigned short address);
+unsigned char *apply_memory_mapper(cpu_t *cpu, rom_t *rom, address_t address);
 
 /**
  * @brief Get the pointer to memory at an address.
@@ -139,7 +138,7 @@ apply_memory_mapper(cpu_t *cpu, rom_t *rom, unsigned short address);
  * @param address
  * @return unsigned char*
  */
-unsigned char *get_memory_cpu(cpu_t *cpu, rom_t *rom, unsigned short address);
+unsigned char *get_memory_cpu(cpu_t *cpu, rom_t *rom, address_t address);
 
 /**
  * @brief Apply the NROM mapper to get a pointer either to the cartridge ROM or
@@ -150,6 +149,6 @@ unsigned char *get_memory_cpu(cpu_t *cpu, rom_t *rom, unsigned short address);
  * @param address
  * @return unsigned char*
  */
-unsigned char *apply_mapper0(cpu_t *cpu, rom_t *rom, unsigned short address);
+unsigned char *apply_mapper0(cpu_t *cpu, rom_t *rom, address_t address);
 
 #endif

@@ -13,6 +13,9 @@
 #define ADC_IX 0x61
 #define ADC_IY 0x71
 
+#define JMP_A  0x4c
+#define JMP_I  0x6c
+
 // 7  bit  0
 // ---- ----
 // NVss DIZC
@@ -25,6 +28,17 @@
 // |+-------- Overflow
 // +--------- Negative
 
-// inline unsigned long adc_i(cpu_t *cpu, unsigned char operand) { return 3; }
+inline void jmp_a(cpu_t *cpu, unsigned char pc0, unsigned char pc1) {
+    cpu->registers.pc = (pc1 << 8) | pc0;
+    cpu->cycles += 3;
+}
+
+inline void adc_i(cpu_t *cpu, unsigned char memory) {
+    unsigned char carry = cpu->registers.p & 0x01;
+    unsigned short result = cpu->registers.a + memory + carry;
+    cpu->registers.p ^= ~(result >> 7);
+    cpu->registers.a += result;
+    cpu->cycles += 3;
+}
 
 #endif
