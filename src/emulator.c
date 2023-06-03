@@ -34,8 +34,9 @@ unsigned char read_cpu_byte(emulator_t *emu, address_t address) {
 }
 
 unsigned short read_cpu_short(emulator_t *emu, address_t address) {
-    unsigned char *memory = get_memory_cpu(&emu->cpu, &emu->rom, address);
-    return memory[0] | (memory[1] << 8);
+    unsigned char *a0 = get_memory_cpu(&emu->cpu, &emu->rom, address);
+    unsigned char *a1 = get_memory_cpu(&emu->cpu, &emu->rom, address + 1);
+    return *a0 | (*a1 << 8);
 }
 
 void write_cpu_byte(emulator_t *emu, address_t address, unsigned char value) {
@@ -44,9 +45,10 @@ void write_cpu_byte(emulator_t *emu, address_t address, unsigned char value) {
 }
 
 void write_cpu_short(emulator_t *emu, address_t address, unsigned short value) {
-    unsigned char *memory = get_memory_cpu(&emu->cpu, &emu->rom, address);
-    memory[0] = value & 0xff;
-    memory[1] = (value >> 8) & 0xff;
+    unsigned char *a0 = get_memory_cpu(&emu->cpu, &emu->rom, address);
+    unsigned char *a1 = get_memory_cpu(&emu->cpu, &emu->rom, address + 1);
+    *a0 = value;
+    *a1 = value >> 8;
 }
 
 bool update_emulator(emulator_t *emu) {
