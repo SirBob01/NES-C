@@ -101,6 +101,28 @@ void write_short_cpu(cpu_t *cpu,
     *a1 = value >> 8;
 }
 
+void push_byte_cpu(cpu_t *cpu, rom_t *rom, unsigned char value) {
+    cpu->s--;
+    write_byte_cpu(cpu, rom, 0x100 | cpu->s, value);
+}
+
+void push_short_cpu(cpu_t *cpu, rom_t *rom, unsigned short value) {
+    cpu->s -= 2;
+    write_short_cpu(cpu, rom, 0x100 | cpu->s, value);
+}
+
+void pop_byte_cpu(cpu_t *cpu, rom_t *rom) { cpu->s++; }
+
+void pop_short_cpu(cpu_t *cpu, rom_t *rom) { cpu->s += 2; }
+
+unsigned char peek_byte_cpu(cpu_t *cpu, rom_t *rom) {
+    return read_byte_cpu(cpu, rom, 0x100 | cpu->s);
+}
+
+unsigned short peek_short_cpu(cpu_t *cpu, rom_t *rom) {
+    return read_short_cpu(cpu, rom, 0x100 | cpu->s);
+}
+
 bool update_cpu(cpu_t *cpu, rom_t *rom) {
     unsigned char opcode = read_byte_cpu(cpu, rom, cpu->pc);
     switch (opcode) {
