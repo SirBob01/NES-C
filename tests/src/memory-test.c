@@ -64,11 +64,36 @@ static char *test_mapper0() {
     return 0;
 }
 
+static char *test_stack() {
+    emulator_t emu = create_emulator("../roms/nestest.nes");
+    mu_assert("Stack address start", emu.cpu.s == 0xfd);
+
+    push_byte_cpu(&emu.cpu, &emu.rom, 0x3);
+    mu_assert("Stack address after push", emu.cpu.s == 0xfc);
+    mu_assert("Stack push top byte", peek_byte_cpu(&emu.cpu, &emu.rom) == 0x3);
+
+    push_short_cpu(&emu.cpu, &emu.rom, 0x1234);
+    mu_assert("Stack address after push", emu.cpu.s == 0xfa);
+    mu_assert("Stack push top short",
+              peek_short_cpu(&emu.cpu, &emu.rom) == 0x1234);
+
+    pop_short_cpu(&emu.cpu, &emu.rom);
+    mu_assert("Stack address after pop", emu.cpu.s == 0xfc);
+    mu_assert("Stack pop top byte", peek_byte_cpu(&emu.cpu, &emu.rom) == 0x3);
+
+    pop_byte_cpu(&emu.cpu, &emu.rom);
+    mu_assert("Stack address end", emu.cpu.s == 0xfd);
+
+    destroy_emulator(&emu);
+    return 0;
+}
+
 static char *all_tests() {
     mu_run_test(test_mirror_ram);
     mu_run_test(test_mirror_ppu);
     mu_run_test(test_mirror_apu);
     mu_run_test(test_mapper0);
+    mu_run_test(test_stack);
     return 0;
 }
 

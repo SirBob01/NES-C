@@ -201,6 +201,58 @@ void write_short_cpu(cpu_t *cpu,
                      unsigned short value);
 
 /**
+ * @brief Push a byte onto the stack.
+ *
+ * @param cpu
+ * @param rom
+ * @param value
+ */
+void push_byte_cpu(cpu_t *cpu, rom_t *rom, unsigned char value);
+
+/**
+ * @brief Push a short onto the stack.
+ *
+ * @param cpu
+ * @param rom
+ * @param value
+ */
+void push_short_cpu(cpu_t *cpu, rom_t *rom, unsigned short value);
+
+/**
+ * @brief Pop a byte from the stack.
+ *
+ * @param cpu
+ * @param rom
+ */
+void pop_byte_cpu(cpu_t *cpu, rom_t *rom);
+
+/**
+ * @brief Pop a short from the stack.
+ *
+ * @param cpu
+ * @param rom
+ */
+void pop_short_cpu(cpu_t *cpu, rom_t *rom);
+
+/**
+ * @brief Peek a byte from the stack.
+ *
+ * @param cpu
+ * @param rom
+ * @return unsigned char
+ */
+unsigned char peek_byte_cpu(cpu_t *cpu, rom_t *rom);
+
+/**
+ * @brief Peek a short from the stack.
+ *
+ * @param cpu
+ * @param rom
+ * @return unsigned short
+ */
+unsigned short peek_short_cpu(cpu_t *cpu, rom_t *rom);
+
+/**
  * @brief Update the CPU.
  *
  * @param cpu
