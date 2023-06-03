@@ -1,19 +1,44 @@
 #include "./cpu.h"
+#include "./mapper.h"
 
 cpu_t create_cpu() {
     cpu_t cpu;
-    cpu.registers.a = 0;
-    cpu.registers.x = 0;
-    cpu.registers.y = 0;
-    cpu.registers.pc = 0;
-    cpu.registers.s = 0xfd;
-    cpu.registers.p = 0x34;
+
+    // Set registers
+    cpu.a = 0;
+    cpu.x = 0;
+    cpu.y = 0;
+    cpu.pc = 0;
+    cpu.s = 0xfd;
+
+    // Set status flags
+    cpu.status.c = false;
+    cpu.status.z = false;
+    cpu.status.i = false;
+    cpu.status.d = false;
+    cpu.status.b = false;
+    cpu.status.o = false;
+    cpu.status.n = false;
+
     cpu.cycles = 0;
     cpu.memory = allocate_memory(CPU_RAM_SIZE);
     return cpu;
 }
 
 void destroy_cpu(cpu_t *cpu) { free_memory(&cpu->memory); }
+
+unsigned char get_status_cpu(cpu_t *cpu) {
+    unsigned char status = 0;
+    status |= cpu->status.c << 0;
+    status |= cpu->status.z << 1;
+    status |= cpu->status.i << 2;
+    status |= cpu->status.d << 3;
+    status |= cpu->status.b << 4;
+    status |= 1 << 5;
+    status |= cpu->status.o << 6;
+    status |= cpu->status.n << 7;
+    return status;
+}
 
 address_t mirror_address_cpu(address_t address) {
     if (address < CPU_MEMORY_MAP[CPU_MAP_PPU_REG]) {
@@ -31,7 +56,7 @@ address_t mirror_address_cpu(address_t address) {
 unsigned char *apply_memory_mapper(cpu_t *cpu, rom_t *rom, address_t address) {
     switch (rom->header.mapper) {
     case 0:
-        return apply_mapper0(cpu, rom, address);
+        return nrom_mapper(cpu, rom, address);
     default:
         break;
     }
@@ -47,13 +72,40 @@ unsigned char *get_memory_cpu(cpu_t *cpu, rom_t *rom, address_t address) {
     return NULL;
 }
 
-unsigned char *apply_mapper0(cpu_t *cpu, rom_t *rom, address_t address) {
-    bool nrom128 = rom->header.prg_rom_size == 0x4000;
-    address_t rom_offset = 0x8000;
-    if (address >= rom_offset) {
-        address_t rom_addr = address - rom_offset;
-        return get_prg_rom(rom) + (rom_addr % (nrom128 * 0x4000));
-    } else {
-        return cpu->memory.buffer + address;
+unsigned char read_byte_cpu(cpu_t *cpu, rom_t *rom, address_t address) {
+    unsigned char *memory = get_memory_cpu(cpu, rom, address);
+    return memory[0];
+}
+
+unsigned short read_short_cpu(cpu_t *cpu, rom_t *rom, address_t address) {
+    unsigned char *a0 = get_memory_cpu(cpu, rom, address);
+    unsigned char *a1 = get_memory_cpu(cpu, rom, address + 1);
+    return *a0 | (*a1 << 8);
+}
+
+void write_byte_cpu(cpu_t *cpu,
+                    rom_t *rom,
+                    address_t address,
+                    unsigned char value) {
+    unsigned char *memory = get_memory_cpu(cpu, rom, address);
+    memory[0] = value;
+}
+
+void write_short_cpu(cpu_t *cpu,
+                     rom_t *rom,
+                     address_t address,
+                     unsigned short value) {
+    unsigned char *a0 = get_memory_cpu(cpu, rom, address);
+    unsigned char *a1 = get_memory_cpu(cpu, rom, address + 1);
+    *a0 = value;
+    *a1 = value >> 8;
+}
+
+bool update_cpu(cpu_t *cpu, rom_t *rom) {
+    unsigned char opcode = read_byte_cpu(cpu, rom, cpu->pc);
+    switch (opcode) {
+    default:
+        break;
     }
+    return true;
 }

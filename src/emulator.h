@@ -3,7 +3,6 @@
 
 #include "./cpu.h"
 #include "./memory.h"
-#include "./opcode.h"
 #include "./rom.h"
 
 /**
@@ -42,43 +41,7 @@ emulator_t create_emulator2(const char *rom_path, address_t pc);
 void destroy_emulator(emulator_t *emu);
 
 /**
- * @brief Read a byte from the CPU's memory.
- *
- * @param emu
- * @param address
- * @return unsigned char
- */
-unsigned char read_cpu_byte(emulator_t *emu, address_t address);
-
-/**
- * @brief Read a short from the CPU's memory.
- *
- * @param emu
- * @param address
- * @return unsigned short
- */
-unsigned short read_cpu_short(emulator_t *emu, address_t address);
-
-/**
- * @brief Write a byte to the CPU's memory.
- *
- * @param emu
- * @param address
- * @param value
- */
-void write_cpu_byte(emulator_t *emu, address_t address, unsigned char value);
-
-/**
- * @brief Write a short to the CPU's memory.
- *
- * @param emu
- * @param address
- * @param value
- */
-void write_cpu_short(emulator_t *emu, address_t address, unsigned short value);
-
-/**
- * @brief Run the emulator.
+ * @brief Update the emulator.
  *
  * @param emu
  * @return true

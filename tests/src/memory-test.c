@@ -57,7 +57,7 @@ static char *test_mirror_apu() {
 static char *test_mapper0() {
     emulator_t emu = create_emulator("../roms/nestest.nes");
 
-    unsigned short pc = read_cpu_short(&emu, CPU_VEC_RESET);
+    unsigned short pc = read_short_cpu(&emu.cpu, &emu.rom, CPU_VEC_RESET);
     mu_assert("MAPPER 0 RESET VECTOR", pc == 0xc004);
 
     destroy_emulator(&emu);

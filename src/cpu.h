@@ -40,7 +40,21 @@ static const address_t CPU_MEMORY_MAP[] = {
 };
 
 /**
- * @brief Registers of the 6502 processor.
+ * @brief CPU status flags.
+ *
+ */
+typedef struct {
+    bool c; // Carry
+    bool z; // Zero
+    bool i; // Interrupt disable
+    bool d; // Decimal mode
+    bool b; // Break
+    bool o; // Overflow
+    bool n; // Negative
+} cpu_status_t;
+
+/**
+ * @brief CPU emulation state.
  *
  */
 typedef struct {
@@ -69,18 +83,10 @@ typedef struct {
     unsigned char s;
 
     /**
-     * @brief Status register.
+     * @brief CPU status flags.
      *
      */
-    unsigned char p;
-} cpu_registers_t;
-
-/**
- * @brief CPU emulation state.
- *
- */
-typedef struct {
-    cpu_registers_t registers;
+    cpu_status_t status;
 
     /**
      * @brief Number of cycles.
@@ -108,6 +114,14 @@ cpu_t create_cpu();
  * @param cpu
  */
 void destroy_cpu(cpu_t *cpu);
+
+/**
+ * @brief Get the CPU status flag, useful for debugging.
+ *
+ * @param cpu
+ * @return unsigned char
+ */
+unsigned char get_status_cpu(cpu_t *cpu);
 
 /**
  * @brief Convert mirrored addresses to actual addresses.
@@ -141,14 +155,59 @@ unsigned char *apply_memory_mapper(cpu_t *cpu, rom_t *rom, address_t address);
 unsigned char *get_memory_cpu(cpu_t *cpu, rom_t *rom, address_t address);
 
 /**
- * @brief Apply the NROM mapper to get a pointer either to the cartridge ROM or
- * CPU memory.
+ * @brief Read a byte from the CPU's memory.
  *
  * @param cpu
  * @param rom
  * @param address
- * @return unsigned char*
+ * @return unsigned char
  */
-unsigned char *apply_mapper0(cpu_t *cpu, rom_t *rom, address_t address);
+unsigned char read_byte_cpu(cpu_t *cpu, rom_t *rom, address_t address);
+
+/**
+ * @brief Read a short from the CPU's memory.
+ *
+ * @param cpu
+ * @param rom
+ * @param address
+ * @return unsigned short
+ */
+unsigned short read_short_cpu(cpu_t *cpu, rom_t *rom, address_t address);
+
+/**
+ * @brief Write a byte to the CPU's memory.
+ *
+ * @param cpu
+ * @param rom
+ * @param address
+ * @param value
+ */
+void write_byte_cpu(cpu_t *cpu,
+                    rom_t *rom,
+                    address_t address,
+                    unsigned char value);
+
+/**
+ * @brief Write a short to the CPU's memory.
+ *
+ * @param cpu
+ * @param rom
+ * @param address
+ * @param value
+ */
+void write_short_cpu(cpu_t *cpu,
+                     rom_t *rom,
+                     address_t address,
+                     unsigned short value);
+
+/**
+ * @brief Update the CPU.
+ *
+ * @param cpu
+ * @param rom
+ * @return true
+ * @return false
+ */
+bool update_cpu(cpu_t *cpu, rom_t *rom);
 
 #endif
