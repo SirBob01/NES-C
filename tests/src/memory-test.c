@@ -70,18 +70,14 @@ static char *test_stack() {
 
     push_byte_cpu(&emu.cpu, &emu.rom, 0x3);
     mu_assert("Stack address after push", emu.cpu.s == 0xfc);
-    mu_assert("Stack push top byte", peek_byte_cpu(&emu.cpu, &emu.rom) == 0x3);
 
     push_short_cpu(&emu.cpu, &emu.rom, 0x1234);
     mu_assert("Stack address after push", emu.cpu.s == 0xfa);
+
     mu_assert("Stack push top short",
-              peek_short_cpu(&emu.cpu, &emu.rom) == 0x1234);
-
-    pop_short_cpu(&emu.cpu, &emu.rom);
+              pop_short_cpu(&emu.cpu, &emu.rom) == 0x1234);
     mu_assert("Stack address after pop", emu.cpu.s == 0xfc);
-    mu_assert("Stack pop top byte", peek_byte_cpu(&emu.cpu, &emu.rom) == 0x3);
-
-    pop_byte_cpu(&emu.cpu, &emu.rom);
+    mu_assert("Stack pop top byte", pop_byte_cpu(&emu.cpu, &emu.rom) == 0x3);
     mu_assert("Stack address end", emu.cpu.s == 0xfd);
 
     destroy_emulator(&emu);
