@@ -175,6 +175,18 @@ unsigned char read_byte_cpu(cpu_t *cpu, rom_t *rom, address_t address);
 unsigned short read_short_cpu(cpu_t *cpu, rom_t *rom, address_t address);
 
 /**
+ * @brief Read a short from the CPU's zero-page memory.
+ *
+ * This handles the wrap-around of the second byte address.
+ *
+ * @param cpu
+ * @param rom
+ * @param address
+ * @return unsigned short
+ */
+unsigned short read_short_zp_cpu(cpu_t *cpu, rom_t *rom, unsigned char address);
+
+/**
  * @brief Write a byte to the CPU's memory.
  *
  * @param cpu
@@ -219,29 +231,13 @@ void push_byte_cpu(cpu_t *cpu, rom_t *rom, unsigned char value);
 void push_short_cpu(cpu_t *cpu, rom_t *rom, unsigned short value);
 
 /**
- * @brief Pop a byte from the stack.
- *
- * @param cpu
- * @param rom
- */
-void pop_byte_cpu(cpu_t *cpu, rom_t *rom);
-
-/**
- * @brief Pop a short from the stack.
- *
- * @param cpu
- * @param rom
- */
-void pop_short_cpu(cpu_t *cpu, rom_t *rom);
-
-/**
  * @brief Peek a byte from the stack.
  *
  * @param cpu
  * @param rom
  * @return unsigned char
  */
-unsigned char peek_byte_cpu(cpu_t *cpu, rom_t *rom);
+unsigned char pop_byte_cpu(cpu_t *cpu, rom_t *rom);
 
 /**
  * @brief Peek a short from the stack.
@@ -250,7 +246,16 @@ unsigned char peek_byte_cpu(cpu_t *cpu, rom_t *rom);
  * @param rom
  * @return unsigned short
  */
-unsigned short peek_short_cpu(cpu_t *cpu, rom_t *rom);
+unsigned short pop_short_cpu(cpu_t *cpu, rom_t *rom);
+
+/**
+ * @brief Print the current state of the CPU for debugging.
+ *
+ * @param cpu
+ * @param rom
+ * @param opcode_byte
+ */
+void print_cpu_state(cpu_t *cpu, rom_t *rom, unsigned char opcode_byte);
 
 /**
  * @brief Update the CPU.
