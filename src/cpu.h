@@ -249,13 +249,14 @@ unsigned char pop_byte_cpu(cpu_t *cpu, rom_t *rom);
 unsigned short pop_short_cpu(cpu_t *cpu, rom_t *rom);
 
 /**
- * @brief Print the current state of the CPU for debugging.
+ * @brief Read the current state of the CPU for debugging.
  *
+ * @param buffer
+ * @param buffer_size
  * @param cpu
  * @param rom
- * @param opcode_byte
  */
-void print_cpu_state(cpu_t *cpu, rom_t *rom, unsigned char opcode_byte);
+void read_cpu_state(char *buffer, unsigned buffer_size, cpu_t *cpu, rom_t *rom);
 
 /**
  * @brief Update the CPU.

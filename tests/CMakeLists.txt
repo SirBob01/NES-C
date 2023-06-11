@@ -8,7 +8,7 @@ set(CMAKE_C_STANDARD_REQUIRED on)
 add_compile_options(-Wall -g -O3 -fPIC)
 
 file(GLOB_RECURSE INCLUDE "./src/*.h" "../src/*.h")
-file(GLOB_RECURSE SOURCES "./src/*.c" "../src/*.c")
+file(GLOB_RECURSE SOURCES "../src/*.c")
 
 list(FILTER INCLUDE EXCLUDE REGEX ".*nes\\.h$")
 list(FILTER SOURCES EXCLUDE REGEX ".*nes\\.c$")
