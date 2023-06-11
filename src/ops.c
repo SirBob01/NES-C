@@ -98,8 +98,9 @@ operand_t addr_indirect_y(cpu_t *cpu, rom_t *rom) {
 
 operand_t addr_relative(cpu_t *cpu, rom_t *rom) {
     signed char offset = read_byte_cpu(cpu, rom, cpu->pc + 1);
+    address_t base = cpu->pc + 2;
     operand_t operand;
-    operand.address = cpu->pc + offset + 2;
-    operand.page_crossed = 0;
+    operand.address = base + offset;
+    operand.page_crossed = (base & 0xff) + offset > 0xff;
     return operand;
 }

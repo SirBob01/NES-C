@@ -9,8 +9,8 @@ An NES Emulator built for fun (and education)!
 
 ## TODO
 
-* Implement the 151 op codes
-* Main emulation loop to test CPU
+* Implement PPU emulation
+* Implement APU emulation
 
 ## License
 

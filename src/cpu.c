@@ -239,6 +239,13 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
     case OP_STA:
     case OP_STX:
     case OP_STY:
+    case OP_SAX:
+    case OP_DCP:
+    case OP_ISC:
+    case OP_SLO:
+    case OP_RLA:
+    case OP_SRE:
+    case OP_RRA:
         delay_cycles = 0;
         break;
     default:
@@ -365,9 +372,10 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
         break;
     case OP_CMP: {
         unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+        unsigned char sub = cpu->a - val;
         cpu->status.c = cpu->a >= val;
         cpu->status.z = cpu->a == val;
-        cpu->status.n = (cpu->a - val) >> 7;
+        cpu->status.n = sub >> 7;
         break;
     }
     case OP_CLD:
@@ -383,6 +391,7 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
         cpu->status.i = status & 0x4;
         cpu->status.d = status & 0x8;
         cpu->status.o = status & 0x40;
+        cpu->status.n = status & 0x80;
         break;
     }
     case OP_BMI:
@@ -424,16 +433,18 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
         break;
     case OP_CPY: {
         unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+        unsigned char sub = cpu->y - val;
         cpu->status.c = cpu->y >= val;
         cpu->status.z = cpu->y == val;
-        cpu->status.n = (cpu->y - val) >> 7;
+        cpu->status.n = sub >> 7;
         break;
     }
     case OP_CPX: {
         unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+        unsigned char sub = cpu->x - val;
         cpu->status.c = cpu->x >= val;
         cpu->status.z = cpu->x == val;
-        cpu->status.n = (cpu->x - val) >> 7;
+        cpu->status.n = sub >> 7;
         break;
     }
     case OP_SBC: {
@@ -625,10 +636,172 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
         cpu->pc = read_short_cpu(cpu, rom, CPU_VEC_IRQ_BRK);
         cpu->status.b = true;
         break;
+    case OP_LAX:
+        cpu->a = read_byte_cpu(cpu, rom, operand.address);
+        cpu->x = cpu->a;
+        cpu->status.z = cpu->a == 0;
+        cpu->status.n = cpu->a >> 7;
+        break;
+    case OP_SAX:
+        write_byte_cpu(cpu, rom, operand.address, cpu->a & cpu->x);
+        break;
+    case OP_DCP: {
+        // DEC
+        unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+        val--;
+        write_byte_cpu(cpu, rom, operand.address, val);
+
+        // CMP
+        unsigned char sub = cpu->a - val;
+        cpu->status.c = cpu->a >= val;
+        cpu->status.z = cpu->a == val;
+        cpu->status.n = sub >> 7;
+        break;
+    }
+    case OP_ISC: {
+        // INC
+        unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+        val++;
+        write_byte_cpu(cpu, rom, operand.address, val);
+
+        // SBC
+        unsigned char m = ~read_byte_cpu(cpu, rom, operand.address);
+        unsigned char n = cpu->a;
+        unsigned short res = m + n + cpu->status.c;
+        cpu->a = res;
+        cpu->status.c = res > 0xff;
+        cpu->status.z = cpu->a == 0;
+        cpu->status.n = cpu->a >> 7;
+        cpu->status.o = ((m ^ cpu->a) & (n ^ cpu->a) & 0x80) > 0;
+        break;
+    }
+    case OP_SLO:
+        // ASL
+        switch (opcode.address_mode) {
+        case ADDR_ACCUMULATOR:
+            cpu->status.c = cpu->a & 0x80;
+            cpu->a <<= 1;
+            cpu->status.z = cpu->a == 0;
+            cpu->status.n = cpu->a >> 7;
+            break;
+        default: {
+            unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+            cpu->status.c = val & 0x80;
+            val <<= 1;
+            cpu->status.z = val == 0;
+            cpu->status.n = val >> 7;
+            write_byte_cpu(cpu, rom, operand.address, val);
+            break;
+        }
+        }
+
+        // ORA
+        cpu->a |= read_byte_cpu(cpu, rom, operand.address);
+        cpu->status.z = cpu->a == 0;
+        cpu->status.n = cpu->a >> 7;
+        break;
+    case OP_RLA:
+        // ROL
+        switch (opcode.address_mode) {
+        case ADDR_ACCUMULATOR: {
+            unsigned char old_c = cpu->status.c;
+            cpu->status.c = cpu->a & 0x80;
+            cpu->a <<= 1;
+            cpu->a |= old_c;
+
+            cpu->status.z = cpu->a == 0;
+            cpu->status.n = cpu->a >> 7;
+            break;
+        }
+        default: {
+            unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+            unsigned char old_c = cpu->status.c;
+            cpu->status.c = val & 0x80;
+            val <<= 1;
+            val |= old_c;
+
+            cpu->status.z = val == 0;
+            cpu->status.n = val >> 7;
+            write_byte_cpu(cpu, rom, operand.address, val);
+            break;
+        }
+        }
+
+        // AND
+        cpu->a &= read_byte_cpu(cpu, rom, operand.address);
+        cpu->status.z = cpu->a == 0;
+        cpu->status.n = cpu->a >> 7;
+        break;
+    case OP_SRE:
+        // LSR
+        switch (opcode.address_mode) {
+        case ADDR_ACCUMULATOR:
+            cpu->status.c = cpu->a & 0x1;
+            cpu->a >>= 1;
+            cpu->status.z = cpu->a == 0;
+            cpu->status.n = false; // bit 7 is always 0
+            break;
+        default: {
+            unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+            cpu->status.c = val & 0x1;
+            val >>= 1;
+            cpu->status.z = val == 0;
+            cpu->status.n = false;
+            write_byte_cpu(cpu, rom, operand.address, val);
+            break;
+        }
+        }
+
+        // EOR
+        cpu->a ^= read_byte_cpu(cpu, rom, operand.address);
+        cpu->status.z = cpu->a == 0;
+        cpu->status.n = cpu->a >> 7;
+        break;
+    case OP_RRA:
+        // ROR
+        switch (opcode.address_mode) {
+        case ADDR_ACCUMULATOR: {
+            unsigned char old_c = cpu->status.c;
+            cpu->status.c = cpu->a & 0x1;
+            cpu->a >>= 1;
+            cpu->a |= (old_c << 7);
+
+            cpu->status.z = cpu->a == 0;
+            cpu->status.n = cpu->a >> 7;
+            break;
+        }
+        default: {
+            unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+            unsigned char old_c = cpu->status.c;
+            cpu->status.c = val & 0x1;
+            val >>= 1;
+            val |= (old_c << 7);
+
+            cpu->status.z = val == 0;
+            cpu->status.n = val >> 7;
+            write_byte_cpu(cpu, rom, operand.address, val);
+            break;
+        }
+        }
+
+        // ADC
+        unsigned char m = read_byte_cpu(cpu, rom, operand.address);
+        unsigned char n = cpu->a;
+        unsigned short res = m + n + cpu->status.c;
+        cpu->a = res;
+        cpu->status.c = res > 0xff;
+        cpu->status.z = cpu->a == 0;
+        cpu->status.n = cpu->a >> 7;
+        cpu->status.o = ((m ^ cpu->a) & (n ^ cpu->a) & 0x80) > 0;
+        break;
     case OP_NOP:
         break;
+    case OP_JAM:
+        fprintf(stderr, "JAM opcode encountered: 0x%02X\n", opcode_byte);
+        exit(1);
+        break;
     default:
-        fprintf(stderr, "Unknown opcode: %02X\n", opcode_byte);
+        fprintf(stderr, "Unknown opcode: 0x%02X\n", opcode_byte);
         exit(1);
         break;
     }
