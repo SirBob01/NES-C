@@ -133,48 +133,59 @@ unsigned short pop_short_cpu(cpu_t *cpu, rom_t *rom) {
     return a0 | (a1 << 8);
 }
 
-void print_cpu_state(cpu_t *cpu, rom_t *rom, unsigned char opcode_byte) {
+void read_cpu_state(char *buffer,
+                    unsigned buffer_size,
+                    cpu_t *cpu,
+                    rom_t *rom) {
+    unsigned char opcode_byte = read_byte_cpu(cpu, rom, cpu->pc);
     opcode_t opcode = OP_TABLE[opcode_byte];
     unsigned char term_count = ADDRESS_MODE_SIZES[opcode.address_mode];
     switch (term_count) {
     case 1:
-        printf("%04X  %02X        A:%02X X:%02X Y:%02X P:%02X SP:%02X CYC:"
-               "%lu\n",
-               cpu->pc,
-               opcode_byte,
-               cpu->a,
-               cpu->x,
-               cpu->y,
-               get_status_cpu(cpu),
-               cpu->s,
-               cpu->cycles);
+        snprintf(buffer,
+                 buffer_size,
+                 "%04X  %02X        A:%02X X:%02X Y:%02X P:%02X SP:%02X CYC:"
+                 "%lu",
+                 cpu->pc,
+                 opcode_byte,
+                 cpu->a,
+                 cpu->x,
+                 cpu->y,
+                 get_status_cpu(cpu),
+                 cpu->s,
+                 cpu->cycles);
         break;
     case 2:
-        printf("%04X  %02X %02X     A:%02X X:%02X Y:%02X P:%02X SP:%02X CYC:"
-               "%lu\n",
-               cpu->pc,
-               opcode_byte,
-               read_byte_cpu(cpu, rom, cpu->pc + 1),
-               cpu->a,
-               cpu->x,
-               cpu->y,
-               get_status_cpu(cpu),
-               cpu->s,
-               cpu->cycles);
+        snprintf(buffer,
+                 buffer_size,
+                 "%04X  %02X %02X     A:%02X X:%02X Y:%02X P:%02X SP:%02X CYC:"
+                 "%lu",
+                 cpu->pc,
+                 opcode_byte,
+                 read_byte_cpu(cpu, rom, cpu->pc + 1),
+                 cpu->a,
+                 cpu->x,
+                 cpu->y,
+                 get_status_cpu(cpu),
+                 cpu->s,
+                 cpu->cycles);
         break;
     case 3:
-        printf("%04X  %02X %02X %02X  A:%02X X:%02X Y:%02X P:%02X SP:%02X CYC:"
-               "%lu\n",
-               cpu->pc,
-               opcode_byte,
-               read_byte_cpu(cpu, rom, cpu->pc + 1),
-               read_byte_cpu(cpu, rom, cpu->pc + 2),
-               cpu->a,
-               cpu->x,
-               cpu->y,
-               get_status_cpu(cpu),
-               cpu->s,
-               cpu->cycles);
+        snprintf(
+            buffer,
+            buffer_size,
+            "%04X  %02X %02X %02X  A:%02X X:%02X Y:%02X P:%02X SP:%02X CYC:"
+            "%lu",
+            cpu->pc,
+            opcode_byte,
+            read_byte_cpu(cpu, rom, cpu->pc + 1),
+            read_byte_cpu(cpu, rom, cpu->pc + 2),
+            cpu->a,
+            cpu->x,
+            cpu->y,
+            get_status_cpu(cpu),
+            cpu->s,
+            cpu->cycles);
         break;
     default:
         break;
@@ -225,10 +236,6 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
     default:
         break;
     }
-
-#ifndef NDEBUG
-    print_cpu_state(cpu, rom, opcode_byte);
-#endif
 
     // Update the program counter.
     cpu->pc += ADDRESS_MODE_SIZES[opcode.address_mode];
@@ -798,11 +805,11 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
         break;
     case OP_JAM:
         fprintf(stderr, "JAM opcode encountered: 0x%02X\n", opcode_byte);
-        exit(1);
+        return false;
         break;
     default:
         fprintf(stderr, "Unknown opcode: 0x%02X\n", opcode_byte);
-        exit(1);
+        return false;
         break;
     }
 

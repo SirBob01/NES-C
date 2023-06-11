@@ -29,6 +29,6 @@ void destroy_emulator(emulator_t *emu) {
 }
 
 bool update_emulator(emulator_t *emu) {
-    update_cpu(&emu->cpu, &emu->rom);
-    return true;
+    bool cpu_state = update_cpu(&emu->cpu, &emu->rom);
+    return cpu_state;
 }
