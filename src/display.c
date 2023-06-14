@@ -65,8 +65,9 @@ void refresh_display(display_t *display) {
     SDL_SetRenderDrawBlendMode(display->renderer, SDL_BLENDMODE_NONE);
     SDL_RenderTexture(display->renderer, display->texture, NULL, NULL);
 
-    // Present
+    // Present and clear
     SDL_RenderPresent(display->renderer);
+    memset(display->bitmap.buffer, 0, display->bitmap.size);
 }
 
 void render_fill(display_t *display, color_t color) {
