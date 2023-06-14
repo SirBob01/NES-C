@@ -12,6 +12,7 @@
 typedef struct {
     SDL_Event event;
     bool quit;
+    const unsigned char *keystate;
 } input_t;
 
 /**
@@ -29,7 +30,7 @@ input_t create_input();
 void poll_input(input_t *input);
 
 /**
- * @brief Test for a key press.
+ * @brief Test if a key is pressed.
  *
  * @param input
  * @param code
@@ -37,15 +38,5 @@ void poll_input(input_t *input);
  * @return false
  */
 bool is_keydown(input_t *input, SDL_Keycode code);
-
-/**
- * @brief Test for a key release.
- *
- * @param input
- * @param code
- * @return true
- * @return false
- */
-bool is_keyup(input_t *input, SDL_Keycode code);
 
 #endif
