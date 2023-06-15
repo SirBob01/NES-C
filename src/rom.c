@@ -43,7 +43,7 @@ rom_header_t get_rom_header(const unsigned char *buffer) {
     // Determine format type
     header.type = NES_INVALID;
     if (buffer[0] == 'N' && buffer[1] == 'E' && buffer[2] == 'S' &&
-        buffer[3] == 0x1A) {
+        buffer[3] == 0x1a) {
         header.type = NES_1;
     } else {
         fprintf(stderr, "Error: Invalid ROM\n");

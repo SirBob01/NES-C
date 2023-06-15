@@ -44,13 +44,13 @@ unsigned char get_status_cpu(cpu_t *cpu) {
 }
 
 address_t mirror_address_cpu(address_t address) {
-    if (address < CPU_MEMORY_MAP[CPU_MAP_PPU_REG]) {
+    if (address < CPU_MAP_PPU_REG) {
         // Mirrored RAM region
-        address_t base_address = CPU_MEMORY_MAP[CPU_MAP_RAM];
+        address_t base_address = CPU_MAP_RAM;
         return base_address + ((address - base_address) % 0x800);
-    } else if (address < CPU_MEMORY_MAP[CPU_MAP_APU_IO]) {
+    } else if (address < CPU_MAP_APU_IO) {
         // Mirrored PPU register memory
-        address_t base_address = CPU_MEMORY_MAP[CPU_MAP_PPU_REG];
+        address_t base_address = CPU_MAP_PPU_REG;
         return base_address + ((address - base_address) % 0x8);
     }
     return address;
@@ -67,7 +67,7 @@ unsigned char *apply_memory_mapper(cpu_t *cpu, rom_t *rom, address_t address) {
 }
 
 unsigned char *get_memory_cpu(cpu_t *cpu, rom_t *rom, address_t address) {
-    if (address < CPU_MEMORY_MAP[CPU_MAP_CARTRIDGE]) {
+    if (address < CPU_MAP_CARTRIDGE) {
         return cpu->memory.buffer + mirror_address_cpu(address);
     } else {
         return apply_memory_mapper(cpu, rom, address);
