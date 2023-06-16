@@ -1,5 +1,5 @@
-#ifndef AUDIO_H
-#define AUDIO_H
+#ifndef BUFFER_H
+#define BUFFER_H
 
 #include <stdbool.h>
 #include <stdlib.h>

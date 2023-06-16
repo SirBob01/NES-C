@@ -4,6 +4,7 @@ emulator_t create_emulator(const char *rom_path) {
     emulator_t emu;
     emu.rom = load_rom(rom_path);
     emu.cpu = create_cpu();
+    emu.apu = create_apu(&emu.cpu);
 
     // Set the program counter
     unsigned char *rv = get_memory_cpu(&emu.cpu, &emu.rom, CPU_VEC_RESET);
@@ -13,22 +14,20 @@ emulator_t create_emulator(const char *rom_path) {
 }
 
 emulator_t create_emulator2(const char *rom_path, address_t pc) {
-    emulator_t emu;
-    emu.rom = load_rom(rom_path);
-    emu.cpu = create_cpu();
-
-    // Set the program counter
+    emulator_t emu = create_emulator(rom_path);
     emu.cpu.pc = pc;
-
     return emu;
 }
 
 void destroy_emulator(emulator_t *emu) {
+    destroy_apu(&emu->apu);
     destroy_cpu(&emu->cpu);
     unload_rom(&emu->rom);
 }
 
 bool update_emulator(emulator_t *emu) {
     bool cpu_state = update_cpu(&emu->cpu, &emu->rom);
+    update_apu(&emu->apu);
+
     return cpu_state;
 }

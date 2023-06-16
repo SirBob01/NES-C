@@ -1,6 +1,7 @@
 #ifndef EMULATOR_H
 #define EMULATOR_H
 
+#include "./apu.h"
 #include "./cpu.h"
 #include "./memory.h"
 #include "./rom.h"
@@ -12,6 +13,7 @@
 typedef struct {
     rom_t rom;
     cpu_t cpu;
+    apu_t apu;
 } emulator_t;
 
 /**

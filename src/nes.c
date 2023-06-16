@@ -45,6 +45,7 @@ emulator_t parse_args(int argc, char **argv) {
 int main(int argc, char **argv) {
     // Boot up the emulator
     emulator_t emu = parse_args(argc, argv);
+    io_t io = create_io(&emu);
     if (emu.rom.data.buffer == NULL || emu.rom.header.type == NES_INVALID) {
         return 1;
     }
@@ -54,13 +55,15 @@ int main(int argc, char **argv) {
 
     // Run the emulator until it finishes
     while (true) {
-        bool cont = update_emulator(&emu);
-        if (!cont) {
+        bool emu_state = update_emulator(&emu);
+        bool io_state = refresh_io(&io);
+        if (!emu_state || !io_state) {
             break;
         }
     }
 
     // Cleanup
+    destroy_io(&io);
     destroy_emulator(&emu);
     return 0;
 }

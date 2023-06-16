@@ -6,10 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "./cpu.h"
 #include "./emulator.h"
-#include "./memory.h"
-#include "./rom.h"
+#include "./io.h"
 
 #define ARG_INPUT_FILE "-i"
 
