@@ -10,3 +10,7 @@ unsigned char *nrom_cpu(cpu_t *cpu, address_t address) {
         return cpu->memory.buffer + address;
     }
 }
+
+unsigned char *nrom_ppu(ppu_t *ppu, address_t address) {
+    return get_chr_rom(ppu->rom) + address;
+}

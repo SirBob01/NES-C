@@ -3,6 +3,10 @@
 
 #include "./display.h"
 #include "./memory.h"
+#include "./rom.h"
+
+// PPU has a 16-bit address bus (64k)
+#define PPU_RAM_SIZE 1 << 16
 
 // PPU memory map address offsets
 #define PPU_MAP_PATTERNTABLE_0   0x0000
@@ -75,18 +79,37 @@ typedef struct {
     unsigned char oam_dma;
 
     /**
+     * @brief PPU video memory.
+     *
+     */
+    memory_t memory;
+
+    /**
      * @brief Output color buffer.
      *
      */
     color_t color_buffer[PPU_SCANCYCLES * PPU_SCANLINES];
+
+    /**
+     * @brief Object attribute memory.
+     *
+     */
+    unsigned char oam[256];
+
+    /**
+     * @brief Pointer to the ROM.
+     *
+     */
+    rom_t *rom;
 } ppu_t;
 
 /**
  * @brief Create the PPU.
  *
+ * @param rom
  * @return ppu_t*
  */
-ppu_t *create_ppu();
+ppu_t *create_ppu(rom_t *rom);
 
 /**
  * @brief Destroy the PPU.
@@ -94,6 +117,33 @@ ppu_t *create_ppu();
  * @param ppu
  */
 void destroy_ppu(ppu_t *ppu);
+
+/**
+ * @brief Convert mirrored addresses to actual addresses.
+ *
+ * @param address
+ * @param mirroring
+ * @return address_t
+ */
+address_t mirror_address_ppu(address_t address, rom_mirroring_t mirroring);
+
+/**
+ * @brief Apply mapper to address that lies on the CHR cartridge section.
+ *
+ * @param ppu
+ * @param address
+ * @return unsigned char*
+ */
+unsigned char *apply_memory_mapper_ppu(ppu_t *cpu, address_t address);
+
+/**
+ * @brief Get the pointer to an address in VRAM.
+ *
+ * @param ppu
+ * @param address
+ * @return unsigned char*
+ */
+unsigned char *get_memory_ppu(ppu_t *ppu, address_t address);
 
 /**
  * @brief Update the PPU.
