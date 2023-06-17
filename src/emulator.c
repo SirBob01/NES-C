@@ -4,7 +4,7 @@ emulator_t *create_emulator(const char *rom_path) {
     emulator_t *emu = (emulator_t *)malloc(sizeof(emulator_t));
     emu->rom = load_rom(rom_path);
     emu->cpu = create_cpu(emu->rom);
-    emu->apu = create_apu(emu->cpu, emu->rom);
+    emu->apu = create_apu(emu->cpu);
 
     // Set the program counter
     unsigned char *rv = get_memory_cpu(emu->cpu, CPU_VEC_RESET);
