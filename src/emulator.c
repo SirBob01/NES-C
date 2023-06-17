@@ -3,7 +3,7 @@
 emulator_t *create_emulator(const char *rom_path) {
     emulator_t *emu = (emulator_t *)malloc(sizeof(emulator_t));
     emu->rom = load_rom(rom_path);
-    emu->ppu = create_ppu();
+    emu->ppu = create_ppu(emu->rom);
     emu->apu = create_apu();
     emu->cpu = create_cpu(emu->rom, emu->apu, emu->ppu);
 

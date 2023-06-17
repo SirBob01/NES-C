@@ -5,7 +5,7 @@ memory_t allocate_memory(unsigned long size) {
     memory.size = size;
     memory.buffer = (unsigned char *)calloc(size, 1);
     if (memory.buffer == NULL) {
-        fprintf(stderr, "Error: unable to allocate %lu bytes\n", size);
+        fprintf(stderr, "Error: Unable to allocate %lu bytes\n", size);
         exit(1);
     }
 

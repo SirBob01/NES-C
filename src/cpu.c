@@ -52,29 +52,29 @@ unsigned char get_status_cpu(cpu_t *cpu) {
 address_t mirror_address_cpu(address_t address) {
     if (address < CPU_MAP_PPU_REG) {
         // Mirrored RAM region
-        address_t base_address = CPU_MAP_RAM;
-        return base_address + ((address - base_address) % 0x800);
+        return CPU_MAP_RAM + ((address - CPU_MAP_RAM) % 0x800);
     } else if (address < CPU_MAP_APU_IO) {
         // Mirrored PPU register memory
-        address_t base_address = CPU_MAP_PPU_REG;
-        return base_address + ((address - base_address) % 0x8);
+        return CPU_MAP_PPU_REG + ((address - CPU_MAP_PPU_REG) % 0x8);
     }
     return address;
 }
 
-unsigned char *apply_memory_mapper(cpu_t *cpu, address_t address) {
+unsigned char *apply_memory_mapper_cpu(cpu_t *cpu, address_t address) {
     switch (cpu->rom->header.mapper) {
     case 0:
         return nrom_cpu(cpu, address);
     default:
-        break;
+        fprintf(stderr,
+                "Error: Unsupported PPU mapper %d\n",
+                cpu->rom->header.mapper);
+        exit(1);
     }
-    return NULL;
 }
 
 unsigned char *get_memory_cpu(cpu_t *cpu, address_t address) {
     if (address >= CPU_MAP_CARTRIDGE) {
-        return apply_memory_mapper(cpu, address);
+        return apply_memory_mapper_cpu(cpu, address);
     }
     address_t norm_address = mirror_address_cpu(address);
     switch (norm_address) {

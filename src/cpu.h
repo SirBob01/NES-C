@@ -180,7 +180,7 @@ address_t mirror_address_cpu(address_t address);
  * @param address
  * @return unsigned char*
  */
-unsigned char *apply_memory_mapper(cpu_t *cpu, address_t address);
+unsigned char *apply_memory_mapper_cpu(cpu_t *cpu, address_t address);
 
 /**
  * @brief Get the pointer to memory at an address.

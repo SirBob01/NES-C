@@ -9,7 +9,7 @@ buffer_t *create_buffer(unsigned capacity) {
 
     if (capacity == 0 || (capacity & buffer->mask)) {
         fprintf(stderr,
-                "Error: buffer capacity must be a power of 2 (received %d)\n",
+                "Error: Buffer capacity must be a power of 2 (received %d)\n",
                 capacity);
         exit(1);
     }
