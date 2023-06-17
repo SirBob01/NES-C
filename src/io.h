@@ -34,6 +34,12 @@ typedef struct {
      *
      */
     input_t *input;
+
+    /**
+     * @brief Pattern table display (debug only).
+     *
+     */
+    display_t *pattern_table;
 } io_t;
 
 /**
@@ -52,12 +58,23 @@ io_t *create_io(emulator_t *emu);
 void destroy_io(io_t *io);
 
 /**
+ * @brief Draw the pattern tables to a display. Note that display must be big
+ * enough to fit both tables, totalling 256 tiles of 8x8 pixels each (128x128
+ * pixels total).
+ *
+ * @param display
+ * @param rom
+ */
+void debug_pattern_tables(display_t *display, rom_t *rom);
+
+/**
  * @brief Refresh the I/O interfaces.
  *
  * @param io
+ * @param emu
  * @return true
  * @return false
  */
-bool refresh_io(io_t *io);
+bool refresh_io(io_t *io, emulator_t *emu);
 
 #endif

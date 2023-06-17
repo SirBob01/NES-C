@@ -4,6 +4,7 @@
 #include "./apu.h"
 #include "./cpu.h"
 #include "./memory.h"
+#include "./ppu.h"
 #include "./rom.h"
 
 /**
@@ -18,16 +19,22 @@ typedef struct {
     rom_t *rom;
 
     /**
-     * @brief Central procesing unit.
+     * @brief Picture processing unit.
      *
      */
-    cpu_t *cpu;
+    ppu_t *ppu;
 
     /**
      * @brief Audio processing unit.
      *
      */
     apu_t *apu;
+
+    /**
+     * @brief Central procesing unit.
+     *
+     */
+    cpu_t *cpu;
 } emulator_t;
 
 /**

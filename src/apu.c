@@ -1,9 +1,8 @@
 #include "./apu.h"
 
-apu_t *create_apu(cpu_t *cpu) {
+apu_t *create_apu() {
     apu_t *apu = (apu_t *)malloc(sizeof(apu_t));
     apu->buffer = create_buffer(AUDIO_BUFFER_SIZE);
-    apu->cpu = cpu;
     return apu;
 }
 
@@ -12,8 +11,6 @@ void destroy_apu(apu_t *apu) {
     free(apu);
 }
 
-unsigned char read_register_apu(apu_t *apu, address_t address) {
-    return read_byte_cpu(apu->cpu, address);
+void update_apu(apu_t *apu) {
+    // TODO: Implement this
 }
-
-void update_apu(apu_t *apu) {}
