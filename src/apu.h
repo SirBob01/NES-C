@@ -26,32 +26,20 @@ typedef struct {
      * @brief Triangle channel registers.
      *
      */
-    unsigned char triangle[3];
+    unsigned char triangle[4];
 
     /**
      * @brief Noise channel registers.
      *
      */
-    unsigned char noise[3];
+    unsigned char noise[4];
 
     /**
      * @brief DMC channel registers.
      *
      */
     unsigned char dmc[4];
-
-    /**
-     * @brief Status/control register.
-     *
-     */
-    unsigned char status_control;
-
-    /**
-     * @brief Frame counter register.
-     *
-     */
-    unsigned char frame_counter;
-} apu_registers_t;
+} apu_channel_registers_t;
 
 /**
  * @brief The Audio Processing Unit is responsible for generating sound.
@@ -65,10 +53,22 @@ typedef struct {
     buffer_t *buffer;
 
     /**
-     * @brief Internal registers.
+     * @brief Internal channel registers.
      *
      */
-    apu_registers_t registers;
+    apu_channel_registers_t channel_registers;
+
+    /**
+     * @brief Status/control register.
+     *
+     */
+    unsigned char status;
+
+    /**
+     * @brief Frame counter register.
+     *
+     */
+    unsigned char frame_counter;
 } apu_t;
 
 /**
