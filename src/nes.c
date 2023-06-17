@@ -25,7 +25,7 @@ void print_rom(rom_t *rom) {
     printf("* Mapper number: %d\n", rom->header.mapper);
 }
 
-emulator_t parse_args(int argc, char **argv) {
+emulator_t *parse_args(int argc, char **argv) {
     // Verify arguments
     if (argc < 3) {
         print_usage();
@@ -35,35 +35,37 @@ emulator_t parse_args(int argc, char **argv) {
         print_usage();
         exit(1);
     }
+
+    emulator_t *emu = create_emulator(argv[2]);
     if (argc == 4) {
         address_t pc = strtol(argv[3], NULL, 16);
-        return create_emulator2(argv[2], pc);
+        emu->cpu->pc = pc;
     }
-    return create_emulator(argv[2]);
+    return emu;
 }
 
 int main(int argc, char **argv) {
     // Boot up the emulator
-    emulator_t emu = parse_args(argc, argv);
-    io_t io = create_io(&emu);
-    if (emu.rom.data.buffer == NULL || emu.rom.header.type == NES_INVALID) {
+    emulator_t *emu = parse_args(argc, argv);
+    io_t *io = create_io(emu);
+    if (emu->rom->data.buffer == NULL || emu->rom->header.type == NES_INVALID) {
         return 1;
     }
 
     // Print ROM information
-    print_rom(&emu.rom);
+    print_rom(emu->rom);
 
     // Run the emulator until it finishes
     while (true) {
-        bool emu_state = update_emulator(&emu);
-        bool io_state = refresh_io(&io);
+        bool emu_state = update_emulator(emu);
+        bool io_state = refresh_io(io);
         if (!emu_state || !io_state) {
             break;
         }
     }
 
     // Cleanup
-    destroy_io(&io);
-    destroy_emulator(&emu);
+    destroy_io(io);
+    destroy_emulator(emu);
     return 0;
 }

@@ -21,37 +21,38 @@ typedef struct {
      * @brief Main display.
      *
      */
-    display_t display;
+    display_t *display;
 
     /**
      * @brief Sound system.
      *
      */
-    audio_t audio;
+    audio_t *audio;
 
     /**
      * @brief Input event queue.
      *
      */
-    input_t input;
+    input_t *input;
 } io_t;
 
 /**
- * @brief Create the IO subsystems.
+ * @brief Create a I/O interfaces.
  *
- * @return io_t
+ * @param emu
+ * @return io_t*
  */
-io_t create_io(emulator_t *emu);
+io_t *create_io(emulator_t *emu);
 
 /**
- * @brief Destroy the IO subsystems.
+ * @brief Destroy the I/O interfaces.
  *
  * @param io
  */
 void destroy_io(io_t *io);
 
 /**
- * @brief Refresh the IO subsystems.
+ * @brief Refresh the I/O interfaces.
  *
  * @param io
  * @return true

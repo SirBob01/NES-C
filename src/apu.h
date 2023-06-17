@@ -33,25 +33,32 @@
  */
 typedef struct {
     /**
+     * @brief Audio output buffer.
+     *
+     */
+    buffer_t *buffer;
+
+    /**
      * @brief Pointer to the CPU.
      *
      */
     cpu_t *cpu;
 
     /**
-     * @brief Audio output buffer.
+     * @brief Pointer to the ROM.
      *
      */
-    buffer_t buffer;
+    rom_t *rom;
 } apu_t;
 
 /**
  * @brief Create the APU.
  *
  * @param cpu
- * @return apu_t
+ * @param rom
+ * @return apu_t*
  */
-apu_t create_apu(cpu_t *cpu);
+apu_t *create_apu(cpu_t *cpu, rom_t *rom);
 
 /**
  * @brief Destroy the APU.
@@ -64,11 +71,10 @@ void destroy_apu(apu_t *apu);
  * @brief Read a register value of the APU.
  *
  * @param apu
- * @param rom
  * @param address
  * @return unsigned char
  */
-unsigned char read_register_apu(apu_t *apu, rom_t *rom, address_t address);
+unsigned char read_register_apu(apu_t *apu, address_t address);
 
 /**
  * @brief Update the APU.

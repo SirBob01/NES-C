@@ -44,9 +44,9 @@ typedef struct {
  * @brief Create a buffer.
  *
  * @param capacity
- * @return buffer_t
+ * @return buffer_t*
  */
-buffer_t create_buffer(unsigned capacity);
+buffer_t *create_buffer(unsigned capacity);
 
 /**
  * @brief Destroy a buffer.

@@ -11,29 +11,32 @@
  *
  */
 typedef struct {
-    rom_t rom;
-    cpu_t cpu;
-    apu_t apu;
+    /**
+     * @brief Cartridge read-only memory.
+     *
+     */
+    rom_t *rom;
+
+    /**
+     * @brief Central procesing unit.
+     *
+     */
+    cpu_t *cpu;
+
+    /**
+     * @brief Audio processing unit.
+     *
+     */
+    apu_t *apu;
 } emulator_t;
 
 /**
- * @brief Create the emulator.
+ * @brief Create a emulator.
  *
  * @param rom_path
- * @return emulator_t
+ * @return emulator_t*
  */
-emulator_t create_emulator(const char *rom_path);
-
-/**
- * @brief Create the emulator with a hard-coded initial program counter.
- *
- * This is useful for debugging.
- *
- * @param rom_path
- * @param pc
- * @return emulator_t
- */
-emulator_t create_emulator2(const char *rom_path, address_t pc);
+emulator_t *create_emulator(const char *rom_path);
 
 /**
  * @brief Free all resources held by the emulator.

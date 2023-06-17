@@ -46,9 +46,9 @@ typedef struct {
  * @param width  Logical width of the display.
  * @param height Logical height of the display.
  * @param title  Title of the window.
- * @return display_t
+ * @return display_t*
  */
-display_t create_display(unsigned width, unsigned height, const char *title);
+display_t *create_display(unsigned width, unsigned height, const char *title);
 
 /**
  * @brief Destroy a 2D display.
