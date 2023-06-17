@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
     // Run the emulator until it finishes
     while (true) {
         bool emu_state = update_emulator(emu);
-        bool io_state = refresh_io(io);
+        bool io_state = refresh_io(io, emu);
         if (!emu_state || !io_state) {
             break;
         }

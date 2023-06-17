@@ -2,7 +2,7 @@
 #include "./mappers/nrom.h"
 #include "./ops.h"
 
-cpu_t *create_cpu(rom_t *rom) {
+cpu_t *create_cpu(rom_t *rom, apu_t *apu) {
     cpu_t *cpu = (cpu_t *)malloc(sizeof(cpu_t));
 
     // Set registers
@@ -26,6 +26,7 @@ cpu_t *create_cpu(rom_t *rom) {
 
     cpu->memory = allocate_memory(CPU_RAM_SIZE);
     cpu->rom = rom;
+    cpu->apu = apu;
     return cpu;
 }
 
@@ -48,6 +49,7 @@ unsigned char get_status_cpu(cpu_t *cpu) {
 }
 
 address_t mirror_address_cpu(address_t address) {
+    // TODO: Map APU and PPU registers!
     if (address < CPU_MAP_PPU_REG) {
         // Mirrored RAM region
         address_t base_address = CPU_MAP_RAM;

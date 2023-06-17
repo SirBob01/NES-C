@@ -1,6 +1,7 @@
 #ifndef CPU_H
 #define CPU_H
 
+#include "./apu.h"
 #include "./memory.h"
 #include "./rom.h"
 
@@ -22,6 +23,39 @@
 #define CPU_VEC_NMI     0xfffa
 #define CPU_VEC_RESET   0xfffc
 #define CPU_VEC_IRQ_BRK 0xfffe
+
+// Memory mapped APU registers
+#define APU_PULSE1_ENVELOPE 0x4000
+#define APU_PULSE1_SWEEP    0x4001
+#define APU_PULSE1_TIMER    0x4002
+#define APU_PULSE1_LENGTH   0x4003
+#define APU_PULSE2_ENVELOPE 0x4004
+#define APU_PULSE2_SWEEP    0x4005
+#define APU_PULSE2_TIMER    0x4006
+#define APU_PULSE2_LENGTH   0x4007
+#define APU_TRIANGLE_LINEAR 0x4008
+#define APU_TRIANGLE_TIMER  0x400A
+#define APU_TRIANGLE_LENGTH 0x400B
+#define APU_NOISE_ENVELOPE  0x400C
+#define APU_NOISE_TIMER     0x400E
+#define APU_NOISE_LENGTH    0x400F
+#define APU_DMC_FLAGS       0x4010
+#define APU_DMC_TIMER       0x4011
+#define APU_DMC_ADDRESS     0x4012
+#define APU_DMC_LENGTH      0x4013
+#define APU_STATUS          0x4015
+#define APU_FRAME_COUNTER   0x4017
+
+// Memory mapped PPU registers
+#define PPU_REG_CTRL    0x2000
+#define PPU_REG_MASK    0x2001
+#define PPU_REG_STATUS  0x2002
+#define PPU_REG_OAMADDR 0x2003
+#define PPU_REG_OAMDATA 0x2004
+#define PPU_REG_SCROLL  0x2005
+#define PPU_REG_ADDR    0x2006
+#define PPU_REG_DATA    0x2007
+#define PPU_REG_OAMDMA  0x4014
 
 /**
  * @brief CPU status flags.
@@ -89,15 +123,22 @@ typedef struct {
      *
      */
     rom_t *rom;
+
+    /**
+     * @brief Pointer to the APU.
+     *
+     */
+    apu_t *apu;
 } cpu_t;
 
 /**
  * @brief Create the CPU.
  *
  * @param rom
+ * @param apu
  * @return cpu_t*
  */
-cpu_t *create_cpu(rom_t *rom);
+cpu_t *create_cpu(rom_t *rom, apu_t *apu);
 
 /**
  * @brief Destroy the CPU.
