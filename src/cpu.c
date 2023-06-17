@@ -66,7 +66,7 @@ unsigned char *apply_memory_mapper_cpu(cpu_t *cpu, address_t address) {
         return nrom_cpu(cpu, address);
     default:
         fprintf(stderr,
-                "Error: Unsupported PPU mapper %d\n",
+                "Error: Unsupported CPU mapper %d\n",
                 cpu->rom->header.mapper);
         exit(1);
     }

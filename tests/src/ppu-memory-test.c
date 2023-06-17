@@ -59,26 +59,41 @@ static char *test_mirror_palettes() {
     // Palette
     mu_assert("Palette (L)",
               mirror_address_ppu(0x3f00, MIRROR_HORIZONTAL) == 0x3f00);
-    mu_assert("Palette (M)",
-              mirror_address_ppu(0x3f0f, MIRROR_HORIZONTAL) == 0x3f0f);
     mu_assert("Palette (H)",
               mirror_address_ppu(0x3f1f, MIRROR_HORIZONTAL) == 0x3f1f);
 
     // First Mirror
     mu_assert("Palette Mirror 0 (L)",
               mirror_address_ppu(0x3f20, MIRROR_HORIZONTAL) == 0x3f00);
-    mu_assert("Palette Mirror 0 (M)",
-              mirror_address_ppu(0x3f2f, MIRROR_HORIZONTAL) == 0x3f0f);
     mu_assert("Palette Mirror 0 (H)",
               mirror_address_ppu(0x3f3f, MIRROR_HORIZONTAL) == 0x3f1f);
 
     // Last Mirror
     mu_assert("Palette Mirror Last (L)",
               mirror_address_ppu(0x3fe0, MIRROR_HORIZONTAL) == 0x3f00);
-    mu_assert("Palette Mirror Last (M)",
-              mirror_address_ppu(0x3fef, MIRROR_HORIZONTAL) == 0x3f0f);
     mu_assert("Palette Mirror Last (H)",
               mirror_address_ppu(0x3fff, MIRROR_HORIZONTAL) == 0x3f1f);
+
+    // Sprite palette mirrors
+    mu_assert("Sprite Palette 0x3f10",
+              mirror_address_ppu(0x3f10, MIRROR_HORIZONTAL) == 0x3f00);
+    mu_assert("Sprite Palette 0x3f14",
+              mirror_address_ppu(0x3f14, MIRROR_HORIZONTAL) == 0x3f04);
+    mu_assert("Sprite Palette 0x3f18",
+              mirror_address_ppu(0x3f18, MIRROR_HORIZONTAL) == 0x3f08);
+    mu_assert("Sprite Palette 0x3f1c",
+              mirror_address_ppu(0x3f1c, MIRROR_HORIZONTAL) == 0x3f0c);
+
+    // Sprite palette mirrors indirect
+    mu_assert("Sprite Palette 0x3f30",
+              mirror_address_ppu(0x3f30, MIRROR_HORIZONTAL) == 0x3f00);
+    mu_assert("Sprite Palette 0x3f34",
+              mirror_address_ppu(0x3f34, MIRROR_HORIZONTAL) == 0x3f04);
+    mu_assert("Sprite Palette 0x3f38",
+              mirror_address_ppu(0x3f38, MIRROR_HORIZONTAL) == 0x3f08);
+    mu_assert("Sprite Palette 0x3f3c",
+              mirror_address_ppu(0x3f3c, MIRROR_HORIZONTAL) == 0x3f0c);
+
     return 0;
 }
 

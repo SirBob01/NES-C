@@ -40,9 +40,35 @@ address_t mirror_address_ppu(address_t address, rom_mirroring_t mirroring) {
             }
         }
         }
+    } else if (address >= PPU_MAP_PALETTE && address < PPU_MAP_PALETTE_MIRROR) {
+        // Mirrored palette table regions
+        switch (address) {
+        case 0x3f10:
+            return 0x3f00;
+        case 0x3f14:
+            return 0x3f04;
+        case 0x3f18:
+            return 0x3f08;
+        case 0x3f1c:
+            return 0x3f0c;
+        default:
+            return address;
+        }
     } else if (address >= PPU_MAP_PALETTE_MIRROR) {
         // Mirrored palette table regions
-        return PPU_MAP_PALETTE + ((address - PPU_MAP_PALETTE) % 0x20);
+        address_t norm = PPU_MAP_PALETTE + ((address - PPU_MAP_PALETTE) % 0x20);
+        switch (norm) {
+        case 0x3f10:
+            return 0x3f00;
+        case 0x3f14:
+            return 0x3f04;
+        case 0x3f18:
+            return 0x3f08;
+        case 0x3f1c:
+            return 0x3f0c;
+        default:
+            return norm;
+        }
     }
     return address;
 }
