@@ -22,7 +22,7 @@ display_t *create_display(unsigned width, unsigned height, const char *title) {
     }
 
     display->texture = SDL_CreateTexture(display->renderer,
-                                         SDL_PIXELFORMAT_RGBA8888,
+                                         SDL_PIXELFORMAT_RGB888,
                                          SDL_TEXTUREACCESS_STREAMING,
                                          width,
                                          height);
@@ -73,12 +73,12 @@ void refresh_display(display_t *display) {
 
 void render_fill(display_t *display, color_t color) {
     unsigned *pixels = (unsigned *)display->bitmap.buffer;
-    unsigned rgba = color.r << 24 | color.g << 16 | color.b << 8 | color.a;
+    unsigned rgba = color.r << 16 | color.g << 8 | color.b;
     memset(pixels, rgba, display->size.x * display->size.y * 4);
 }
 
 void render_pixel(display_t *display, vec2_t position, color_t color) {
     unsigned *pixels = (unsigned *)display->bitmap.buffer;
     unsigned index = display->size.x * position.y + position.x;
-    pixels[index] = color.r << 24 | color.g << 16 | color.b << 8 | color.a;
+    pixels[index] = color.r << 16 | color.g << 8 | color.b;
 }

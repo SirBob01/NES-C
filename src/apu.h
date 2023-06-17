@@ -43,22 +43,15 @@ typedef struct {
      *
      */
     cpu_t *cpu;
-
-    /**
-     * @brief Pointer to the ROM.
-     *
-     */
-    rom_t *rom;
 } apu_t;
 
 /**
  * @brief Create the APU.
  *
  * @param cpu
- * @param rom
  * @return apu_t*
  */
-apu_t *create_apu(cpu_t *cpu, rom_t *rom);
+apu_t *create_apu(cpu_t *cpu);
 
 /**
  * @brief Destroy the APU.
