@@ -1,9 +1,9 @@
 #include "./audio.h"
 
-audio_t create_audio(buffer_t *buffer) {
+audio_t *create_audio(buffer_t *buffer) {
     SDL_InitSubSystem(SDL_INIT_AUDIO);
 
-    audio_t device;
+    audio_t *device = (audio_t *)malloc(sizeof(audio_t));
     SDL_AudioSpec desired_spec;
     SDL_zero(desired_spec);
 
@@ -14,15 +14,15 @@ audio_t create_audio(buffer_t *buffer) {
     desired_spec.userdata = buffer;
     desired_spec.callback = play_callback_audio;
 
-    device.id = SDL_OpenAudioDevice(NULL, 0, &desired_spec, &device.spec, 0);
-    if (!device.id) {
+    device->id = SDL_OpenAudioDevice(NULL, 0, &desired_spec, &device->spec, 0);
+    if (!device->id) {
         fprintf(stderr,
                 "Error: Failed to open audio device (%s)\n",
                 SDL_GetError());
         exit(1);
     }
 
-    int result = SDL_PlayAudioDevice(device.id);
+    int result = SDL_PlayAudioDevice(device->id);
     if (result < 0) {
         fprintf(stderr,
                 "Error: Failed to play audio device (%s)\n",
@@ -32,7 +32,10 @@ audio_t create_audio(buffer_t *buffer) {
     return device;
 }
 
-void destroy_audio(audio_t *device) { SDL_CloseAudioDevice(device->id); }
+void destroy_audio(audio_t *device) {
+    SDL_CloseAudioDevice(device->id);
+    free(device);
+}
 
 void play_callback_audio(void *userdata, unsigned char *stream, int length) {
     buffer_t *buffer = (buffer_t *)userdata;

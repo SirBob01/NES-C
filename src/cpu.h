@@ -83,14 +83,21 @@ typedef struct {
      *
      */
     memory_t memory;
+
+    /**
+     * @brief Pointer to the ROM.
+     *
+     */
+    rom_t *rom;
 } cpu_t;
 
 /**
- * @brief Create the CPU emualator.
+ * @brief Create the CPU.
  *
- * @return cpu_t
+ * @param rom
+ * @return cpu_t*
  */
-cpu_t create_cpu();
+cpu_t *create_cpu(rom_t *rom);
 
 /**
  * @brief Destroy the CPU.
@@ -119,11 +126,10 @@ address_t mirror_address_cpu(address_t address);
  * @brief Apply mapper to address that lies on the ROM cartridge section.
  *
  * @param cpu
- * @param rom
  * @param address
  * @return unsigned char*
  */
-unsigned char *apply_memory_mapper(cpu_t *cpu, rom_t *rom, address_t address);
+unsigned char *apply_memory_mapper(cpu_t *cpu, address_t address);
 
 /**
  * @brief Get the pointer to memory at an address.
@@ -132,31 +138,28 @@ unsigned char *apply_memory_mapper(cpu_t *cpu, rom_t *rom, address_t address);
  * available to the CPU (RAM, PRG ROM, CHR ROM, PPU registers, etc.).
  *
  * @param cpu
- * @param rom
  * @param address
  * @return unsigned char*
  */
-unsigned char *get_memory_cpu(cpu_t *cpu, rom_t *rom, address_t address);
+unsigned char *get_memory_cpu(cpu_t *cpu, address_t address);
 
 /**
  * @brief Read a byte from the CPU's memory.
  *
  * @param cpu
- * @param rom
  * @param address
  * @return unsigned char
  */
-unsigned char read_byte_cpu(cpu_t *cpu, rom_t *rom, address_t address);
+unsigned char read_byte_cpu(cpu_t *cpu, address_t address);
 
 /**
  * @brief Read a short from the CPU's memory.
  *
  * @param cpu
- * @param rom
  * @param address
  * @return unsigned short
  */
-unsigned short read_short_cpu(cpu_t *cpu, rom_t *rom, address_t address);
+unsigned short read_short_cpu(cpu_t *cpu, address_t address);
 
 /**
  * @brief Read a short from the CPU's zero-page memory.
@@ -164,73 +167,60 @@ unsigned short read_short_cpu(cpu_t *cpu, rom_t *rom, address_t address);
  * This handles the wrap-around of the second byte address.
  *
  * @param cpu
- * @param rom
  * @param address
  * @return unsigned short
  */
-unsigned short read_short_zp_cpu(cpu_t *cpu, rom_t *rom, unsigned char address);
+unsigned short read_short_zp_cpu(cpu_t *cpu, unsigned char address);
 
 /**
  * @brief Write a byte to the CPU's memory.
  *
  * @param cpu
- * @param rom
  * @param address
  * @param value
  */
-void write_byte_cpu(cpu_t *cpu,
-                    rom_t *rom,
-                    address_t address,
-                    unsigned char value);
+void write_byte_cpu(cpu_t *cpu, address_t address, unsigned char value);
 
 /**
  * @brief Write a short to the CPU's memory.
  *
  * @param cpu
- * @param rom
  * @param address
  * @param value
  */
-void write_short_cpu(cpu_t *cpu,
-                     rom_t *rom,
-                     address_t address,
-                     unsigned short value);
+void write_short_cpu(cpu_t *cpu, address_t address, unsigned short value);
 
 /**
  * @brief Push a byte onto the stack.
  *
  * @param cpu
- * @param rom
  * @param value
  */
-void push_byte_cpu(cpu_t *cpu, rom_t *rom, unsigned char value);
+void push_byte_cpu(cpu_t *cpu, unsigned char value);
 
 /**
  * @brief Push a short onto the stack.
  *
  * @param cpu
- * @param rom
  * @param value
  */
-void push_short_cpu(cpu_t *cpu, rom_t *rom, unsigned short value);
+void push_short_cpu(cpu_t *cpu, unsigned short value);
 
 /**
  * @brief Peek a byte from the stack.
  *
  * @param cpu
- * @param rom
  * @return unsigned char
  */
-unsigned char pop_byte_cpu(cpu_t *cpu, rom_t *rom);
+unsigned char pop_byte_cpu(cpu_t *cpu);
 
 /**
  * @brief Peek a short from the stack.
  *
  * @param cpu
- * @param rom
  * @return unsigned short
  */
-unsigned short pop_short_cpu(cpu_t *cpu, rom_t *rom);
+unsigned short pop_short_cpu(cpu_t *cpu);
 
 /**
  * @brief Read the current state of the CPU for debugging.
@@ -238,18 +228,16 @@ unsigned short pop_short_cpu(cpu_t *cpu, rom_t *rom);
  * @param buffer
  * @param buffer_size
  * @param cpu
- * @param rom
  */
-void read_cpu_state(char *buffer, unsigned buffer_size, cpu_t *cpu, rom_t *rom);
+void read_cpu_state(char *buffer, unsigned buffer_size, cpu_t *cpu);
 
 /**
  * @brief Update the CPU.
  *
  * @param cpu
- * @param rom
  * @return true
  * @return false
  */
-bool update_cpu(cpu_t *cpu, rom_t *rom);
+bool update_cpu(cpu_t *cpu);
 
 #endif

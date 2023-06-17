@@ -1,9 +1,9 @@
 #include "./rom.h"
 
-rom_t load_rom(const char *path) {
-    rom_t rom;
-    rom.data.buffer = NULL;
-    rom.data.size = 0;
+rom_t *load_rom(const char *path) {
+    rom_t *rom = (rom_t *)malloc(sizeof(rom_t));
+    rom->data.buffer = NULL;
+    rom->data.size = 0;
 
     // Open file
     FILE *file = fopen(path, "rb");
@@ -24,18 +24,21 @@ rom_t load_rom(const char *path) {
     }
 
     // Write the contents of the file to the buffer
-    rom.data = allocate_memory(size);
-    fread(rom.data.buffer, 1, rom.data.size, file);
+    rom->data = allocate_memory(size);
+    fread(rom->data.buffer, 1, rom->data.size, file);
 
     // Parse the header
-    rom.header = get_rom_header(rom.data.buffer);
+    rom->header = get_rom_header(rom->data.buffer);
 
     // Cleanup and return
     fclose(file);
     return rom;
 }
 
-void unload_rom(rom_t *rom) { free_memory(&rom->data); }
+void unload_rom(rom_t *rom) {
+    free_memory(&rom->data);
+    free(rom);
+}
 
 rom_header_t get_rom_header(const unsigned char *buffer) {
     rom_header_t header;

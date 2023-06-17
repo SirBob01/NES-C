@@ -29,8 +29,8 @@ void print_rom(rom_t *rom);
  *
  * @param argc
  * @param argv
- * @return emulator_t
+ * @return emulator_t*
  */
-emulator_t parse_args(int argc, char **argv);
+emulator_t *parse_args(int argc, char **argv);
 
 #endif

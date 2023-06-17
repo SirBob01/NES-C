@@ -1,13 +1,13 @@
 #include "./buffer.h"
 
-buffer_t create_buffer(unsigned capacity) {
-    buffer_t buffer;
-    buffer.memory = allocate_memory(capacity);
-    buffer.read = 0;
-    buffer.write = 0;
-    buffer.mask = capacity - 1;
+buffer_t *create_buffer(unsigned capacity) {
+    buffer_t *buffer = (buffer_t *)malloc(sizeof(buffer_t));
+    buffer->memory = allocate_memory(capacity);
+    buffer->read = 0;
+    buffer->write = 0;
+    buffer->mask = capacity - 1;
 
-    if (capacity == 0 || (capacity & buffer.mask)) {
+    if (capacity == 0 || (capacity & buffer->mask)) {
         fprintf(stderr,
                 "Error: buffer capacity must be a power of 2 (received %d)\n",
                 capacity);
@@ -16,7 +16,10 @@ buffer_t create_buffer(unsigned capacity) {
     return buffer;
 }
 
-void destroy_buffer(buffer_t *buffer) { free_memory(&buffer->memory); }
+void destroy_buffer(buffer_t *buffer) {
+    free_memory(&buffer->memory);
+    free(buffer);
+}
 
 unsigned get_size_buffer(buffer_t *buffer) {
     return buffer->write - buffer->read;

@@ -1,11 +1,11 @@
 #include "./display.h"
 
-display_t create_display(unsigned width, unsigned height, const char *title) {
+display_t *create_display(unsigned width, unsigned height, const char *title) {
     SDL_InitSubSystem(SDL_INIT_VIDEO);
 
-    display_t display;
-    display.window = SDL_CreateWindow(title, 640, 480, SDL_WINDOW_RESIZABLE);
-    if (!display.window) {
+    display_t *display = (display_t *)malloc(sizeof(display_t));
+    display->window = SDL_CreateWindow(title, 640, 480, SDL_WINDOW_RESIZABLE);
+    if (!display->window) {
         fprintf(stderr,
                 "Error: Unable to initialize window (%s)\n",
                 SDL_GetError());
@@ -13,20 +13,20 @@ display_t create_display(unsigned width, unsigned height, const char *title) {
     }
 
     unsigned flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
-    display.renderer = SDL_CreateRenderer(display.window, NULL, flags);
-    if (!display.renderer) {
+    display->renderer = SDL_CreateRenderer(display->window, NULL, flags);
+    if (!display->renderer) {
         fprintf(stderr,
                 "Error: Unable to initialize display (%s)\n",
                 SDL_GetError());
         exit(1);
     }
 
-    display.texture = SDL_CreateTexture(display.renderer,
-                                        SDL_PIXELFORMAT_RGBA8888,
-                                        SDL_TEXTUREACCESS_STREAMING,
-                                        width,
-                                        height);
-    if (!display.texture) {
+    display->texture = SDL_CreateTexture(display->renderer,
+                                         SDL_PIXELFORMAT_RGBA8888,
+                                         SDL_TEXTUREACCESS_STREAMING,
+                                         width,
+                                         height);
+    if (!display->texture) {
         fprintf(stderr,
                 "Error: Unable to initialize texture (%s)\n",
                 SDL_GetError());
@@ -34,12 +34,12 @@ display_t create_display(unsigned width, unsigned height, const char *title) {
     }
 
     // Create the color buffer
-    display.bitmap = allocate_memory(width * height * 4);
-    display.size.x = width;
-    display.size.y = height;
+    display->bitmap = allocate_memory(width * height * 4);
+    display->size.x = width;
+    display->size.y = height;
 
     // Set the logical presentation of the display
-    SDL_SetRenderLogicalPresentation(display.renderer,
+    SDL_SetRenderLogicalPresentation(display->renderer,
                                      width,
                                      height,
                                      SDL_LOGICAL_PRESENTATION_LETTERBOX,
@@ -52,6 +52,7 @@ void destroy_display(display_t *display) {
     SDL_DestroyTexture(display->texture);
     SDL_DestroyRenderer(display->renderer);
     SDL_DestroyWindow(display->window);
+    free(display);
 }
 
 void refresh_display(display_t *display) {

@@ -1,34 +1,38 @@
 #include "./cpu.h"
-#include "./mapper.h"
+#include "./mappers/nrom.h"
 #include "./ops.h"
 
-cpu_t create_cpu() {
-    cpu_t cpu;
+cpu_t *create_cpu(rom_t *rom) {
+    cpu_t *cpu = (cpu_t *)malloc(sizeof(cpu_t));
 
     // Set registers
-    cpu.a = 0;
-    cpu.x = 0;
-    cpu.y = 0;
-    cpu.pc = 0;
-    cpu.s = 0xfd;
+    cpu->a = 0;
+    cpu->x = 0;
+    cpu->y = 0;
+    cpu->pc = 0;
+    cpu->s = 0xfd;
 
     // Set status flags
-    cpu.status.c = false;
-    cpu.status.z = false;
-    cpu.status.i = true;
-    cpu.status.d = false;
-    cpu.status.b = false;
-    cpu.status.o = false;
-    cpu.status.n = false;
+    cpu->status.c = false;
+    cpu->status.z = false;
+    cpu->status.i = true;
+    cpu->status.d = false;
+    cpu->status.b = false;
+    cpu->status.o = false;
+    cpu->status.n = false;
 
     // Cycles on reset
-    cpu.cycles = 7;
+    cpu->cycles = 7;
 
-    cpu.memory = allocate_memory(CPU_RAM_SIZE);
+    cpu->memory = allocate_memory(CPU_RAM_SIZE);
+    cpu->rom = rom;
     return cpu;
 }
 
-void destroy_cpu(cpu_t *cpu) { free_memory(&cpu->memory); }
+void destroy_cpu(cpu_t *cpu) {
+    free_memory(&cpu->memory);
+    free(cpu);
+}
 
 unsigned char get_status_cpu(cpu_t *cpu) {
     unsigned char status = 0;
@@ -56,88 +60,78 @@ address_t mirror_address_cpu(address_t address) {
     return address;
 }
 
-unsigned char *apply_memory_mapper(cpu_t *cpu, rom_t *rom, address_t address) {
-    switch (rom->header.mapper) {
+unsigned char *apply_memory_mapper(cpu_t *cpu, address_t address) {
+    switch (cpu->rom->header.mapper) {
     case 0:
-        return nrom_mapper(cpu, rom, address);
+        return nrom_cpu(cpu, address);
     default:
         break;
     }
     return NULL;
 }
 
-unsigned char *get_memory_cpu(cpu_t *cpu, rom_t *rom, address_t address) {
+unsigned char *get_memory_cpu(cpu_t *cpu, address_t address) {
     if (address < CPU_MAP_CARTRIDGE) {
         return cpu->memory.buffer + mirror_address_cpu(address);
     } else {
-        return apply_memory_mapper(cpu, rom, address);
+        return apply_memory_mapper(cpu, address);
     }
     return NULL;
 }
 
-unsigned char read_byte_cpu(cpu_t *cpu, rom_t *rom, address_t address) {
-    unsigned char *memory = get_memory_cpu(cpu, rom, address);
+unsigned char read_byte_cpu(cpu_t *cpu, address_t address) {
+    unsigned char *memory = get_memory_cpu(cpu, address);
     return *memory;
 }
 
-unsigned short read_short_cpu(cpu_t *cpu, rom_t *rom, address_t address) {
-    unsigned char *a0 = get_memory_cpu(cpu, rom, address);
-    unsigned char *a1 = get_memory_cpu(cpu, rom, address + 1);
+unsigned short read_short_cpu(cpu_t *cpu, address_t address) {
+    unsigned char *a0 = get_memory_cpu(cpu, address);
+    unsigned char *a1 = get_memory_cpu(cpu, address + 1);
     return *a0 | (*a1 << 8);
 }
 
-unsigned short
-read_short_zp_cpu(cpu_t *cpu, rom_t *rom, unsigned char address) {
+unsigned short read_short_zp_cpu(cpu_t *cpu, unsigned char address) {
     unsigned char next = address + 1;
-    unsigned char *a0 = get_memory_cpu(cpu, rom, address);
-    unsigned char *a1 = get_memory_cpu(cpu, rom, next);
+    unsigned char *a0 = get_memory_cpu(cpu, address);
+    unsigned char *a1 = get_memory_cpu(cpu, next);
     return *a0 | (*a1 << 8);
 }
 
-void write_byte_cpu(cpu_t *cpu,
-                    rom_t *rom,
-                    address_t address,
-                    unsigned char value) {
-    unsigned char *memory = get_memory_cpu(cpu, rom, address);
+void write_byte_cpu(cpu_t *cpu, address_t address, unsigned char value) {
+    unsigned char *memory = get_memory_cpu(cpu, address);
     *memory = value;
 }
 
-void write_short_cpu(cpu_t *cpu,
-                     rom_t *rom,
-                     address_t address,
-                     unsigned short value) {
-    unsigned char *a0 = get_memory_cpu(cpu, rom, address);
-    unsigned char *a1 = get_memory_cpu(cpu, rom, address + 1);
+void write_short_cpu(cpu_t *cpu, address_t address, unsigned short value) {
+    unsigned char *a0 = get_memory_cpu(cpu, address);
+    unsigned char *a1 = get_memory_cpu(cpu, address + 1);
     *a0 = value;
     *a1 = value >> 8;
 }
 
-void push_byte_cpu(cpu_t *cpu, rom_t *rom, unsigned char value) {
-    write_byte_cpu(cpu, rom, 0x100 | cpu->s, value);
+void push_byte_cpu(cpu_t *cpu, unsigned char value) {
+    write_byte_cpu(cpu, 0x100 | cpu->s, value);
     cpu->s--;
 }
 
-void push_short_cpu(cpu_t *cpu, rom_t *rom, unsigned short value) {
-    push_byte_cpu(cpu, rom, value >> 8);
-    push_byte_cpu(cpu, rom, value);
+void push_short_cpu(cpu_t *cpu, unsigned short value) {
+    push_byte_cpu(cpu, value >> 8);
+    push_byte_cpu(cpu, value);
 }
 
-unsigned char pop_byte_cpu(cpu_t *cpu, rom_t *rom) {
+unsigned char pop_byte_cpu(cpu_t *cpu) {
     cpu->s++;
-    return read_byte_cpu(cpu, rom, 0x100 | cpu->s);
+    return read_byte_cpu(cpu, 0x100 | cpu->s);
 }
 
-unsigned short pop_short_cpu(cpu_t *cpu, rom_t *rom) {
-    unsigned char a0 = pop_byte_cpu(cpu, rom);
-    unsigned char a1 = pop_byte_cpu(cpu, rom);
+unsigned short pop_short_cpu(cpu_t *cpu) {
+    unsigned char a0 = pop_byte_cpu(cpu);
+    unsigned char a1 = pop_byte_cpu(cpu);
     return a0 | (a1 << 8);
 }
 
-void read_cpu_state(char *buffer,
-                    unsigned buffer_size,
-                    cpu_t *cpu,
-                    rom_t *rom) {
-    unsigned char opcode_byte = read_byte_cpu(cpu, rom, cpu->pc);
+void read_cpu_state(char *buffer, unsigned buffer_size, cpu_t *cpu) {
+    unsigned char opcode_byte = read_byte_cpu(cpu, cpu->pc);
     opcode_t opcode = OP_TABLE[opcode_byte];
     unsigned char term_count = ADDRESS_MODE_SIZES[opcode.address_mode];
     switch (term_count) {
@@ -162,7 +156,7 @@ void read_cpu_state(char *buffer,
                  "%lu",
                  cpu->pc,
                  opcode_byte,
-                 read_byte_cpu(cpu, rom, cpu->pc + 1),
+                 read_byte_cpu(cpu, cpu->pc + 1),
                  cpu->a,
                  cpu->x,
                  cpu->y,
@@ -178,8 +172,8 @@ void read_cpu_state(char *buffer,
             "%lu",
             cpu->pc,
             opcode_byte,
-            read_byte_cpu(cpu, rom, cpu->pc + 1),
-            read_byte_cpu(cpu, rom, cpu->pc + 2),
+            read_byte_cpu(cpu, cpu->pc + 1),
+            read_byte_cpu(cpu, cpu->pc + 2),
             cpu->a,
             cpu->x,
             cpu->y,
@@ -192,46 +186,46 @@ void read_cpu_state(char *buffer,
     }
 }
 
-bool update_cpu(cpu_t *cpu, rom_t *rom) {
+bool update_cpu(cpu_t *cpu) {
     // Fetch
-    unsigned char opcode_byte = read_byte_cpu(cpu, rom, cpu->pc);
+    unsigned char opcode_byte = read_byte_cpu(cpu, cpu->pc);
     opcode_t opcode = OP_TABLE[opcode_byte];
     operand_t operand = {0, 0};
 
     // Decode
     switch (opcode.address_mode) {
     case ADDR_IMMEDIATE:
-        operand = addr_immediate(cpu, rom);
+        operand = addr_immediate(cpu);
         break;
     case ADDR_ZERO_PAGE:
-        operand = addr_zero_page(cpu, rom);
+        operand = addr_zero_page(cpu);
         break;
     case ADDR_ZERO_PAGE_X:
-        operand = addr_zero_page_x(cpu, rom);
+        operand = addr_zero_page_x(cpu);
         break;
     case ADDR_ZERO_PAGE_Y:
-        operand = addr_zero_page_y(cpu, rom);
+        operand = addr_zero_page_y(cpu);
         break;
     case ADDR_RELATIVE:
-        operand = addr_relative(cpu, rom);
+        operand = addr_relative(cpu);
         break;
     case ADDR_ABSOLUTE:
-        operand = addr_absolute(cpu, rom);
+        operand = addr_absolute(cpu);
         break;
     case ADDR_ABSOLUTE_X:
-        operand = addr_absolute_x(cpu, rom);
+        operand = addr_absolute_x(cpu);
         break;
     case ADDR_ABSOLUTE_Y:
-        operand = addr_absolute_y(cpu, rom);
+        operand = addr_absolute_y(cpu);
         break;
     case ADDR_INDIRECT:
-        operand = addr_indirect(cpu, rom);
+        operand = addr_indirect(cpu);
         break;
     case ADDR_INDIRECT_X:
-        operand = addr_indirect_x(cpu, rom);
+        operand = addr_indirect_x(cpu);
         break;
     case ADDR_INDIRECT_Y:
-        operand = addr_indirect_y(cpu, rom);
+        operand = addr_indirect_y(cpu);
         break;
     default:
         break;
@@ -266,15 +260,15 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
         cpu->pc = operand.address;
         break;
     case OP_LDX:
-        cpu->x = read_byte_cpu(cpu, rom, operand.address);
+        cpu->x = read_byte_cpu(cpu, operand.address);
         cpu->status.z = cpu->x == 0;
         cpu->status.n = cpu->x >> 7;
         break;
     case OP_STX:
-        write_byte_cpu(cpu, rom, operand.address, cpu->x);
+        write_byte_cpu(cpu, operand.address, cpu->x);
         break;
     case OP_JSR:
-        push_short_cpu(cpu, rom, cpu->pc - 1);
+        push_short_cpu(cpu, cpu->pc - 1);
         cpu->pc = operand.address;
         break;
     case OP_SEC:
@@ -300,7 +294,7 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
         }
         break;
     case OP_LDA:
-        cpu->a = read_byte_cpu(cpu, rom, operand.address);
+        cpu->a = read_byte_cpu(cpu, operand.address);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a >> 7;
         break;
@@ -321,10 +315,10 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
         }
         break;
     case OP_STA:
-        write_byte_cpu(cpu, rom, operand.address, cpu->a);
+        write_byte_cpu(cpu, operand.address, cpu->a);
         break;
     case OP_BIT: {
-        unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+        unsigned char val = read_byte_cpu(cpu, operand.address);
         cpu->status.z = (cpu->a & val) == 0;
         cpu->status.n = val >> 7;
         cpu->status.o = (val >> 6) & 1;
@@ -355,7 +349,7 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
         }
         break;
     case OP_RTS:
-        cpu->pc = pop_short_cpu(cpu, rom) + 1;
+        cpu->pc = pop_short_cpu(cpu) + 1;
         break;
     case OP_SEI:
         cpu->status.i = 1;
@@ -365,20 +359,20 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
         break;
     case OP_PHP:
         // Pushed copy should have break flag set (0x10)
-        push_byte_cpu(cpu, rom, get_status_cpu(cpu) | 0x10);
+        push_byte_cpu(cpu, get_status_cpu(cpu) | 0x10);
         break;
     case OP_PLA:
-        cpu->a = pop_byte_cpu(cpu, rom);
+        cpu->a = pop_byte_cpu(cpu);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a >> 7;
         break;
     case OP_AND:
-        cpu->a &= read_byte_cpu(cpu, rom, operand.address);
+        cpu->a &= read_byte_cpu(cpu, operand.address);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a >> 7;
         break;
     case OP_CMP: {
-        unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+        unsigned char val = read_byte_cpu(cpu, operand.address);
         unsigned char sub = cpu->a - val;
         cpu->status.c = cpu->a >= val;
         cpu->status.z = cpu->a == val;
@@ -389,10 +383,10 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
         cpu->status.d = 0;
         break;
     case OP_PHA:
-        push_byte_cpu(cpu, rom, cpu->a);
+        push_byte_cpu(cpu, cpu->a);
         break;
     case OP_PLP: {
-        unsigned char status = pop_byte_cpu(cpu, rom);
+        unsigned char status = pop_byte_cpu(cpu);
         cpu->status.c = status & 0x1;
         cpu->status.z = status & 0x2;
         cpu->status.i = status & 0x4;
@@ -410,7 +404,7 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
         }
         break;
     case OP_ORA:
-        cpu->a |= read_byte_cpu(cpu, rom, operand.address);
+        cpu->a |= read_byte_cpu(cpu, operand.address);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a >> 7;
         break;
@@ -418,12 +412,12 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
         cpu->status.o = 0;
         break;
     case OP_EOR:
-        cpu->a ^= read_byte_cpu(cpu, rom, operand.address);
+        cpu->a ^= read_byte_cpu(cpu, operand.address);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a >> 7;
         break;
     case OP_ADC: {
-        unsigned char m = read_byte_cpu(cpu, rom, operand.address);
+        unsigned char m = read_byte_cpu(cpu, operand.address);
         unsigned char n = cpu->a;
         unsigned short res = m + n + cpu->status.c;
         cpu->a = res;
@@ -434,12 +428,12 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
         break;
     }
     case OP_LDY:
-        cpu->y = read_byte_cpu(cpu, rom, operand.address);
+        cpu->y = read_byte_cpu(cpu, operand.address);
         cpu->status.z = cpu->y == 0;
         cpu->status.n = cpu->y >> 7;
         break;
     case OP_CPY: {
-        unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+        unsigned char val = read_byte_cpu(cpu, operand.address);
         unsigned char sub = cpu->y - val;
         cpu->status.c = cpu->y >= val;
         cpu->status.z = cpu->y == val;
@@ -447,7 +441,7 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
         break;
     }
     case OP_CPX: {
-        unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+        unsigned char val = read_byte_cpu(cpu, operand.address);
         unsigned char sub = cpu->x - val;
         cpu->status.c = cpu->x >= val;
         cpu->status.z = cpu->x == val;
@@ -455,7 +449,7 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
         break;
     }
     case OP_SBC: {
-        unsigned char m = ~read_byte_cpu(cpu, rom, operand.address);
+        unsigned char m = ~read_byte_cpu(cpu, operand.address);
         unsigned char n = cpu->a;
         unsigned short res = m + n + cpu->status.c;
         cpu->a = res;
@@ -515,7 +509,7 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
         break;
     case OP_RTI: {
         // Pop status register
-        unsigned char status = pop_byte_cpu(cpu, rom);
+        unsigned char status = pop_byte_cpu(cpu);
         cpu->status.c = status & 0x1;
         cpu->status.z = status & 0x2;
         cpu->status.i = status & 0x4;
@@ -525,7 +519,7 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
         cpu->status.n = status & 0x80;
 
         // Pop program counter
-        cpu->pc = pop_short_cpu(cpu, rom);
+        cpu->pc = pop_short_cpu(cpu);
         break;
     }
     case OP_LSR:
@@ -537,12 +531,12 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
             cpu->status.n = false; // bit 7 is always 0
             break;
         default: {
-            unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+            unsigned char val = read_byte_cpu(cpu, operand.address);
             cpu->status.c = val & 0x1;
             val >>= 1;
             cpu->status.z = val == 0;
             cpu->status.n = false;
-            write_byte_cpu(cpu, rom, operand.address, val);
+            write_byte_cpu(cpu, operand.address, val);
             break;
         }
         }
@@ -556,12 +550,12 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
             cpu->status.n = cpu->a >> 7;
             break;
         default: {
-            unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+            unsigned char val = read_byte_cpu(cpu, operand.address);
             cpu->status.c = val & 0x80;
             val <<= 1;
             cpu->status.z = val == 0;
             cpu->status.n = val >> 7;
-            write_byte_cpu(cpu, rom, operand.address, val);
+            write_byte_cpu(cpu, operand.address, val);
             break;
         }
         }
@@ -579,7 +573,7 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
             break;
         }
         default: {
-            unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+            unsigned char val = read_byte_cpu(cpu, operand.address);
             unsigned char old_c = cpu->status.c;
             cpu->status.c = val & 0x1;
             val >>= 1;
@@ -587,7 +581,7 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
 
             cpu->status.z = val == 0;
             cpu->status.n = val >> 7;
-            write_byte_cpu(cpu, rom, operand.address, val);
+            write_byte_cpu(cpu, operand.address, val);
             break;
         }
         }
@@ -605,7 +599,7 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
             break;
         }
         default: {
-            unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+            unsigned char val = read_byte_cpu(cpu, operand.address);
             unsigned char old_c = cpu->status.c;
             cpu->status.c = val & 0x80;
             val <<= 1;
@@ -613,50 +607,50 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
 
             cpu->status.z = val == 0;
             cpu->status.n = val >> 7;
-            write_byte_cpu(cpu, rom, operand.address, val);
+            write_byte_cpu(cpu, operand.address, val);
             break;
         }
         }
         break;
     case OP_STY:
-        write_byte_cpu(cpu, rom, operand.address, cpu->y);
+        write_byte_cpu(cpu, operand.address, cpu->y);
         break;
     case OP_INC: {
-        unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+        unsigned char val = read_byte_cpu(cpu, operand.address);
         val++;
-        write_byte_cpu(cpu, rom, operand.address, val);
+        write_byte_cpu(cpu, operand.address, val);
         cpu->status.z = val == 0;
         cpu->status.n = val >> 7;
         break;
     }
     case OP_DEC: {
-        unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+        unsigned char val = read_byte_cpu(cpu, operand.address);
         val--;
-        write_byte_cpu(cpu, rom, operand.address, val);
+        write_byte_cpu(cpu, operand.address, val);
         cpu->status.z = val == 0;
         cpu->status.n = val >> 7;
         break;
     }
     case OP_BRK:
-        push_short_cpu(cpu, rom, cpu->pc + 2);
-        push_byte_cpu(cpu, rom, get_status_cpu(cpu) | 0x10);
-        cpu->pc = read_short_cpu(cpu, rom, CPU_VEC_IRQ_BRK);
+        push_short_cpu(cpu, cpu->pc + 2);
+        push_byte_cpu(cpu, get_status_cpu(cpu) | 0x10);
+        cpu->pc = read_short_cpu(cpu, CPU_VEC_IRQ_BRK);
         cpu->status.b = true;
         break;
     case OP_LAX:
-        cpu->a = read_byte_cpu(cpu, rom, operand.address);
+        cpu->a = read_byte_cpu(cpu, operand.address);
         cpu->x = cpu->a;
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a >> 7;
         break;
     case OP_SAX:
-        write_byte_cpu(cpu, rom, operand.address, cpu->a & cpu->x);
+        write_byte_cpu(cpu, operand.address, cpu->a & cpu->x);
         break;
     case OP_DCP: {
         // DEC
-        unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+        unsigned char val = read_byte_cpu(cpu, operand.address);
         val--;
-        write_byte_cpu(cpu, rom, operand.address, val);
+        write_byte_cpu(cpu, operand.address, val);
 
         // CMP
         unsigned char sub = cpu->a - val;
@@ -667,12 +661,12 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
     }
     case OP_ISC: {
         // INC
-        unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+        unsigned char val = read_byte_cpu(cpu, operand.address);
         val++;
-        write_byte_cpu(cpu, rom, operand.address, val);
+        write_byte_cpu(cpu, operand.address, val);
 
         // SBC
-        unsigned char m = ~read_byte_cpu(cpu, rom, operand.address);
+        unsigned char m = ~read_byte_cpu(cpu, operand.address);
         unsigned char n = cpu->a;
         unsigned short res = m + n + cpu->status.c;
         cpu->a = res;
@@ -692,18 +686,18 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
             cpu->status.n = cpu->a >> 7;
             break;
         default: {
-            unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+            unsigned char val = read_byte_cpu(cpu, operand.address);
             cpu->status.c = val & 0x80;
             val <<= 1;
             cpu->status.z = val == 0;
             cpu->status.n = val >> 7;
-            write_byte_cpu(cpu, rom, operand.address, val);
+            write_byte_cpu(cpu, operand.address, val);
             break;
         }
         }
 
         // ORA
-        cpu->a |= read_byte_cpu(cpu, rom, operand.address);
+        cpu->a |= read_byte_cpu(cpu, operand.address);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a >> 7;
         break;
@@ -721,7 +715,7 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
             break;
         }
         default: {
-            unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+            unsigned char val = read_byte_cpu(cpu, operand.address);
             unsigned char old_c = cpu->status.c;
             cpu->status.c = val & 0x80;
             val <<= 1;
@@ -729,13 +723,13 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
 
             cpu->status.z = val == 0;
             cpu->status.n = val >> 7;
-            write_byte_cpu(cpu, rom, operand.address, val);
+            write_byte_cpu(cpu, operand.address, val);
             break;
         }
         }
 
         // AND
-        cpu->a &= read_byte_cpu(cpu, rom, operand.address);
+        cpu->a &= read_byte_cpu(cpu, operand.address);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a >> 7;
         break;
@@ -749,18 +743,18 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
             cpu->status.n = false; // bit 7 is always 0
             break;
         default: {
-            unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+            unsigned char val = read_byte_cpu(cpu, operand.address);
             cpu->status.c = val & 0x1;
             val >>= 1;
             cpu->status.z = val == 0;
             cpu->status.n = false;
-            write_byte_cpu(cpu, rom, operand.address, val);
+            write_byte_cpu(cpu, operand.address, val);
             break;
         }
         }
 
         // EOR
-        cpu->a ^= read_byte_cpu(cpu, rom, operand.address);
+        cpu->a ^= read_byte_cpu(cpu, operand.address);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a >> 7;
         break;
@@ -778,7 +772,7 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
             break;
         }
         default: {
-            unsigned char val = read_byte_cpu(cpu, rom, operand.address);
+            unsigned char val = read_byte_cpu(cpu, operand.address);
             unsigned char old_c = cpu->status.c;
             cpu->status.c = val & 0x1;
             val >>= 1;
@@ -786,13 +780,13 @@ bool update_cpu(cpu_t *cpu, rom_t *rom) {
 
             cpu->status.z = val == 0;
             cpu->status.n = val >> 7;
-            write_byte_cpu(cpu, rom, operand.address, val);
+            write_byte_cpu(cpu, operand.address, val);
             break;
         }
         }
 
         // ADC
-        unsigned char m = read_byte_cpu(cpu, rom, operand.address);
+        unsigned char m = read_byte_cpu(cpu, operand.address);
         unsigned char n = cpu->a;
         unsigned short res = m + n + cpu->status.c;
         cpu->a = res;

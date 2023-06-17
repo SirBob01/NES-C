@@ -16,11 +16,18 @@ typedef struct {
 } input_t;
 
 /**
- * @brief Create the input state object.
+ * @brief Create a input state object.
  *
- * @return input_t
+ * @return input_t*
  */
-input_t create_input();
+input_t *create_input();
+
+/**
+ * @brief Destroy a input state object.
+ *
+ * @param input
+ */
+void destroy_input(input_t *input);
 
 /**
  * @brief Poll for user input.

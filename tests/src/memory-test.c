@@ -55,32 +55,31 @@ static char *test_mirror_apu() {
 }
 
 static char *test_mapper0() {
-    emulator_t emu = create_emulator("../roms/nestest.nes");
+    emulator_t *emu = create_emulator("../roms/nestest.nes");
 
-    unsigned short pc = read_short_cpu(&emu.cpu, &emu.rom, CPU_VEC_RESET);
+    unsigned short pc = read_short_cpu(emu->cpu, CPU_VEC_RESET);
     mu_assert("MAPPER 0 RESET VECTOR", pc == 0xc004);
 
-    destroy_emulator(&emu);
+    destroy_emulator(emu);
     return 0;
 }
 
 static char *test_stack() {
-    emulator_t emu = create_emulator("../roms/nestest.nes");
-    mu_assert("Stack address start", emu.cpu.s == 0xfd);
+    emulator_t *emu = create_emulator("../roms/nestest.nes");
+    mu_assert("Stack address start", emu->cpu->s == 0xfd);
 
-    push_byte_cpu(&emu.cpu, &emu.rom, 0x3);
-    mu_assert("Stack address after push", emu.cpu.s == 0xfc);
+    push_byte_cpu(emu->cpu, 0x3);
+    mu_assert("Stack address after push", emu->cpu->s == 0xfc);
 
-    push_short_cpu(&emu.cpu, &emu.rom, 0x1234);
-    mu_assert("Stack address after push", emu.cpu.s == 0xfa);
+    push_short_cpu(emu->cpu, 0x1234);
+    mu_assert("Stack address after push", emu->cpu->s == 0xfa);
 
-    mu_assert("Stack push top short",
-              pop_short_cpu(&emu.cpu, &emu.rom) == 0x1234);
-    mu_assert("Stack address after pop", emu.cpu.s == 0xfc);
-    mu_assert("Stack pop top byte", pop_byte_cpu(&emu.cpu, &emu.rom) == 0x3);
-    mu_assert("Stack address end", emu.cpu.s == 0xfd);
+    mu_assert("Stack push top short", pop_short_cpu(emu->cpu) == 0x1234);
+    mu_assert("Stack address after pop", emu->cpu->s == 0xfc);
+    mu_assert("Stack pop top byte", pop_byte_cpu(emu->cpu) == 0x3);
+    mu_assert("Stack address end", emu->cpu->s == 0xfd);
 
-    destroy_emulator(&emu);
+    destroy_emulator(emu);
     return 0;
 }
 
