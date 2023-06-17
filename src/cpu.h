@@ -3,6 +3,7 @@
 
 #include "./apu.h"
 #include "./memory.h"
+#include "./ppu.h"
 #include "./rom.h"
 
 // 6502 has a 16-bit address bus (64k)
@@ -25,26 +26,28 @@
 #define CPU_VEC_IRQ_BRK 0xfffe
 
 // Memory mapped APU registers
-#define APU_PULSE1_ENVELOPE 0x4000
-#define APU_PULSE1_SWEEP    0x4001
-#define APU_PULSE1_TIMER    0x4002
-#define APU_PULSE1_LENGTH   0x4003
-#define APU_PULSE2_ENVELOPE 0x4004
-#define APU_PULSE2_SWEEP    0x4005
-#define APU_PULSE2_TIMER    0x4006
-#define APU_PULSE2_LENGTH   0x4007
-#define APU_TRIANGLE_LINEAR 0x4008
-#define APU_TRIANGLE_TIMER  0x400A
-#define APU_TRIANGLE_LENGTH 0x400B
-#define APU_NOISE_ENVELOPE  0x400C
-#define APU_NOISE_TIMER     0x400E
-#define APU_NOISE_LENGTH    0x400F
-#define APU_DMC_FLAGS       0x4010
-#define APU_DMC_TIMER       0x4011
-#define APU_DMC_ADDRESS     0x4012
-#define APU_DMC_LENGTH      0x4013
-#define APU_STATUS          0x4015
-#define APU_FRAME_COUNTER   0x4017
+#define APU_REG_PULSE1_0      0x4000
+#define APU_REG_PULSE1_1      0x4001
+#define APU_REG_PULSE1_2      0x4002
+#define APU_REG_PULSE1_3      0x4003
+#define APU_REG_PULSE2_0      0x4004
+#define APU_REG_PULSE2_1      0x4005
+#define APU_REG_PULSE2_2      0x4006
+#define APU_REG_PULSE2_3      0x4007
+#define APU_REG_TRIANGLE_0    0x4008
+#define APU_REG_TRIANGLE_1    0x4009
+#define APU_REG_TRIANGLE_2    0x400A
+#define APU_REG_TRIANGLE_3    0x400B
+#define APU_REG_NOISE_0       0x400C
+#define APU_REG_NOISE_1       0x400D
+#define APU_REG_NOISE_2       0x400E
+#define APU_REG_NOISE_3       0x400F
+#define APU_REG_DMC_0         0x4010
+#define APU_REG_DMC_1         0x4011
+#define APU_REG_DMC_2         0x4012
+#define APU_REG_DMC_3         0x4013
+#define APU_REG_STATUS        0x4015
+#define APU_REG_FRAME_COUNTER 0x4017
 
 // Memory mapped PPU registers
 #define PPU_REG_CTRL    0x2000
@@ -129,6 +132,12 @@ typedef struct {
      *
      */
     apu_t *apu;
+
+    /**
+     * @brief Pointer to the PPU.
+     *
+     */
+    ppu_t *ppu;
 } cpu_t;
 
 /**
@@ -136,9 +145,10 @@ typedef struct {
  *
  * @param rom
  * @param apu
+ * @param ppu
  * @return cpu_t*
  */
-cpu_t *create_cpu(rom_t *rom, apu_t *apu);
+cpu_t *create_cpu(rom_t *rom, apu_t *apu, ppu_t *ppu);
 
 /**
  * @brief Destroy the CPU.

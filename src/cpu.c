@@ -2,7 +2,7 @@
 #include "./mappers/nrom.h"
 #include "./ops.h"
 
-cpu_t *create_cpu(rom_t *rom, apu_t *apu) {
+cpu_t *create_cpu(rom_t *rom, apu_t *apu, ppu_t *ppu) {
     cpu_t *cpu = (cpu_t *)malloc(sizeof(cpu_t));
 
     // Set registers
@@ -27,6 +27,7 @@ cpu_t *create_cpu(rom_t *rom, apu_t *apu) {
     cpu->memory = allocate_memory(CPU_RAM_SIZE);
     cpu->rom = rom;
     cpu->apu = apu;
+    cpu->ppu = ppu;
     return cpu;
 }
 
@@ -49,7 +50,6 @@ unsigned char get_status_cpu(cpu_t *cpu) {
 }
 
 address_t mirror_address_cpu(address_t address) {
-    // TODO: Map APU and PPU registers!
     if (address < CPU_MAP_PPU_REG) {
         // Mirrored RAM region
         address_t base_address = CPU_MAP_RAM;
@@ -73,12 +73,76 @@ unsigned char *apply_memory_mapper(cpu_t *cpu, address_t address) {
 }
 
 unsigned char *get_memory_cpu(cpu_t *cpu, address_t address) {
-    if (address < CPU_MAP_CARTRIDGE) {
-        return cpu->memory.buffer + mirror_address_cpu(address);
-    } else {
+    if (address >= CPU_MAP_CARTRIDGE) {
         return apply_memory_mapper(cpu, address);
     }
-    return NULL;
+    address_t norm_address = mirror_address_cpu(address);
+    switch (norm_address) {
+    case PPU_REG_CTRL:
+        return &cpu->ppu->ctrl;
+    case PPU_REG_MASK:
+        return &cpu->ppu->mask;
+    case PPU_REG_STATUS:
+        return &cpu->ppu->status;
+    case PPU_REG_OAMADDR:
+        return &cpu->ppu->oam_addr;
+    case PPU_REG_OAMDATA:
+        return &cpu->ppu->oam_data;
+    case PPU_REG_SCROLL:
+        return &cpu->ppu->scroll;
+    case PPU_REG_ADDR:
+        return &cpu->ppu->addr;
+    case PPU_REG_DATA:
+        return &cpu->ppu->data;
+    case PPU_REG_OAMDMA:
+        return &cpu->ppu->oam_dma;
+    case APU_REG_PULSE1_0:
+        return &cpu->apu->channel_registers.pulse1[0];
+    case APU_REG_PULSE1_1:
+        return &cpu->apu->channel_registers.pulse1[1];
+    case APU_REG_PULSE1_2:
+        return &cpu->apu->channel_registers.pulse1[2];
+    case APU_REG_PULSE1_3:
+        return &cpu->apu->channel_registers.pulse1[3];
+    case APU_REG_PULSE2_0:
+        return &cpu->apu->channel_registers.pulse2[0];
+    case APU_REG_PULSE2_1:
+        return &cpu->apu->channel_registers.pulse2[1];
+    case APU_REG_PULSE2_2:
+        return &cpu->apu->channel_registers.pulse2[2];
+    case APU_REG_PULSE2_3:
+        return &cpu->apu->channel_registers.pulse2[3];
+    case APU_REG_TRIANGLE_0:
+        return &cpu->apu->channel_registers.triangle[0];
+    case APU_REG_TRIANGLE_1:
+        return &cpu->apu->channel_registers.triangle[1];
+    case APU_REG_TRIANGLE_2:
+        return &cpu->apu->channel_registers.triangle[2];
+    case APU_REG_TRIANGLE_3:
+        return &cpu->apu->channel_registers.triangle[3];
+    case APU_REG_NOISE_0:
+        return &cpu->apu->channel_registers.noise[0];
+    case APU_REG_NOISE_1:
+        return &cpu->apu->channel_registers.noise[1];
+    case APU_REG_NOISE_2:
+        return &cpu->apu->channel_registers.noise[2];
+    case APU_REG_NOISE_3:
+        return &cpu->apu->channel_registers.noise[3];
+    case APU_REG_DMC_0:
+        return &cpu->apu->channel_registers.dmc[0];
+    case APU_REG_DMC_1:
+        return &cpu->apu->channel_registers.dmc[1];
+    case APU_REG_DMC_2:
+        return &cpu->apu->channel_registers.dmc[2];
+    case APU_REG_DMC_3:
+        return &cpu->apu->channel_registers.dmc[3];
+    case APU_REG_STATUS:
+        return &cpu->apu->status;
+    case APU_REG_FRAME_COUNTER:
+        return &cpu->apu->frame_counter;
+    default:
+        return cpu->memory.buffer + norm_address;
+    }
 }
 
 unsigned char read_byte_cpu(cpu_t *cpu, address_t address) {
