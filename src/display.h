@@ -98,7 +98,7 @@ void refresh_display(display_t *display);
  * @param display
  * @param color
  */
-void render_fill(display_t *display, color_t color);
+void fill_display(display_t *display, color_t color);
 
 /**
  * @brief Draw a pixel at a position.
@@ -107,6 +107,6 @@ void render_fill(display_t *display, color_t color);
  * @param position
  * @param color
  */
-void render_pixel(display_t *display, vec2_t position, color_t color);
+void draw_display(display_t *display, vec2_t position, color_t color);
 
 #endif

@@ -2,29 +2,6 @@
 
 void print_usage() { printf("Usage: nesc %s <input_file>\n", ARG_INPUT_FILE); }
 
-void print_rom(rom_t *rom) {
-    printf("ROM loaded successfully...\n");
-    printf("* ROM type: %s\n", rom->header.type == NES_1 ? "NES 1" : "NES 2");
-    printf("* PRG ROM: %lu\n", rom->header.prg_rom_size);
-    printf("* CHR ROM: %lu\n", rom->header.chr_rom_size);
-    printf("* PRG ROM Offset: 0x%02X\n",
-           (unsigned)(get_prg_rom(rom) - rom->data.buffer));
-    printf("* CHR ROM Offset: 0x%02X\n",
-           (unsigned)(get_chr_rom(rom) - rom->data.buffer));
-    printf("* Mirroring: %s\n",
-           rom->header.mirroring == MIRROR_HORIZONTAL ? "Horizontal"
-                                                      : "Vertical");
-    printf("* Battery: %s\n", rom->header.battery ? "Yes" : "No");
-    printf("* Trainer: %s\n", rom->header.trainer ? "Yes" : "No");
-    printf("* Four-screen: %s\n", rom->header.four_screen ? "Yes" : "No");
-    printf("* Console type: %s\n",
-           rom->header.console_type == CONSOLE_NES          ? "NES"
-           : rom->header.console_type == CONSOLE_VS         ? "VS"
-           : rom->header.console_type == CONSOLE_PLAYCHOICE ? "PlayChoice"
-                                                            : "Extended");
-    printf("* Mapper number: %d\n", rom->header.mapper);
-}
-
 emulator_t *parse_args(int argc, char **argv) {
     // Verify arguments
     if (argc < 3) {
@@ -53,7 +30,9 @@ int main(int argc, char **argv) {
     }
 
     // Print ROM information
-    print_rom(emu->rom);
+    char rom_str[1024];
+    read_state_rom(emu->rom, rom_str, sizeof(rom_str));
+    puts(rom_str);
 
     // Run the emulator until it finishes
     while (true) {

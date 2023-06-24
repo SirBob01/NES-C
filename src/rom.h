@@ -131,7 +131,7 @@ void unload_rom(rom_t *rom);
  * @param buffer
  * @return rom_header_t
  */
-rom_header_t get_rom_header(const unsigned char *buffer);
+rom_header_t get_header_rom(const unsigned char *buffer);
 
 /**
  * @brief Get the pointer to the trainer.
@@ -139,7 +139,7 @@ rom_header_t get_rom_header(const unsigned char *buffer);
  * @param rom
  * @return unsigned char*
  */
-unsigned char *get_trainer(rom_t *rom);
+unsigned char *get_trainer_rom(rom_t *rom);
 
 /**
  * @brief Get the pointer to PRG ROM.
@@ -156,5 +156,14 @@ unsigned char *get_prg_rom(rom_t *rom);
  * @return unsigned char*
  */
 unsigned char *get_chr_rom(rom_t *rom);
+
+/**
+ * @brief Read the current state of the cartridge ROM for debugging.
+ *
+ * @param rom
+ * @param buffer
+ * @param buffer_size
+ */
+void read_state_rom(rom_t *rom, char *buffer, unsigned buffer_size);
 
 #endif

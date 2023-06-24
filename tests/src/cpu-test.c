@@ -28,7 +28,7 @@ static char *test_opcodes() {
     while (running && lines) {
         fgets(src, sizeof(src), file);
         src[strlen(src) - 2] = 0;
-        read_cpu_state(dst, sizeof(dst), emu->cpu);
+        read_state_cpu(emu->cpu, dst, sizeof(dst));
         printf("%s %lu\n", src, strlen(src));
         printf("%s %lu\n\n", dst, strlen(dst));
         mu_assert("CPU state does not match nestest.log",

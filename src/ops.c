@@ -1,20 +1,20 @@
 #include "./ops.h"
 
-operand_t addr_immediate(cpu_t *cpu) {
+operand_t immediate_addr(cpu_t *cpu) {
     operand_t operand;
     operand.address = cpu->pc + 1;
     operand.page_crossed = 0;
     return operand;
 }
 
-operand_t addr_zero_page(cpu_t *cpu) {
+operand_t zero_page_addr(cpu_t *cpu) {
     operand_t operand;
     operand.address = read_byte_cpu(cpu, cpu->pc + 1);
     operand.page_crossed = 0;
     return operand;
 }
 
-operand_t addr_zero_page_x(cpu_t *cpu) {
+operand_t zero_page_x_addr(cpu_t *cpu) {
     unsigned char base = read_byte_cpu(cpu, cpu->pc + 1);
     unsigned char addr = base + cpu->x;
 
@@ -24,7 +24,7 @@ operand_t addr_zero_page_x(cpu_t *cpu) {
     return operand;
 }
 
-operand_t addr_zero_page_y(cpu_t *cpu) {
+operand_t zero_page_y_addr(cpu_t *cpu) {
     unsigned char base = read_byte_cpu(cpu, cpu->pc + 1);
     unsigned char addr = base + cpu->y;
 
@@ -34,14 +34,14 @@ operand_t addr_zero_page_y(cpu_t *cpu) {
     return operand;
 }
 
-operand_t addr_absolute(cpu_t *cpu) {
+operand_t absolute_addr(cpu_t *cpu) {
     operand_t operand;
     operand.address = read_short_cpu(cpu, cpu->pc + 1);
     operand.page_crossed = 0;
     return operand;
 }
 
-operand_t addr_absolute_x(cpu_t *cpu) {
+operand_t absolute_x_addr(cpu_t *cpu) {
     address_t base = read_short_cpu(cpu, cpu->pc + 1);
     operand_t operand;
     operand.address = base + cpu->x;
@@ -49,7 +49,7 @@ operand_t addr_absolute_x(cpu_t *cpu) {
     return operand;
 }
 
-operand_t addr_absolute_y(cpu_t *cpu) {
+operand_t absolute_y_addr(cpu_t *cpu) {
     address_t base = read_short_cpu(cpu, cpu->pc + 1);
     operand_t operand;
     operand.address = base + cpu->y;
@@ -57,7 +57,7 @@ operand_t addr_absolute_y(cpu_t *cpu) {
     return operand;
 }
 
-operand_t addr_indirect(cpu_t *cpu) {
+operand_t indirect_addr(cpu_t *cpu) {
     // NOTE: The original 6502 had a bug in fetching the target address
     // of an indirect jump. If the indirect vector fell on a page boundary
     // (ie. address $xxFF where xx is any value from $00 to $FF) then the
@@ -79,7 +79,7 @@ operand_t addr_indirect(cpu_t *cpu) {
     return operand;
 }
 
-operand_t addr_indirect_x(cpu_t *cpu) {
+operand_t indirect_x_addr(cpu_t *cpu) {
     unsigned char ptr_addr = read_byte_cpu(cpu, cpu->pc + 1);
     operand_t operand;
     operand.address = read_short_zp_cpu(cpu, ptr_addr + cpu->x);
@@ -87,7 +87,7 @@ operand_t addr_indirect_x(cpu_t *cpu) {
     return operand;
 }
 
-operand_t addr_indirect_y(cpu_t *cpu) {
+operand_t indirect_y_addr(cpu_t *cpu) {
     unsigned char ptr_addr = read_byte_cpu(cpu, cpu->pc + 1);
     address_t base = read_short_zp_cpu(cpu, ptr_addr);
     operand_t operand;
@@ -96,7 +96,7 @@ operand_t addr_indirect_y(cpu_t *cpu) {
     return operand;
 }
 
-operand_t addr_relative(cpu_t *cpu) {
+operand_t relative_addr(cpu_t *cpu) {
     signed char offset = read_byte_cpu(cpu, cpu->pc + 1);
     address_t base = cpu->pc + 2;
     operand_t operand;
