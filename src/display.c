@@ -71,13 +71,13 @@ void refresh_display(display_t *display) {
     memset(display->bitmap.buffer, 0, display->bitmap.size);
 }
 
-void render_fill(display_t *display, color_t color) {
+void fill_display(display_t *display, color_t color) {
     unsigned *pixels = (unsigned *)display->bitmap.buffer;
     unsigned rgba = color.r << 16 | color.g << 8 | color.b;
     memset(pixels, rgba, display->size.x * display->size.y * 4);
 }
 
-void render_pixel(display_t *display, vec2_t position, color_t color) {
+void draw_display(display_t *display, vec2_t position, color_t color) {
     unsigned *pixels = (unsigned *)display->bitmap.buffer;
     unsigned index = display->size.x * position.y + position.x;
     pixels[index] = color.r << 16 | color.g << 8 | color.b;

@@ -196,7 +196,7 @@ unsigned short pop_short_cpu(cpu_t *cpu) {
     return a0 | (a1 << 8);
 }
 
-void read_cpu_state(char *buffer, unsigned buffer_size, cpu_t *cpu) {
+void read_state_cpu(cpu_t *cpu, char *buffer, unsigned buffer_size) {
     unsigned char opcode_byte = read_byte_cpu(cpu, cpu->pc);
     opcode_t opcode = OP_TABLE[opcode_byte];
     unsigned char term_count = ADDRESS_MODE_SIZES[opcode.address_mode];
@@ -261,37 +261,37 @@ bool update_cpu(cpu_t *cpu) {
     // Decode
     switch (opcode.address_mode) {
     case ADDR_IMMEDIATE:
-        operand = addr_immediate(cpu);
+        operand = immediate_addr(cpu);
         break;
     case ADDR_ZERO_PAGE:
-        operand = addr_zero_page(cpu);
+        operand = zero_page_addr(cpu);
         break;
     case ADDR_ZERO_PAGE_X:
-        operand = addr_zero_page_x(cpu);
+        operand = zero_page_x_addr(cpu);
         break;
     case ADDR_ZERO_PAGE_Y:
-        operand = addr_zero_page_y(cpu);
+        operand = zero_page_y_addr(cpu);
         break;
     case ADDR_RELATIVE:
-        operand = addr_relative(cpu);
+        operand = relative_addr(cpu);
         break;
     case ADDR_ABSOLUTE:
-        operand = addr_absolute(cpu);
+        operand = absolute_addr(cpu);
         break;
     case ADDR_ABSOLUTE_X:
-        operand = addr_absolute_x(cpu);
+        operand = absolute_x_addr(cpu);
         break;
     case ADDR_ABSOLUTE_Y:
-        operand = addr_absolute_y(cpu);
+        operand = absolute_y_addr(cpu);
         break;
     case ADDR_INDIRECT:
-        operand = addr_indirect(cpu);
+        operand = indirect_addr(cpu);
         break;
     case ADDR_INDIRECT_X:
-        operand = addr_indirect_x(cpu);
+        operand = indirect_x_addr(cpu);
         break;
     case ADDR_INDIRECT_Y:
-        operand = addr_indirect_y(cpu);
+        operand = indirect_y_addr(cpu);
         break;
     default:
         break;

@@ -44,6 +44,6 @@ void poll_input(input_t *input);
  * @return true
  * @return false
  */
-bool is_keydown(input_t *input, SDL_Keycode code);
+bool is_keydown_input(input_t *input, SDL_Keycode code);
 
 #endif

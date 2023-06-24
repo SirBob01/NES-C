@@ -276,11 +276,11 @@ unsigned short pop_short_cpu(cpu_t *cpu);
 /**
  * @brief Read the current state of the CPU for debugging.
  *
+ * @param cpu
  * @param buffer
  * @param buffer_size
- * @param cpu
  */
-void read_cpu_state(char *buffer, unsigned buffer_size, cpu_t *cpu);
+void read_state_cpu(cpu_t *cpu, char *buffer, unsigned buffer_size);
 
 /**
  * @brief Update the CPU.

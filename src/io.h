@@ -65,7 +65,7 @@ void destroy_io(io_t *io);
  * @param display
  * @param rom
  */
-void debug_pattern_tables(display_t *display, rom_t *rom);
+void debug_pattern_tables_io(display_t *display, rom_t *rom);
 
 /**
  * @brief Refresh the I/O interfaces.

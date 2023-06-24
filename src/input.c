@@ -22,7 +22,7 @@ void poll_input(input_t *input) {
     }
 }
 
-bool is_keydown(input_t *input, SDL_Keycode code) {
+bool is_keydown_input(input_t *input, SDL_Keycode code) {
     SDL_Scancode scancode = SDL_GetScancodeFromKey(code);
     return input->keystate[scancode];
 }

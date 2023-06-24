@@ -18,13 +18,6 @@
 void print_usage();
 
 /**
- * @brief Print ROM information.
- *
- * @param rom
- */
-void print_rom(rom_t *rom);
-
-/**
  * @brief Parse command line arguments to boot up the emulator.
  *
  * @param argc

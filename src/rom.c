@@ -28,7 +28,7 @@ rom_t *load_rom(const char *path) {
     fread(rom->data.buffer, 1, rom->data.size, file);
 
     // Parse the header
-    rom->header = get_rom_header(rom->data.buffer);
+    rom->header = get_header_rom(rom->data.buffer);
 
     // Cleanup and return
     fclose(file);
@@ -40,7 +40,7 @@ void unload_rom(rom_t *rom) {
     free(rom);
 }
 
-rom_header_t get_rom_header(const unsigned char *buffer) {
+rom_header_t get_header_rom(const unsigned char *buffer) {
     rom_header_t header;
 
     // Determine format type
@@ -84,15 +84,47 @@ rom_header_t get_rom_header(const unsigned char *buffer) {
     return header;
 }
 
-unsigned char *get_trainer(rom_t *rom) {
+unsigned char *get_trainer_rom(rom_t *rom) {
     unsigned char *base = rom->data.buffer;
     return base + 0x10;
 }
 
 unsigned char *get_prg_rom(rom_t *rom) {
-    return get_trainer(rom) + (rom->header.trainer ? 0x200 : 0);
+    return get_trainer_rom(rom) + (rom->header.trainer ? 0x200 : 0);
 }
 
 unsigned char *get_chr_rom(rom_t *rom) {
     return get_prg_rom(rom) + rom->header.prg_rom_size;
+}
+
+void read_state_rom(rom_t *rom, char *buffer, unsigned buffer_size) {
+    snprintf(buffer,
+             buffer_size,
+             "ROM Cartridge:\n"
+             "* ROM type: %s\n"
+             "* PRG ROM Offset: %u\n"
+             "* CHR ROM Offset: %u\n"
+             "* PRG ROM Size: %lu\n"
+             "* CHR ROM Size: %lu\n"
+             "* Mirroring: %s\n"
+             "* Battery: %s\n"
+             "* Trainer: %s\n"
+             "* Four-screen: %s\n"
+             "* Console type: %s\n"
+             "* Mapper number: %d\n",
+             rom->header.type == NES_1 ? "NES 1" : "NES 2",
+             (unsigned)(get_prg_rom(rom) - rom->data.buffer),
+             (unsigned)(get_chr_rom(rom) - rom->data.buffer),
+             rom->header.prg_rom_size,
+             rom->header.chr_rom_size,
+             rom->header.mirroring == MIRROR_HORIZONTAL ? "Horizontal"
+                                                        : "Vertical",
+             rom->header.battery ? "Yes" : "No",
+             rom->header.trainer ? "Yes" : "No",
+             rom->header.four_screen ? "Yes" : "No",
+             rom->header.console_type == CONSOLE_NES          ? "NES"
+             : rom->header.console_type == CONSOLE_VS         ? "VS"
+             : rom->header.console_type == CONSOLE_PLAYCHOICE ? "PlayChoice"
+                                                              : "Extended",
+             rom->header.mapper);
 }

@@ -1,4 +1,5 @@
 #include "./io.h"
+#include "display.h"
 
 io_t *create_io(emulator_t *emu) {
     io_t *io = (io_t *)malloc(sizeof(io_t));
@@ -20,7 +21,7 @@ void destroy_io(io_t *io) {
     free(io);
 }
 
-void debug_pattern_tables(display_t *display, rom_t *rom) {
+void debug_pattern_tables_io(display_t *display, rom_t *rom) {
     unsigned char *chr_rom = get_chr_rom(rom);
     // For each tile
     for (unsigned i = 0; i < 512; i++) {
@@ -52,7 +53,7 @@ void debug_pattern_tables(display_t *display, rom_t *rom) {
                     break;
                 }
                 // Draw the pixel
-                render_pixel(display, position, color);
+                draw_display(display, position, color);
             }
         }
     }
@@ -67,14 +68,14 @@ bool refresh_io(io_t *io, emulator_t *emu) {
             unsigned i = x + y * io->display->size.x;
             color_t pixel = emu->ppu->color_buffer[i];
             vec2_t position = {x, y};
-            render_pixel(io->display, position, pixel);
+            draw_display(io->display, position, pixel);
         }
     }
     refresh_display(io->display);
 
 #ifndef NDEBUG
     // Debug draw the pattern tables.
-    debug_pattern_tables(io->pattern_table, emu->rom);
+    debug_pattern_tables_io(io->pattern_table, emu->rom);
     refresh_display(io->pattern_table);
 #endif
 

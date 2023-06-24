@@ -310,17 +310,17 @@ typedef struct {
     unsigned char page_crossed;
 } operand_t;
 
-operand_t addr_immediate(cpu_t *cpu);
-operand_t addr_zero_page(cpu_t *cpu);
-operand_t addr_zero_page_x(cpu_t *cpu);
-operand_t addr_zero_page_y(cpu_t *cpu);
-operand_t addr_absolute(cpu_t *cpu);
-operand_t addr_absolute_x(cpu_t *cpu);
-operand_t addr_absolute_y(cpu_t *cpu);
-operand_t addr_indirect(cpu_t *cpu);
-operand_t addr_indirect_x(cpu_t *cpu);
-operand_t addr_indirect_y(cpu_t *cpu);
-operand_t addr_relative(cpu_t *cpu);
+operand_t immediate_addr(cpu_t *cpu);
+operand_t zero_page_addr(cpu_t *cpu);
+operand_t zero_page_x_addr(cpu_t *cpu);
+operand_t zero_page_y_addr(cpu_t *cpu);
+operand_t absolute_addr(cpu_t *cpu);
+operand_t absolute_x_addr(cpu_t *cpu);
+operand_t absolute_y_addr(cpu_t *cpu);
+operand_t indirect_addr(cpu_t *cpu);
+operand_t indirect_x_addr(cpu_t *cpu);
+operand_t indirect_y_addr(cpu_t *cpu);
+operand_t relative_addr(cpu_t *cpu);
 
 // No handler for implicit or accumulator addressing modes.
 
