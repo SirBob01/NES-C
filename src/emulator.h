@@ -35,6 +35,18 @@ typedef struct {
      *
      */
     cpu_t *cpu;
+
+    /**
+     * @brief Accumulator for frame-counting.
+     *
+     */
+    unsigned cycle_accumulator;
+
+    /**
+     * @brief Frame counter.
+     *
+     */
+    unsigned frames;
 } emulator_t;
 
 /**
