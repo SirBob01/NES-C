@@ -204,7 +204,8 @@ void read_state_cpu(cpu_t *cpu, char *buffer, unsigned buffer_size) {
     case 1:
         snprintf(buffer,
                  buffer_size,
-                 "%04X  %02X        A:%02X X:%02X Y:%02X P:%02X SP:%02X CYC:"
+                 "%04X  %02X        A:%02X X:%02X Y:%02X P:%02X SP:%02X "
+                 "PPU:%3d,%3d CYC:"
                  "%lu",
                  cpu->pc,
                  opcode_byte,
@@ -213,12 +214,15 @@ void read_state_cpu(cpu_t *cpu, char *buffer, unsigned buffer_size) {
                  cpu->y,
                  get_status_cpu(cpu),
                  cpu->s,
+                 cpu->ppu->scanline,
+                 cpu->ppu->dot,
                  cpu->cycles);
         break;
     case 2:
         snprintf(buffer,
                  buffer_size,
-                 "%04X  %02X %02X     A:%02X X:%02X Y:%02X P:%02X SP:%02X CYC:"
+                 "%04X  %02X %02X     A:%02X X:%02X Y:%02X P:%02X SP:%02X "
+                 "PPU:%3d,%3d CYC:"
                  "%lu",
                  cpu->pc,
                  opcode_byte,
@@ -228,24 +232,28 @@ void read_state_cpu(cpu_t *cpu, char *buffer, unsigned buffer_size) {
                  cpu->y,
                  get_status_cpu(cpu),
                  cpu->s,
+                 cpu->ppu->scanline,
+                 cpu->ppu->dot,
                  cpu->cycles);
         break;
     case 3:
-        snprintf(
-            buffer,
-            buffer_size,
-            "%04X  %02X %02X %02X  A:%02X X:%02X Y:%02X P:%02X SP:%02X CYC:"
-            "%lu",
-            cpu->pc,
-            opcode_byte,
-            read_byte_cpu(cpu, cpu->pc + 1),
-            read_byte_cpu(cpu, cpu->pc + 2),
-            cpu->a,
-            cpu->x,
-            cpu->y,
-            get_status_cpu(cpu),
-            cpu->s,
-            cpu->cycles);
+        snprintf(buffer,
+                 buffer_size,
+                 "%04X  %02X %02X %02X  A:%02X X:%02X Y:%02X P:%02X SP:%02X "
+                 "PPU:%3d,%3d CYC:"
+                 "%lu",
+                 cpu->pc,
+                 opcode_byte,
+                 read_byte_cpu(cpu, cpu->pc + 1),
+                 read_byte_cpu(cpu, cpu->pc + 2),
+                 cpu->a,
+                 cpu->x,
+                 cpu->y,
+                 get_status_cpu(cpu),
+                 cpu->s,
+                 cpu->ppu->scanline,
+                 cpu->ppu->dot,
+                 cpu->cycles);
         break;
     default:
         break;
