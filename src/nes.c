@@ -1,4 +1,5 @@
 #include "./nes.h"
+#include "ppu.h"
 
 void print_usage() { printf("Usage: nesc %s <input_file>\n", ARG_INPUT_FILE); }
 
@@ -36,9 +37,19 @@ int main(int argc, char **argv) {
     read_state_rom(emu->rom, strbuf, sizeof(strbuf));
     puts(strbuf);
 
-    // Run the emulator until it finishes
+    // Emulate and refresh device IO every frame
     while (true) {
-        bool emu_state = update_emulator(emu);
+        bool emu_state = true;
+        while (emu_state) {
+            unsigned prev_frame = emu->frames;
+            emu_state = update_emulator(emu);
+            unsigned curr_frame = emu->frames;
+
+            if (curr_frame > prev_frame) {
+                break;
+            }
+        }
+
         bool io_state = refresh_io(io, emu);
         if (!emu_state || !io_state) {
             break;
