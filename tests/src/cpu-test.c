@@ -33,7 +33,7 @@ static char *test_opcodes() {
         printf("%s %lu\n\n", dst, strlen(dst));
         mu_assert("CPU state does not match nestest.log",
                   strcmp(src, dst) == 0);
-        running = update_cpu(emu->cpu);
+        running = update_emulator(emu);
         lines--;
     }
 

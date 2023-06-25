@@ -22,17 +22,19 @@ emulator_t *parse_args(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
+    // Initialize string buffer for debugging
+    char strbuf[1024];
+
     // Boot up the emulator
     emulator_t *emu = parse_args(argc, argv);
     io_t *io = create_io(emu);
     if (emu->rom->data.buffer == NULL || emu->rom->header.type == NES_INVALID) {
-        return 1;
+        exit(1);
     }
 
     // Print ROM information
-    char rom_str[1024];
-    read_state_rom(emu->rom, rom_str, sizeof(rom_str));
-    puts(rom_str);
+    read_state_rom(emu->rom, strbuf, sizeof(strbuf));
+    puts(strbuf);
 
     // Run the emulator until it finishes
     while (true) {

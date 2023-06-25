@@ -20,8 +20,8 @@
 #define PPU_MAP_PALETTE_MIRROR   0x3f20
 
 // Rows and columns of the PPU render target
-#define PPU_SCANLINES  262
-#define PPU_SCANCYCLES 341
+#define PPU_SCANLINES 262
+#define PPU_LINEDOTS  341
 
 typedef struct {
     /**
@@ -79,22 +79,40 @@ typedef struct {
     unsigned char oam_dma;
 
     /**
+     * @brief Current scanline (row).
+     *
+     */
+    unsigned scanline;
+
+    /**
+     * @brief Current pixel (column).
+     *
+     */
+    unsigned dot;
+
+    /**
+     * @brief Is in an odd frame?
+     *
+     */
+    bool odd_frame;
+
+    /**
      * @brief PPU video memory.
      *
      */
     memory_t memory;
 
     /**
-     * @brief Output color buffer.
-     *
-     */
-    color_t color_buffer[PPU_SCANCYCLES * PPU_SCANLINES];
-
-    /**
      * @brief Object attribute memory.
      *
      */
     unsigned char oam[256];
+
+    /**
+     * @brief Output color buffer.
+     *
+     */
+    color_t color_buffer[PPU_LINEDOTS * PPU_SCANLINES];
 
     /**
      * @brief Pointer to the ROM.
@@ -144,6 +162,15 @@ unsigned char *apply_memory_mapper_ppu(ppu_t *cpu, address_t address);
  * @return unsigned char*
  */
 unsigned char *get_memory_ppu(ppu_t *ppu, address_t address);
+
+/**
+ * @brief Read the current state of the CPU for debugging.
+ *
+ * @param ppu
+ * @param buffer
+ * @param buffer_size
+ */
+void read_state_ppu(ppu_t *ppu, char *buffer, unsigned buffer_size);
 
 /**
  * @brief Update the PPU.
