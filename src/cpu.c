@@ -894,9 +894,10 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode_byte, operand_t operand) {
     // Update the cycles
     cpu->cycles += (opcode.cycles + delay_cycles);
 
-    // Reset interrupt signals
+    // Reset interrupt state
     cpu->interrupt.irq = false;
     cpu->interrupt.nmi = false;
+    cpu->interrupt.vector = CPU_VEC_IRQ_BRK;
 
     return true;
 }
