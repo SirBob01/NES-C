@@ -265,18 +265,21 @@ void read_state_cpu(cpu_t *cpu, char *buffer, unsigned buffer_size) {
 }
 
 unsigned char fetch_op_cpu(cpu_t *cpu) {
-    // Handle NMI and IRQ interrupts, if any
+    // Handle NMI, IRQ, and RESET interrupts
     if (cpu->interrupt.nmi) {
-        cpu->interrupt.nmi = false;
         cpu->interrupt.vector = CPU_VEC_NMI;
         return 0;
-    } else if (!cpu->status.i && cpu->interrupt.irq) {
-        cpu->interrupt.irq = false;
+    }
+    if (cpu->interrupt.irq && !cpu->status.i) {
         cpu->interrupt.vector = CPU_VEC_IRQ_BRK;
         return 0;
     }
+    if (cpu->interrupt.reset && !cpu->status.i) {
+        cpu->interrupt.vector = CPU_VEC_RESET;
+        return 0;
+    }
 
-    // Return next instruction
+    // No interrupts, next instruction from program counter
     return read_byte_cpu(cpu, cpu->pc);
 }
 
@@ -440,8 +443,10 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode_byte, operand_t operand) {
         cpu->status.d = 1;
         break;
     case OP_PHP:
-        // Pushed copy should have break flag set (0x10)
-        push_byte_cpu(cpu, get_status_cpu(cpu) | 0x10);
+        // Pushed copy should have break flag and bit 5 set
+        cpu->status.b = true;
+        push_byte_cpu(cpu, get_status_cpu(cpu) | 0x20);
+        cpu->status.b = false;
         break;
     case OP_PLA:
         cpu->a = pop_byte_cpu(cpu);
@@ -714,12 +719,22 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode_byte, operand_t operand) {
         break;
     }
     case OP_BRK:
-        push_short_cpu(cpu, cpu->pc + 2);
-        push_byte_cpu(cpu, get_status_cpu(cpu) | 0x10);
-        cpu->pc = read_short_cpu(cpu, cpu->interrupt.vector);
-        if (cpu->interrupt.vector == CPU_VEC_IRQ_BRK && !cpu->interrupt.irq) {
-            cpu->status.b = true;
+        // Push PC and status register onto stack for non-reset interrupts
+        if (!cpu->interrupt.reset) {
+            cpu->status.b = cpu->interrupt.vector == CPU_VEC_IRQ_BRK &&
+                            !cpu->interrupt.irq; // Set break flag
+            push_short_cpu(cpu, cpu->pc + 2);
+            push_byte_cpu(cpu, get_status_cpu(cpu) | 0x20);
+        } else {
+            cpu->s -= 3;
         }
+
+        // Update status flags
+        cpu->status.b = false;
+        cpu->status.i = true;
+
+        // Execute interrupt handler
+        cpu->pc = read_short_cpu(cpu, cpu->interrupt.vector);
         break;
     case OP_LAX:
         cpu->a = read_byte_cpu(cpu, operand.address);
@@ -897,6 +912,7 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode_byte, operand_t operand) {
     // Reset interrupt state
     cpu->interrupt.irq = false;
     cpu->interrupt.nmi = false;
+    cpu->interrupt.reset = false;
     cpu->interrupt.vector = CPU_VEC_IRQ_BRK;
 
     return true;

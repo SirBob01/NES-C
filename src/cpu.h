@@ -92,6 +92,12 @@ typedef struct {
     bool nmi;
 
     /**
+     * @brief Reset flag.
+     *
+     */
+    bool reset;
+
+    /**
      * @brief Vector to the current interrupt handler.
      *
      */
