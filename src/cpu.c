@@ -21,6 +21,10 @@ cpu_t *create_cpu(rom_t *rom, apu_t *apu, ppu_t *ppu) {
     cpu->status.o = false;
     cpu->status.n = false;
 
+    cpu->interrupt.irq = false;
+    cpu->interrupt.nmi = false;
+    cpu->interrupt.vector = CPU_VEC_IRQ_BRK;
+
     // Cycles on reset
     cpu->cycles = 7;
 
@@ -260,52 +264,56 @@ void read_state_cpu(cpu_t *cpu, char *buffer, unsigned buffer_size) {
     }
 }
 
-bool update_cpu(cpu_t *cpu) {
-    // Fetch
-    unsigned char opcode_byte = read_byte_cpu(cpu, cpu->pc);
-    opcode_t opcode = OP_TABLE[opcode_byte];
-    operand_t operand = {0, 0};
-
-    // Decode
-    switch (opcode.address_mode) {
-    case ADDR_IMMEDIATE:
-        operand = immediate_addr(cpu);
-        break;
-    case ADDR_ZERO_PAGE:
-        operand = zero_page_addr(cpu);
-        break;
-    case ADDR_ZERO_PAGE_X:
-        operand = zero_page_x_addr(cpu);
-        break;
-    case ADDR_ZERO_PAGE_Y:
-        operand = zero_page_y_addr(cpu);
-        break;
-    case ADDR_RELATIVE:
-        operand = relative_addr(cpu);
-        break;
-    case ADDR_ABSOLUTE:
-        operand = absolute_addr(cpu);
-        break;
-    case ADDR_ABSOLUTE_X:
-        operand = absolute_x_addr(cpu);
-        break;
-    case ADDR_ABSOLUTE_Y:
-        operand = absolute_y_addr(cpu);
-        break;
-    case ADDR_INDIRECT:
-        operand = indirect_addr(cpu);
-        break;
-    case ADDR_INDIRECT_X:
-        operand = indirect_x_addr(cpu);
-        break;
-    case ADDR_INDIRECT_Y:
-        operand = indirect_y_addr(cpu);
-        break;
-    default:
-        break;
+unsigned char fetch_op_cpu(cpu_t *cpu) {
+    // Handle NMI and IRQ interrupts, if any
+    if (cpu->interrupt.nmi) {
+        cpu->interrupt.nmi = false;
+        cpu->interrupt.vector = CPU_VEC_NMI;
+        return 0;
+    } else if (!cpu->status.i && cpu->interrupt.irq) {
+        cpu->interrupt.irq = false;
+        cpu->interrupt.vector = CPU_VEC_IRQ_BRK;
+        return 0;
     }
 
+    // Return next instruction
+    return read_byte_cpu(cpu, cpu->pc);
+}
+
+operand_t decode_op_cpu(cpu_t *cpu, unsigned char opcode_byte) {
+    opcode_t opcode = OP_TABLE[opcode_byte];
+
+    switch (opcode.address_mode) {
+    case ADDR_IMMEDIATE:
+        return immediate_addr(cpu);
+    case ADDR_ZERO_PAGE:
+        return zero_page_addr(cpu);
+    case ADDR_ZERO_PAGE_X:
+        return zero_page_x_addr(cpu);
+    case ADDR_ZERO_PAGE_Y:
+        return zero_page_y_addr(cpu);
+    case ADDR_RELATIVE:
+        return relative_addr(cpu);
+    case ADDR_ABSOLUTE:
+        return absolute_addr(cpu);
+    case ADDR_ABSOLUTE_X:
+        return absolute_x_addr(cpu);
+    case ADDR_ABSOLUTE_Y:
+        return absolute_y_addr(cpu);
+    case ADDR_INDIRECT:
+        return indirect_addr(cpu);
+    case ADDR_INDIRECT_X:
+        return indirect_x_addr(cpu);
+    case ADDR_INDIRECT_Y:
+        return indirect_y_addr(cpu);
+    default:
+        return (operand_t){0, 0};
+    }
+}
+
+bool execute_op_cpu(cpu_t *cpu, unsigned char opcode_byte, operand_t operand) {
     // Update the program counter.
+    opcode_t opcode = OP_TABLE[opcode_byte];
     cpu->pc += ADDRESS_MODE_SIZES[opcode.address_mode];
 
     // Set number of delay cycles
@@ -708,8 +716,10 @@ bool update_cpu(cpu_t *cpu) {
     case OP_BRK:
         push_short_cpu(cpu, cpu->pc + 2);
         push_byte_cpu(cpu, get_status_cpu(cpu) | 0x10);
-        cpu->pc = read_short_cpu(cpu, CPU_VEC_IRQ_BRK);
-        cpu->status.b = true;
+        cpu->pc = read_short_cpu(cpu, cpu->interrupt.vector);
+        if (cpu->interrupt.vector == CPU_VEC_IRQ_BRK && !cpu->interrupt.irq) {
+            cpu->status.b = true;
+        }
         break;
     case OP_LAX:
         cpu->a = read_byte_cpu(cpu, operand.address);
@@ -883,5 +893,21 @@ bool update_cpu(cpu_t *cpu) {
 
     // Update the cycles
     cpu->cycles += (opcode.cycles + delay_cycles);
+
+    // Reset interrupt signals
+    cpu->interrupt.irq = false;
+    cpu->interrupt.nmi = false;
+
     return true;
+}
+
+bool update_cpu(cpu_t *cpu) {
+    // Fetch
+    unsigned char opcode_byte = fetch_op_cpu(cpu);
+
+    // Decode
+    operand_t operands = decode_op_cpu(cpu, opcode_byte);
+
+    // Execute
+    return execute_op_cpu(cpu, opcode_byte, operands);
 }

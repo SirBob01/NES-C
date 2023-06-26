@@ -75,6 +75,30 @@ typedef struct {
 } cpu_status_t;
 
 /**
+ * @brief CPU interrupt state.
+ *
+ */
+typedef struct {
+    /**
+     * @brief IRQ flag.
+     *
+     */
+    bool irq;
+
+    /**
+     * @brief NMI flag, not affected by the CPU I-status.
+     *
+     */
+    bool nmi;
+
+    /**
+     * @brief Vector to the current interrupt handler.
+     *
+     */
+    address_t vector;
+} cpu_interrupt_t;
+
+/**
  * @brief CPU emulation state.
  *
  */
@@ -108,6 +132,12 @@ typedef struct {
      *
      */
     cpu_status_t status;
+
+    /**
+     * @brief Current interrupt vector.
+     *
+     */
+    cpu_interrupt_t interrupt;
 
     /**
      * @brief Number of cycles.
