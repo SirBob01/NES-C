@@ -2,6 +2,7 @@
 #define PPU_H
 
 #include "./display.h"
+#include "./interrupt.h"
 #include "./memory.h"
 #include "./rom.h"
 
@@ -113,6 +114,12 @@ typedef struct {
      *
      */
     color_t color_buffer[PPU_LINEDOTS * PPU_SCANLINES];
+
+    /**
+     * @brief Pointer to the CPU interrupt controller.
+     *
+     */
+    interrupt_t *interrupt;
 
     /**
      * @brief Pointer to the ROM.

@@ -2,6 +2,7 @@
 #define CPU_H
 
 #include "./apu.h"
+#include "./interrupt.h"
 #include "./memory.h"
 #include "./ppu.h"
 #include "./rom.h"
@@ -75,36 +76,6 @@ typedef struct {
 } cpu_status_t;
 
 /**
- * @brief CPU interrupt state.
- *
- */
-typedef struct {
-    /**
-     * @brief IRQ flag.
-     *
-     */
-    bool irq;
-
-    /**
-     * @brief NMI flag, not affected by the CPU I-status.
-     *
-     */
-    bool nmi;
-
-    /**
-     * @brief Reset flag.
-     *
-     */
-    bool reset;
-
-    /**
-     * @brief Vector to the current interrupt handler.
-     *
-     */
-    address_t vector;
-} cpu_interrupt_t;
-
-/**
  * @brief CPU emulation state.
  *
  */
@@ -140,10 +111,16 @@ typedef struct {
     cpu_status_t status;
 
     /**
-     * @brief Current interrupt vector.
+     * @brief Interrupt controller.
      *
      */
-    cpu_interrupt_t interrupt;
+    interrupt_t interrupt;
+
+    /**
+     * @brief Vector to the current interrupt handler.
+     *
+     */
+    address_t interrupt_vector;
 
     /**
      * @brief Number of cycles.
