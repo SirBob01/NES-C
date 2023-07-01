@@ -2,6 +2,7 @@
 #define APU_H
 
 #include "./buffer.h"
+#include "./interrupt.h"
 
 #define AUDIO_BUFFER_SIZE 0x400
 
@@ -69,6 +70,12 @@ typedef struct {
      *
      */
     unsigned char frame_counter;
+
+    /**
+     * @brief Pointer to the CPU interrupt state.
+     *
+     */
+    interrupt_t *interrupt;
 } apu_t;
 
 /**

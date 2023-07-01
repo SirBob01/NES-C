@@ -34,8 +34,9 @@ cpu_t *create_cpu(rom_t *rom, apu_t *apu, ppu_t *ppu) {
     cpu->apu = apu;
     cpu->ppu = ppu;
 
-    // Attach the interrupt controller to the peripherals
+    // Attach the interrupt state to the peripherals
     cpu->ppu->interrupt = &cpu->interrupt;
+    cpu->apu->interrupt = &cpu->interrupt;
 
     return cpu;
 }

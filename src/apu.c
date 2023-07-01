@@ -3,6 +3,7 @@
 apu_t *create_apu() {
     apu_t *apu = (apu_t *)malloc(sizeof(apu_t));
     apu->buffer = create_buffer(AUDIO_BUFFER_SIZE);
+    apu->interrupt = NULL;
     return apu;
 }
 

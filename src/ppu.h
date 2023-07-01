@@ -116,7 +116,7 @@ typedef struct {
     color_t color_buffer[PPU_LINEDOTS * PPU_SCANLINES];
 
     /**
-     * @brief Pointer to the CPU interrupt controller.
+     * @brief Pointer to the CPU interrupt state.
      *
      */
     interrupt_t *interrupt;

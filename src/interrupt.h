@@ -6,24 +6,24 @@
 #include "memory.h"
 
 /**
- * @brief Interrupt controller.
+ * @brief Interrupt state.
  *
  */
 typedef struct {
     /**
-     * @brief IRQ flag.
+     * @brief IRQ line.
      *
      */
     bool irq;
 
     /**
-     * @brief NMI flag, not affected by the CPU I-status.
+     * @brief NMI line, not affected by the CPU I-flag.
      *
      */
     bool nmi;
 
     /**
-     * @brief Reset flag.
+     * @brief Reset line.
      *
      */
     bool reset;
