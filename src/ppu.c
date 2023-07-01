@@ -19,6 +19,8 @@ ppu_t *create_ppu(rom_t *rom) {
 
     ppu->memory = allocate_memory(PPU_RAM_SIZE);
     ppu->rom = rom;
+    ppu->interrupt = NULL;
+
     return ppu;
 }
 
