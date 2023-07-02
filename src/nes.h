@@ -3,7 +3,6 @@
 
 #include <assert.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "./emulator.h"
@@ -20,10 +19,10 @@ void print_usage();
 /**
  * @brief Parse command line arguments to boot up the emulator.
  *
+ * @param emu
  * @param argc
  * @param argv
- * @return emulator_t*
  */
-emulator_t *parse_args(int argc, char **argv);
+void parse_args(emulator_t *emu, int argc, char **argv);
 
 #endif

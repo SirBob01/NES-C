@@ -3,8 +3,10 @@
 
 #include "./apu.h"
 #include "./cpu.h"
+#include "./cpu_bus.h"
 #include "./memory.h"
 #include "./ppu.h"
+#include "./ppu_bus.h"
 #include "./rom.h"
 
 /**
@@ -16,25 +18,43 @@ typedef struct {
      * @brief Cartridge read-only memory.
      *
      */
-    rom_t *rom;
-
-    /**
-     * @brief Picture processing unit.
-     *
-     */
-    ppu_t *ppu;
-
-    /**
-     * @brief Audio processing unit.
-     *
-     */
-    apu_t *apu;
+    rom_t rom;
 
     /**
      * @brief Central procesing unit.
      *
      */
-    cpu_t *cpu;
+    cpu_t cpu;
+
+    /**
+     * @brief Audio processing unit.
+     *
+     */
+    apu_t apu;
+
+    /**
+     * @brief Picture processing unit.
+     *
+     */
+    ppu_t ppu;
+
+    /**
+     * @brief CPU bus.
+     *
+     */
+    cpu_bus_t cpu_bus;
+
+    /**
+     * @brief PPU bus.
+     *
+     */
+    ppu_bus_t ppu_bus;
+
+    /**
+     * @brief Interrupt state.
+     *
+     */
+    interrupt_t interrupt;
 
     /**
      * @brief Accumulator for frame-counting.
@@ -50,12 +70,12 @@ typedef struct {
 } emulator_t;
 
 /**
- * @brief Create a emulator.
+ * @brief Create an emulator.
  *
+ * @param emu
  * @param rom_path
- * @return emulator_t*
  */
-emulator_t *create_emulator(const char *rom_path);
+void create_emulator(emulator_t *emu, const char *rom_path);
 
 /**
  * @brief Free all resources held by the emulator.

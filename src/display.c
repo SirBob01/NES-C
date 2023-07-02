@@ -1,9 +1,11 @@
 #include "./display.h"
 
-display_t *create_display(unsigned width, unsigned height, const char *title) {
+void create_display(display_t *display,
+                    unsigned width,
+                    unsigned height,
+                    const char *title) {
     SDL_InitSubSystem(SDL_INIT_VIDEO);
 
-    display_t *display = (display_t *)malloc(sizeof(display_t));
     display->window = SDL_CreateWindow(title, 640, 480, SDL_WINDOW_RESIZABLE);
     if (!display->window) {
         fprintf(stderr,
@@ -44,7 +46,6 @@ display_t *create_display(unsigned width, unsigned height, const char *title) {
                                      height,
                                      SDL_LOGICAL_PRESENTATION_LETTERBOX,
                                      SDL_SCALEMODE_NEAREST);
-    return display;
 }
 
 void destroy_display(display_t *display) {
@@ -52,7 +53,6 @@ void destroy_display(display_t *display) {
     SDL_DestroyTexture(display->texture);
     SDL_DestroyRenderer(display->renderer);
     SDL_DestroyWindow(display->window);
-    free(display);
 }
 
 void refresh_display(display_t *display) {

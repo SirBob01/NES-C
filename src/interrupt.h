@@ -3,8 +3,6 @@
 
 #include <stdbool.h>
 
-#include "memory.h"
-
 /**
  * @brief Interrupt state.
  *
@@ -28,5 +26,12 @@ typedef struct {
      */
     bool reset;
 } interrupt_t;
+
+/**
+ * @brief Reset the interrupt state.
+ *
+ * @param interrupt
+ */
+void reset_interrupt(interrupt_t *interrupt);
 
 #endif

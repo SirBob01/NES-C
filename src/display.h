@@ -2,7 +2,6 @@
 #define DISPLAY_H
 
 #include <SDL.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "./memory.h"
@@ -71,12 +70,15 @@ typedef struct {
 /**
  * @brief Create a 2D display.
  *
- * @param width  Logical width of the display.
- * @param height Logical height of the display.
- * @param title  Title of the window.
- * @return display_t*
+ * @param display Target display.
+ * @param width   Logical width of the display.
+ * @param height  Logical height of the display.
+ * @param title   Title of the window.
  */
-display_t *create_display(unsigned width, unsigned height, const char *title);
+void create_display(display_t *display,
+                    unsigned width,
+                    unsigned height,
+                    const char *title);
 
 /**
  * @brief Destroy a 2D display.

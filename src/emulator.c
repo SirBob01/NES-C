@@ -1,42 +1,42 @@
 #include "./emulator.h"
-#include "ppu.h"
 
-emulator_t *create_emulator(const char *rom_path) {
-    emulator_t *emu = (emulator_t *)malloc(sizeof(emulator_t));
-    emu->rom = load_rom(rom_path);
-    emu->ppu = create_ppu(emu->rom);
-    emu->apu = create_apu();
-    emu->cpu = create_cpu(emu->rom, emu->apu, emu->ppu);
+void create_emulator(emulator_t *emu, const char *rom_path) {
+    load_rom(&emu->rom, rom_path);
+    create_cpu(&emu->cpu, &emu->cpu_bus, &emu->interrupt);
+    create_apu(&emu->apu, &emu->interrupt);
+    create_ppu(&emu->ppu, &emu->ppu_bus, &emu->interrupt);
+    create_cpu_bus(&emu->cpu_bus, &emu->rom, &emu->apu, &emu->ppu);
+    create_ppu_bus(&emu->ppu_bus, &emu->rom);
+    reset_interrupt(&emu->interrupt);
 
     // Initialize frame counter variables
     emu->cycle_accumulator = 0;
     emu->frames = 0;
 
     // Set the program counter
-    unsigned char *rv = get_memory_cpu(emu->cpu, CPU_VEC_RESET);
-    emu->cpu->pc = rv[0] | (rv[1] << 8);
-
-    return emu;
+    emu->cpu.pc = read_short_cpu_bus(&emu->cpu_bus, CPU_VEC_RESET);
 }
 
 void destroy_emulator(emulator_t *emu) {
-    destroy_cpu(emu->cpu);
-    destroy_apu(emu->apu);
-    destroy_ppu(emu->ppu);
-    unload_rom(emu->rom);
-    free(emu);
+    destroy_cpu(&emu->cpu);
+    destroy_apu(&emu->apu);
+    destroy_ppu(&emu->ppu);
+    unload_rom(&emu->rom);
 }
 
 bool update_emulator(emulator_t *emu) {
-    unsigned prev_cycles = emu->cpu->cycles;
-    bool cpu_state = update_cpu(emu->cpu);
-    unsigned delta_cycles = emu->cpu->cycles - prev_cycles;
+    unsigned prev_cycles = emu->cpu.cycles;
+    bool cpu_state = update_cpu(&emu->cpu);
+    unsigned delta_cycles = emu->cpu.cycles - prev_cycles;
 
     // Update peripherals
-    update_apu(emu->apu);
+    update_apu(&emu->apu);
     for (unsigned c = 0; c < 3 * delta_cycles; c++) {
-        update_ppu(emu->ppu);
+        update_ppu(&emu->ppu);
     }
+
+    // Reset interrupts
+    reset_interrupt(&emu->interrupt);
 
     // Update frame counter
     emu->cycle_accumulator += delta_cycles;

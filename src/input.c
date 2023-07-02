@@ -1,13 +1,11 @@
 #include "./input.h"
 
-input_t *create_input() {
-    input_t *input = (input_t *)malloc(sizeof(input_t));
+void create_input(input_t *input) {
     input->quit = false;
     input->keystate = SDL_GetKeyboardState(NULL);
-    return input;
 }
 
-void destroy_input(input_t *input) { free(input); }
+void destroy_input(input_t *input) {}
 
 void poll_input(input_t *input) {
     while (SDL_PollEvent(&input->event)) {

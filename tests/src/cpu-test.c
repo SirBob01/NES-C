@@ -8,8 +8,9 @@
 int tests_run = 0;
 
 static char *test_opcodes() {
-    emulator_t *emu = create_emulator("../roms/nestest.nes");
-    emu->cpu->pc = 0xC000;
+    emulator_t emu;
+    create_emulator(&emu, "../roms/nestest.nes");
+    emu.cpu.pc = 0xC000;
 
     FILE *file = fopen("../roms/nestest.log", "r");
     mu_assert("Could not open nestest.log", file != NULL);
@@ -28,16 +29,16 @@ static char *test_opcodes() {
     while (running && lines) {
         fgets(src, sizeof(src), file);
         src[strlen(src) - 2] = 0;
-        read_state_cpu(emu->cpu, dst, sizeof(dst));
+        read_state_cpu(&emu.cpu, dst, sizeof(dst));
         printf("%s %lu\n", src, strlen(src));
         printf("%s %lu\n\n", dst, strlen(dst));
         mu_assert("CPU state does not match nestest.log",
                   strcmp(src, dst) == 0);
-        running = update_emulator(emu);
+        running = update_emulator(&emu);
         lines--;
     }
 
-    destroy_emulator(emu);
+    destroy_emulator(&emu);
     fclose(file);
     return 0;
 }

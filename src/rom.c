@@ -1,7 +1,6 @@
 #include "./rom.h"
 
-rom_t *load_rom(const char *path) {
-    rom_t *rom = (rom_t *)malloc(sizeof(rom_t));
+void load_rom(rom_t *rom, const char *path) {
     rom->data.buffer = NULL;
     rom->data.size = 0;
 
@@ -32,13 +31,9 @@ rom_t *load_rom(const char *path) {
 
     // Cleanup and return
     fclose(file);
-    return rom;
 }
 
-void unload_rom(rom_t *rom) {
-    free_memory(&rom->data);
-    free(rom);
-}
+void unload_rom(rom_t *rom) { free_memory(&rom->data); }
 
 rom_header_t get_header_rom(const unsigned char *buffer) {
     rom_header_t header;

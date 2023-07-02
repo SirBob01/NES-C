@@ -4,21 +4,8 @@
 #include "./display.h"
 #include "./interrupt.h"
 #include "./memory.h"
+#include "./ppu_bus.h"
 #include "./rom.h"
-
-// PPU has a 16-bit address bus (64k)
-#define PPU_RAM_SIZE 1 << 16
-
-// PPU memory map address offsets
-#define PPU_MAP_PATTERNTABLE_0   0x0000
-#define PPU_MAP_PATTERNTABLE_1   0x1000
-#define PPU_MAP_NAMETABLE_0      0x2000
-#define PPU_MAP_NAMETABLE_1      0x2400
-#define PPU_MAP_NAMETABLE_2      0x2800
-#define PPU_MAP_NAMETABLE_3      0x2c00
-#define PPU_MAP_NAMETABLE_MIRROR 0x3000
-#define PPU_MAP_PALETTE          0x3f00
-#define PPU_MAP_PALETTE_MIRROR   0x3f20
 
 // Rows and columns of the PPU render target
 #define PPU_SCANLINES 262
@@ -98,12 +85,6 @@ typedef struct {
     bool odd_frame;
 
     /**
-     * @brief PPU video memory.
-     *
-     */
-    memory_t memory;
-
-    /**
      * @brief Object attribute memory.
      *
      */
@@ -116,25 +97,26 @@ typedef struct {
     color_t color_buffer[PPU_LINEDOTS * PPU_SCANLINES];
 
     /**
-     * @brief Pointer to the CPU interrupt state.
+     * @brief Pointer to the PPU bus.
+     *
+     */
+    ppu_bus_t *bus;
+
+    /**
+     * @brief Pointer to the interrupt state.
      *
      */
     interrupt_t *interrupt;
-
-    /**
-     * @brief Pointer to the ROM.
-     *
-     */
-    rom_t *rom;
 } ppu_t;
 
 /**
  * @brief Create the PPU.
  *
- * @param rom
- * @return ppu_t*
+ * @param ppu
+ * @param bus
+ * @param interrupt
  */
-ppu_t *create_ppu(rom_t *rom);
+void create_ppu(ppu_t *ppu, ppu_bus_t *bus, interrupt_t *interrupt);
 
 /**
  * @brief Destroy the PPU.
@@ -142,33 +124,6 @@ ppu_t *create_ppu(rom_t *rom);
  * @param ppu
  */
 void destroy_ppu(ppu_t *ppu);
-
-/**
- * @brief Convert mirrored addresses to actual addresses.
- *
- * @param address
- * @param mirroring
- * @return address_t
- */
-address_t mirror_address_ppu(address_t address, rom_mirroring_t mirroring);
-
-/**
- * @brief Apply mapper to address that lies on the CHR cartridge section.
- *
- * @param ppu
- * @param address
- * @return unsigned char*
- */
-unsigned char *apply_memory_mapper_ppu(ppu_t *cpu, address_t address);
-
-/**
- * @brief Get the pointer to an address in VRAM.
- *
- * @param ppu
- * @param address
- * @return unsigned char*
- */
-unsigned char *get_memory_ppu(ppu_t *ppu, address_t address);
 
 /**
  * @brief Read the current state of the CPU for debugging.

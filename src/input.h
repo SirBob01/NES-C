@@ -3,7 +3,6 @@
 
 #include <SDL.h>
 #include <stdbool.h>
-#include <stdlib.h>
 
 /**
  * @brief Input state.
@@ -16,11 +15,11 @@ typedef struct {
 } input_t;
 
 /**
- * @brief Create a input state object.
+ * @brief Create an input state object.
  *
- * @return input_t*
+ * @param input
  */
-input_t *create_input();
+void create_input(input_t *input);
 
 /**
  * @brief Destroy a input state object.

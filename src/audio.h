@@ -28,10 +28,10 @@ typedef struct {
 /**
  * @brief Create the audio device.
  *
+ * @param audio
  * @param buffer
- * @return audio_t*
  */
-audio_t *create_audio(buffer_t *buffer);
+void create_audio(audio_t *audio, buffer_t *buffer);
 
 /**
  * @brief Destroy the audio device.

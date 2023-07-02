@@ -1,16 +1,11 @@
 #include "./apu.h"
 
-apu_t *create_apu() {
-    apu_t *apu = (apu_t *)malloc(sizeof(apu_t));
-    apu->buffer = create_buffer(AUDIO_BUFFER_SIZE);
-    apu->interrupt = NULL;
-    return apu;
+void create_apu(apu_t *apu, interrupt_t *interrupt) {
+    apu->interrupt = interrupt;
+    create_buffer(&apu->buffer, AUDIO_BUFFER_SIZE);
 }
 
-void destroy_apu(apu_t *apu) {
-    destroy_buffer(apu->buffer);
-    free(apu);
-}
+void destroy_apu(apu_t *apu) { destroy_buffer(&apu->buffer); }
 
 void update_apu(apu_t *apu) {
     // TODO: Implement this

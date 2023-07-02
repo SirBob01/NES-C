@@ -51,7 +51,7 @@ typedef struct {
      * @brief Audio output buffer.
      *
      */
-    buffer_t *buffer;
+    buffer_t buffer;
 
     /**
      * @brief Internal channel registers.
@@ -72,7 +72,7 @@ typedef struct {
     unsigned char frame_counter;
 
     /**
-     * @brief Pointer to the CPU interrupt state.
+     * @brief Pointer to the interrupt state.
      *
      */
     interrupt_t *interrupt;
@@ -81,9 +81,10 @@ typedef struct {
 /**
  * @brief Create the APU.
  *
- * @return apu_t*
+ * @param apu
+ * @param interrupt
  */
-apu_t *create_apu();
+void create_apu(apu_t *apu, interrupt_t *interrupt);
 
 /**
  * @brief Destroy the APU.
