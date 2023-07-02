@@ -21,34 +21,34 @@ typedef struct {
      * @brief Main display.
      *
      */
-    display_t *display;
+    display_t display;
 
     /**
      * @brief Sound system.
      *
      */
-    audio_t *audio;
+    audio_t audio;
 
     /**
      * @brief Input event queue.
      *
      */
-    input_t *input;
+    input_t input;
 
     /**
      * @brief Pattern table display (debug only).
      *
      */
-    display_t *pattern_table;
+    display_t pattern_table;
 } io_t;
 
 /**
- * @brief Create a I/O interfaces.
+ * @brief Create the I/O interfaces.
  *
+ * @param io
  * @param emu
- * @return io_t*
  */
-io_t *create_io(emulator_t *emu);
+void create_io(io_t *io, emulator_t *emu);
 
 /**
  * @brief Destroy the I/O interfaces.

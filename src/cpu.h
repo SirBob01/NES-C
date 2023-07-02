@@ -1,65 +1,14 @@
 #ifndef CPU_H
 #define CPU_H
 
-#include "./apu.h"
+#include "./cpu_bus.h"
 #include "./interrupt.h"
 #include "./memory.h"
-#include "./ppu.h"
-#include "./rom.h"
-
-// 6502 has a 16-bit address bus (64k)
-#define CPU_RAM_SIZE 1 << 16
-
-// CPU memory map address offsets
-#define CPU_MAP_RAM          0x0000
-#define CPU_MAP_MIRROR_0     0x0800
-#define CPU_MAP_MIRROR_1     0x1000
-#define CPU_MAP_MIRROR_2     0x1800
-#define CPU_MAP_PPU_REG      0x2000
-#define CPU_MAP_PPU_MIRROR   0x2008
-#define CPU_MAP_APU_IO       0x4000
-#define CPU_MAP_APU_IO_DEBUG 0x4018
-#define CPU_MAP_CARTRIDGE    0x4020
 
 // Interrupt vector positions
 #define CPU_VEC_NMI     0xfffa
 #define CPU_VEC_RESET   0xfffc
 #define CPU_VEC_IRQ_BRK 0xfffe
-
-// Memory mapped APU registers
-#define APU_REG_PULSE1_0      0x4000
-#define APU_REG_PULSE1_1      0x4001
-#define APU_REG_PULSE1_2      0x4002
-#define APU_REG_PULSE1_3      0x4003
-#define APU_REG_PULSE2_0      0x4004
-#define APU_REG_PULSE2_1      0x4005
-#define APU_REG_PULSE2_2      0x4006
-#define APU_REG_PULSE2_3      0x4007
-#define APU_REG_TRIANGLE_0    0x4008
-#define APU_REG_TRIANGLE_1    0x4009
-#define APU_REG_TRIANGLE_2    0x400A
-#define APU_REG_TRIANGLE_3    0x400B
-#define APU_REG_NOISE_0       0x400C
-#define APU_REG_NOISE_1       0x400D
-#define APU_REG_NOISE_2       0x400E
-#define APU_REG_NOISE_3       0x400F
-#define APU_REG_DMC_0         0x4010
-#define APU_REG_DMC_1         0x4011
-#define APU_REG_DMC_2         0x4012
-#define APU_REG_DMC_3         0x4013
-#define APU_REG_STATUS        0x4015
-#define APU_REG_FRAME_COUNTER 0x4017
-
-// Memory mapped PPU registers
-#define PPU_REG_CTRL    0x2000
-#define PPU_REG_MASK    0x2001
-#define PPU_REG_STATUS  0x2002
-#define PPU_REG_OAMADDR 0x2003
-#define PPU_REG_OAMDATA 0x2004
-#define PPU_REG_SCROLL  0x2005
-#define PPU_REG_ADDR    0x2006
-#define PPU_REG_DATA    0x2007
-#define PPU_REG_OAMDMA  0x4014
 
 /**
  * @brief CPU status flags.
@@ -111,57 +60,38 @@ typedef struct {
     cpu_status_t status;
 
     /**
-     * @brief Interrupt controller.
-     *
-     */
-    interrupt_t interrupt;
-
-    /**
-     * @brief Vector to the current interrupt handler.
-     *
-     */
-    address_t interrupt_vector;
-
-    /**
      * @brief Number of cycles.
      *
      */
     unsigned long cycles;
 
     /**
-     * @brief Internal CPU memory.
+     * @brief Pointer to the CPU bus.
      *
      */
-    memory_t memory;
+    cpu_bus_t *bus;
 
     /**
-     * @brief Pointer to the ROM.
+     * @brief Interrupt controller.
      *
      */
-    rom_t *rom;
+    interrupt_t *interrupt;
 
     /**
-     * @brief Pointer to the APU.
+     * @brief Vector to the current interrupt handler.
      *
      */
-    apu_t *apu;
-
-    /**
-     * @brief Pointer to the PPU.
-     *
-     */
-    ppu_t *ppu;
+    address_t interrupt_vector;
 } cpu_t;
 
 /**
  * @brief Create the CPU.
  *
- * @param rom
- * @param apu
- * @param ppu
- * @return cpu_t*
+ * @param cpu
+ * @param bus
+ * @param interrupt
  */
-cpu_t *create_cpu(rom_t *rom, apu_t *apu, ppu_t *ppu);
+void create_cpu(cpu_t *cpu, cpu_bus_t *bus, interrupt_t *interrupt);
 
 /**
  * @brief Destroy the CPU.
@@ -177,82 +107,6 @@ void destroy_cpu(cpu_t *cpu);
  * @return unsigned char
  */
 unsigned char get_status_cpu(cpu_t *cpu);
-
-/**
- * @brief Convert mirrored addresses to actual addresses.
- *
- * @param address
- * @return address_t
- */
-address_t mirror_address_cpu(address_t address);
-
-/**
- * @brief Apply mapper to address that lies on the ROM cartridge section.
- *
- * @param cpu
- * @param address
- * @return unsigned char*
- */
-unsigned char *apply_memory_mapper_cpu(cpu_t *cpu, address_t address);
-
-/**
- * @brief Get the pointer to memory at an address.
- *
- * This is an abstraction to allow accessing the different memory sections
- * available to the CPU (RAM, PRG ROM, CHR ROM, PPU registers, etc.).
- *
- * @param cpu
- * @param address
- * @return unsigned char*
- */
-unsigned char *get_memory_cpu(cpu_t *cpu, address_t address);
-
-/**
- * @brief Read a byte from the CPU's memory.
- *
- * @param cpu
- * @param address
- * @return unsigned char
- */
-unsigned char read_byte_cpu(cpu_t *cpu, address_t address);
-
-/**
- * @brief Read a short from the CPU's memory.
- *
- * @param cpu
- * @param address
- * @return unsigned short
- */
-unsigned short read_short_cpu(cpu_t *cpu, address_t address);
-
-/**
- * @brief Read a short from the CPU's zero-page memory.
- *
- * This handles the wrap-around of the second byte address.
- *
- * @param cpu
- * @param address
- * @return unsigned short
- */
-unsigned short read_short_zp_cpu(cpu_t *cpu, unsigned char address);
-
-/**
- * @brief Write a byte to the CPU's memory.
- *
- * @param cpu
- * @param address
- * @param value
- */
-void write_byte_cpu(cpu_t *cpu, address_t address, unsigned char value);
-
-/**
- * @brief Write a short to the CPU's memory.
- *
- * @param cpu
- * @param address
- * @param value
- */
-void write_short_cpu(cpu_t *cpu, address_t address, unsigned short value);
 
 /**
  * @brief Push a byte onto the stack.

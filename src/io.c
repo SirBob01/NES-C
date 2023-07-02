@@ -1,24 +1,20 @@
 #include "./io.h"
-#include "display.h"
 
-io_t *create_io(emulator_t *emu) {
-    io_t *io = (io_t *)malloc(sizeof(io_t));
+void create_io(io_t *io, emulator_t *emu) {
     io->emu = emu;
-    io->display = create_display(256, 240, "SirBob's NES-C");
-    io->audio = create_audio(emu->apu->buffer);
-    io->input = create_input();
+    create_display(&io->display, 256, 240, "SirBob's NES-C");
+    create_audio(&io->audio, &emu->apu.buffer);
+    create_input(&io->input);
 
 #ifndef NDEBUG
-    io->pattern_table = create_display(128, 256, "Pattern Tables");
+    create_display(&io->pattern_table, 128, 256, "Pattern Tables");
 #endif
-    return io;
 }
 
 void destroy_io(io_t *io) {
-    destroy_display(io->display);
-    destroy_input(io->input);
-    destroy_audio(io->audio);
-    free(io);
+    destroy_display(&io->display);
+    destroy_input(&io->input);
+    destroy_audio(&io->audio);
 }
 
 void debug_pattern_tables_io(display_t *display, rom_t *rom) {
@@ -60,24 +56,24 @@ void debug_pattern_tables_io(display_t *display, rom_t *rom) {
 }
 
 bool refresh_io(io_t *io, emulator_t *emu) {
-    poll_input(io->input);
+    poll_input(&io->input);
 
     // Draw the color buffer from the PPU.
-    for (unsigned x = 0; x < io->display->size.x; x++) {
-        for (unsigned y = 0; y < io->display->size.y; y++) {
-            unsigned i = x + y * io->display->size.x;
-            color_t pixel = emu->ppu->color_buffer[i];
+    for (unsigned x = 0; x < io->display.size.x; x++) {
+        for (unsigned y = 0; y < io->display.size.y; y++) {
+            unsigned i = x + y * io->display.size.x;
+            color_t pixel = emu->ppu.color_buffer[i];
             vec2_t position = {x, y};
-            draw_display(io->display, position, pixel);
+            draw_display(&io->display, position, pixel);
         }
     }
-    refresh_display(io->display);
+    refresh_display(&io->display);
 
 #ifndef NDEBUG
     // Debug draw the pattern tables.
-    debug_pattern_tables_io(io->pattern_table, emu->rom);
-    refresh_display(io->pattern_table);
+    debug_pattern_tables_io(&io->pattern_table, &emu->rom);
+    refresh_display(&io->pattern_table);
 #endif
 
-    return !io->input->quit;
+    return !io->input.quit;
 }

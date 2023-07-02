@@ -113,10 +113,10 @@ typedef struct {
 /**
  * @brief Load an NES ROM file.
  *
+ * @param rom
  * @param path
- * @return rom_t*
  */
-rom_t *load_rom(const char *path);
+void load_rom(rom_t *rom, const char *path);
 
 /**
  * @brief Release the ROM.

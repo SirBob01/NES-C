@@ -1,7 +1,6 @@
 #include "./buffer.h"
 
-buffer_t *create_buffer(unsigned capacity) {
-    buffer_t *buffer = (buffer_t *)malloc(sizeof(buffer_t));
+void create_buffer(buffer_t *buffer, unsigned capacity) {
     buffer->memory = allocate_memory(capacity);
     buffer->read = 0;
     buffer->write = 0;
@@ -13,13 +12,9 @@ buffer_t *create_buffer(unsigned capacity) {
                 capacity);
         exit(1);
     }
-    return buffer;
 }
 
-void destroy_buffer(buffer_t *buffer) {
-    free_memory(&buffer->memory);
-    free(buffer);
-}
+void destroy_buffer(buffer_t *buffer) { free_memory(&buffer->memory); }
 
 unsigned get_size_buffer(buffer_t *buffer) {
     return buffer->write - buffer->read;

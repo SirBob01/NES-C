@@ -2,7 +2,6 @@
 #define BUFFER_H
 
 #include <stdbool.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "./memory.h"
@@ -43,10 +42,10 @@ typedef struct {
 /**
  * @brief Create a buffer.
  *
+ * @param buffer
  * @param capacity
- * @return buffer_t*
  */
-buffer_t *create_buffer(unsigned capacity);
+void create_buffer(buffer_t *buffer, unsigned capacity);
 
 /**
  * @brief Destroy a buffer.
