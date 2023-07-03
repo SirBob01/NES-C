@@ -38,13 +38,36 @@ void read_state_ppu(ppu_t *ppu, char *buffer, unsigned buffer_size) {
              ppu->dot);
 }
 
+void render_ppu(ppu_t *ppu) {}
+
 void update_ppu(ppu_t *ppu) {
+    if (ppu->scanline < PPU_SCANLINE_IDLE) {
+        render_ppu(ppu);
+    } else if (ppu->scanline == PPU_SCANLINE_VBLANK && ppu->dot == 1) {
+        // Enable VBlank
+        ppu->status |= (1 << 7);
+    } else if (ppu->scanline == PPU_SCANLINE_PRERENDER) {
+        // Disable VBlank
+        if (ppu->dot == 1) {
+            ppu->status &= ~(1 << 7);
+        }
+        render_ppu(ppu);
+    }
+
+    // Check flags to enable NMI interrupt
+    if ((ppu->status & (1 << 7)) && (ppu->ctrl & (1 << 7))) {
+        ppu->interrupt->nmi = true;
+    }
+
+    // Update counters
     ppu->dot++;
-    if (ppu->dot >= PPU_LINEDOTS) {
+    bool skip_cycle = ppu->odd_frame && ppu->scanline == PPU_SCANLINE_PRERENDER;
+    if ((ppu->dot == PPU_LINEDOTS - 1 && skip_cycle) ||
+        (ppu->dot == PPU_LINEDOTS)) {
         ppu->dot = 0;
         ppu->scanline++;
     }
-    if (ppu->scanline >= PPU_SCANLINES) {
+    if (ppu->scanline == PPU_SCANLINES) {
         ppu->scanline = 0;
         ppu->odd_frame = !ppu->odd_frame;
     }
