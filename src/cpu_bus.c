@@ -5,6 +5,7 @@ void create_cpu_bus(cpu_bus_t *bus, rom_t *rom, apu_t *apu, ppu_t *ppu) {
     bus->rom = rom;
     bus->apu = apu;
     bus->ppu = ppu;
+    memset(bus->memory, 0, CPU_RAM_SIZE);
 }
 
 address_t mirror_address_cpu_bus(address_t address) {

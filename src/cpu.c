@@ -195,6 +195,8 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode_byte, operand_t operand) {
     case OP_RLA:
     case OP_SRE:
     case OP_RRA:
+    case OP_SHX:
+    case OP_SHY:
         delay_cycles = 0;
         break;
     default:
@@ -464,7 +466,6 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode_byte, operand_t operand) {
         cpu->status.z = status & 0x2;
         cpu->status.i = status & 0x4;
         cpu->status.d = status & 0x8;
-        cpu->status.b = status & 0x10;
         cpu->status.o = status & 0x40;
         cpu->status.n = status & 0x80;
 
@@ -582,18 +583,16 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode_byte, operand_t operand) {
         break;
     }
     case OP_BRK:
-        // Push PC and status register onto stack for non-reset interrupts
-        if (!cpu->interrupt->reset) {
-            cpu->status.b = cpu->interrupt_vector == CPU_VEC_IRQ_BRK &&
-                            !cpu->interrupt->irq; // Set break flag
-            push_short_cpu(cpu, cpu->pc + 2);
-            push_byte_cpu(cpu, get_status_cpu(cpu) | 0x20);
-        } else {
-            cpu->s -= 3;
-        }
+        // Push PC + 2 (+1 because PC is already incremented)
+        push_short_cpu(cpu, cpu->pc + 1);
 
-        // Update status flags
+        // Push status with b set if software interrupt was triggered
+        cpu->status.b = !cpu->interrupt->irq && !cpu->interrupt->nmi &&
+                        !cpu->interrupt->reset;
+        push_byte_cpu(cpu, get_status_cpu(cpu) | 0x20);
         cpu->status.b = false;
+
+        // Update interrupt disable flag
         cpu->status.i = true;
 
         // Execute interrupt handler
@@ -756,6 +755,76 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode_byte, operand_t operand) {
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a >> 7;
         cpu->status.o = ((m ^ cpu->a) & (n ^ cpu->a) & 0x80) > 0;
+        break;
+    case OP_ANC:
+        // AND
+        cpu->a &= read_byte_cpu_bus(cpu->bus, operand.address);
+        cpu->status.z = cpu->a == 0;
+        cpu->status.n = cpu->a >> 7;
+
+        // Set C
+        cpu->status.c = cpu->a >> 7;
+        break;
+    case OP_ALR: // (ASR)
+        // AND
+        cpu->a &= read_byte_cpu_bus(cpu->bus, operand.address);
+        cpu->status.z = cpu->a == 0;
+        cpu->status.n = cpu->a >> 7;
+
+        // LSR
+        cpu->status.c = cpu->a & 0x1;
+        cpu->a >>= 1;
+        cpu->status.z = cpu->a == 0;
+        cpu->status.n = false; // bit 7 is always 0
+        break;
+    case OP_ARR: {
+        cpu->a &= read_byte_cpu_bus(cpu->bus, operand.address);
+        cpu->a >>= 1;
+        cpu->a |= (cpu->status.c << 7);
+
+        cpu->status.z = cpu->a == 0;
+        cpu->status.n = cpu->a >> 7;
+
+        cpu->status.c = (cpu->a >> 6) & 0x1;
+        cpu->status.o = ((cpu->a >> 5) ^ (cpu->a >> 6)) & 0x1;
+        break;
+    }
+    case OP_SBX: { // (AXS)
+        // CMP and DEX at the same time but set flags like CMP
+        unsigned char val = read_byte_cpu_bus(cpu->bus, operand.address);
+        unsigned char and_res = cpu->a & cpu->x;
+        cpu->x = and_res - val;
+        cpu->status.c = and_res >= val;
+        cpu->status.z = and_res == val;
+        cpu->status.n = cpu->x >> 7;
+        break;
+    }
+    case OP_LXA:
+        cpu->a = read_byte_cpu_bus(cpu->bus, operand.address);
+        cpu->x = cpu->a;
+        cpu->status.z = cpu->a == 0;
+        cpu->status.n = cpu->a >> 7;
+        break;
+    case OP_SHY: {
+        address_t target = operand.address;
+        unsigned char val = cpu->y & ((target >> 8) + 1);
+        if (operand.page_crossed) {
+            target = (target & 0xff) | (val << 8);
+        }
+        write_byte_cpu_bus(cpu->bus, target, val);
+        break;
+    }
+    case OP_SHX: {
+        address_t target = operand.address;
+        unsigned char val = cpu->x & ((target >> 8) + 1);
+        if (operand.page_crossed) {
+            target = (target & 0xff) | (val << 8);
+        }
+        write_byte_cpu_bus(cpu->bus, target, val);
+        break;
+    }
+    case OP_CLI:
+        cpu->status.i = false;
         break;
     case OP_NOP:
         break;
