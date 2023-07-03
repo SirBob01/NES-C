@@ -29,14 +29,14 @@ bool update_emulator(emulator_t *emu) {
     bool cpu_state = update_cpu(&emu->cpu);
     unsigned delta_cycles = emu->cpu.cycles - prev_cycles;
 
+    // Reset interrupts
+    reset_interrupt(&emu->interrupt);
+
     // Update peripherals
     update_apu(&emu->apu);
     for (unsigned c = 0; c < 3 * delta_cycles; c++) {
         update_ppu(&emu->ppu);
     }
-
-    // Reset interrupts
-    reset_interrupt(&emu->interrupt);
 
     // Update frame counter
     emu->cycle_accumulator += delta_cycles;

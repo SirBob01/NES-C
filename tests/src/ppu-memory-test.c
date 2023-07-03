@@ -99,7 +99,7 @@ static char *test_mirror_palettes() {
 
 static char *test_mapper0() {
     emulator_t emu;
-    create_emulator(&emu, "../roms/nestest.nes");
+    create_emulator(&emu, "../roms/nestest/nestest.nes");
 
     mu_assert("CHR_ROM[0]", *nrom_ppu(&emu.ppu_bus, 0x20) == 0x80);
     mu_assert("CHR_ROM[1]", *nrom_ppu(&emu.ppu_bus, 0x21) == 0x80);

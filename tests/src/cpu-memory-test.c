@@ -56,7 +56,7 @@ static char *test_mirror_apu() {
 
 static char *test_map_ppu_registers() {
     emulator_t emu;
-    create_emulator(&emu, "../roms/nestest.nes");
+    create_emulator(&emu, "../roms/nestest/nestest.nes");
     mu_assert("PPU CTRL",
               &emu.ppu.ctrl == get_memory_cpu_bus(&emu.cpu_bus, PPU_REG_CTRL));
     mu_assert("PPU MASK",
@@ -86,7 +86,7 @@ static char *test_map_ppu_registers() {
 
 static char *test_map_apu_registers() {
     emulator_t emu;
-    create_emulator(&emu, "../roms/nestest.nes");
+    create_emulator(&emu, "../roms/nestest/nestest.nes");
     mu_assert("APU PULSE1 0",
               &emu.apu.channel_registers.pulse1[0] ==
                   get_memory_cpu_bus(&emu.cpu_bus, APU_REG_PULSE1_0));
@@ -160,7 +160,7 @@ static char *test_map_apu_registers() {
 
 static char *test_mapper0() {
     emulator_t emu;
-    create_emulator(&emu, "../roms/nestest.nes");
+    create_emulator(&emu, "../roms/nestest/nestest.nes");
 
     unsigned short pc = read_short_cpu_bus(&emu.cpu_bus, CPU_VEC_RESET);
     mu_assert("MAPPER 0 RESET VECTOR", pc == 0xc004);
@@ -171,7 +171,7 @@ static char *test_mapper0() {
 
 static char *test_stack() {
     emulator_t emu;
-    create_emulator(&emu, "../roms/nestest.nes");
+    create_emulator(&emu, "../roms/nestest/nestest.nes");
     mu_assert("Stack address start", emu.cpu.s == 0xfd);
 
     push_byte_cpu(&emu.cpu, 0x3);
