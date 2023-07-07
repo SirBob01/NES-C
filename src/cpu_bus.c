@@ -107,10 +107,11 @@ unsigned char *get_memory_cpu_bus(cpu_bus_t *bus, address_t address) {
 
 unsigned char read_byte_cpu_bus(cpu_bus_t *bus, address_t address) {
     unsigned char *ptr = get_memory_cpu_bus(bus, address);
+    unsigned char val = *ptr;
     if (ptr == &bus->ppu->status) {
         bus->ppu->status &= ~PPU_STATUS_VBLANK;
     }
-    return *ptr;
+    return val;
 }
 
 unsigned short read_short_cpu_bus(cpu_bus_t *bus, address_t address) {
@@ -129,7 +130,8 @@ unsigned short read_short_zp_cpu_bus(cpu_bus_t *bus, unsigned char address) {
 void write_byte_cpu_bus(cpu_bus_t *bus,
                         address_t address,
                         unsigned char value) {
-    *get_memory_cpu_bus(bus, address) = value;
+    unsigned char *ptr = get_memory_cpu_bus(bus, address);
+    *ptr = value;
 }
 
 void write_short_cpu_bus(cpu_bus_t *bus,

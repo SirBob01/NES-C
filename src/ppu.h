@@ -17,6 +17,25 @@
 #define PPU_SCANLINE_VBLANK    241
 #define PPU_SCANLINE_PRERENDER 261
 
+// PPU control flags
+#define PPU_CTRL_NAMETABLE_BASE       0b11
+#define PPU_CTRL_VRAM_INC             (1 << 2)
+#define PPU_CTRL_PATTERN_TABLE_SPRITE (1 << 3)
+#define PPU_CTRL_PATTERN_TABLE_BG     (1 << 4)
+#define PPU_CTRL_SPRITE_SIZE          (1 << 5)
+#define PPU_CTRL_MASTER_SLAVE         (1 << 6)
+#define PPU_CTRL_NMI                  (1 << 7)
+
+// PPU mask flags
+#define PPU_MASK_GREYSCALE         (1 << 0)
+#define PPU_MASK_SHOW_BG_LEFT      (1 << 1)
+#define PPU_MASK_SHOW_SPRITES_LEFT (1 << 2)
+#define PPU_MASK_SHOW_BG           (1 << 3)
+#define PPU_MASK_SHOW_SPRITES      (1 << 4)
+#define PPU_MASK_EMPHASIZE_RED     (1 << 5)
+#define PPU_MASK_EMPHASIZE_GREEN   (1 << 6)
+#define PPU_MASK_EMPHASIZE_BLUE    (1 << 7)
+
 // PPU status flags
 #define PPU_STATUS_VBLANK     (1 << 7)
 #define PPU_STATUS_S0_HIT     (1 << 6)

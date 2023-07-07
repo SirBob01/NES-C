@@ -45,17 +45,17 @@ void update_ppu(ppu_t *ppu) {
         render_ppu(ppu);
     } else if (ppu->scanline == PPU_SCANLINE_VBLANK && ppu->dot == 1) {
         // Enable VBlank
-        ppu->status |= (1 << 7);
+        ppu->status |= PPU_STATUS_VBLANK;
     } else if (ppu->scanline == PPU_SCANLINE_PRERENDER) {
         // Disable VBlank
         if (ppu->dot == 1) {
-            ppu->status &= ~(1 << 7);
+            ppu->status &= ~PPU_STATUS_VBLANK;
         }
         render_ppu(ppu);
     }
 
     // Check flags to enable NMI interrupt
-    if ((ppu->status & (1 << 7)) && (ppu->ctrl & (1 << 7))) {
+    if ((ppu->status & PPU_STATUS_VBLANK) && (ppu->ctrl & PPU_CTRL_NMI)) {
         ppu->interrupt->nmi = true;
     }
 
