@@ -15,7 +15,7 @@ void parse_args(emulator_t *emu, int argc, char **argv) {
 
     create_emulator(emu, argv[2]);
     if (argc == 4) {
-        emu->cpu.pc = strtol(argv[3], NULL, 16);
+        emu->cpu.registers.pc = strtol(argv[3], NULL, 16);
     }
 }
 

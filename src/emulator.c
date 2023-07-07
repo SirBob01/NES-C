@@ -14,7 +14,7 @@ void create_emulator(emulator_t *emu, const char *rom_path) {
     emu->frames = 0;
 
     // Set the program counter
-    emu->cpu.pc = read_short_cpu_bus(&emu->cpu_bus, CPU_VEC_RESET);
+    emu->cpu.registers.pc = read_short_cpu_bus(&emu->cpu_bus, CPU_VEC_RESET);
 }
 
 void destroy_emulator(emulator_t *emu) {

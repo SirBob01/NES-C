@@ -10,22 +10,17 @@
 #define CPU_VEC_RESET   0xfffc
 #define CPU_VEC_IRQ_BRK 0xfffe
 
-/**
- * @brief CPU status flags.
- *
- */
-typedef struct {
-    bool c; // Carry
-    bool z; // Zero
-    bool i; // Interrupt disable
-    bool d; // Decimal mode
-    bool b; // Break
-    bool o; // Overflow
-    bool n; // Negative
-} cpu_status_t;
+// Status flag masks
+#define CPU_STATUS_C (1 << 0)
+#define CPU_STATUS_Z (1 << 1)
+#define CPU_STATUS_I (1 << 2)
+#define CPU_STATUS_D (1 << 3)
+#define CPU_STATUS_B (1 << 4)
+#define CPU_STATUS_O (1 << 6)
+#define CPU_STATUS_N (1 << 7)
 
 /**
- * @brief CPU emulation state.
+ * @brief CPU registers.
  *
  */
 typedef struct {
@@ -36,13 +31,13 @@ typedef struct {
     unsigned char a;
 
     /**
-     * @brief X and Y are index registers used for several addressing modes.
+     * @brief Index registers.
      *
      */
     unsigned char x, y;
 
     /**
-     * @brief Program counter (2-bytes wide).
+     * @brief Program counter.
      *
      */
     address_t pc;
@@ -54,10 +49,22 @@ typedef struct {
     unsigned char s;
 
     /**
-     * @brief CPU status flags.
+     * @brief Status flags.
      *
      */
-    cpu_status_t status;
+    unsigned char p;
+} cpu_registers_t;
+
+/**
+ * @brief CPU emulation state.
+ *
+ */
+typedef struct {
+    /**
+     * @brief Register state.
+     *
+     */
+    cpu_registers_t registers;
 
     /**
      * @brief Number of cycles.
@@ -117,28 +124,12 @@ unsigned char get_status_cpu(cpu_t *cpu);
 void push_byte_cpu(cpu_t *cpu, unsigned char value);
 
 /**
- * @brief Push a short onto the stack.
- *
- * @param cpu
- * @param value
- */
-void push_short_cpu(cpu_t *cpu, unsigned short value);
-
-/**
- * @brief Peek a byte from the stack.
+ * @brief Pull a byte from the stack.
  *
  * @param cpu
  * @return unsigned char
  */
-unsigned char pop_byte_cpu(cpu_t *cpu);
-
-/**
- * @brief Peek a short from the stack.
- *
- * @param cpu
- * @return unsigned short
- */
-unsigned short pop_short_cpu(cpu_t *cpu);
+unsigned char pull_byte_cpu(cpu_t *cpu);
 
 /**
  * @brief Read the current state of the CPU for debugging.
@@ -153,9 +144,7 @@ void read_state_cpu(cpu_t *cpu, char *buffer, unsigned buffer_size);
  * @brief Update the CPU.
  *
  * @param cpu
- * @return true
- * @return false
  */
-bool update_cpu(cpu_t *cpu);
+void update_cpu(cpu_t *cpu);
 
 #endif

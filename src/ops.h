@@ -5,7 +5,7 @@
 #include "./rom.h"
 
 /**
- * @brief Addressing mode types.
+ * @brief Addressing modes.
  *
  */
 typedef enum {
@@ -25,7 +25,7 @@ typedef enum {
 } address_mode_t;
 
 /**
- * @brief Operation mode types.
+ * @brief Operation mnemonics.
  *
  */
 typedef enum {
@@ -107,7 +107,7 @@ typedef enum {
     OP_SRE,
     OP_TAS,
     OP_JAM,
-} op_mode_t;
+} mnemonic_t;
 
 /**
  * @brief Operation code structure.
@@ -118,7 +118,7 @@ typedef struct {
      * @brief Operation.
      *
      */
-    op_mode_t op_mode;
+    mnemonic_t mnemonic;
 
     /**
      * @brief Addressing mode.
@@ -133,13 +133,13 @@ typedef struct {
      *
      */
     unsigned char cycles;
-} opcode_t;
+} operation_t;
 
 /**
- * @brief Table of operation codes.
+ * @brief Table of CPU operations.
  *
  */
-static const opcode_t OP_TABLE[0x100] = {
+static const operation_t OP_TABLE[0x100] = {
     {OP_BRK, ADDR_IMPLIED, 7},     {OP_ORA, ADDR_INDIRECT_X, 6},
     {OP_JAM, ADDR_IMPLIED, 2},     {OP_SLO, ADDR_INDIRECT_X, 8},
     {OP_NOP, ADDR_ZERO_PAGE, 3},   {OP_ORA, ADDR_ZERO_PAGE, 3},
@@ -291,37 +291,5 @@ static const unsigned char ADDRESS_MODE_SIZES[13] = {
     2, // ADDR_INDIRECT_X
     2, // ADDR_INDIRECT_Y
 };
-
-/**
- * @brief Operand.
- *
- */
-typedef struct {
-    /**
-     * @brief Address of the operand.
-     *
-     */
-    address_t address;
-
-    /**
-     * @brief Page crossed.
-     *
-     */
-    unsigned char page_crossed;
-} operand_t;
-
-operand_t immediate_addr(cpu_t *cpu);
-operand_t zero_page_addr(cpu_t *cpu);
-operand_t zero_page_x_addr(cpu_t *cpu);
-operand_t zero_page_y_addr(cpu_t *cpu);
-operand_t absolute_addr(cpu_t *cpu);
-operand_t absolute_x_addr(cpu_t *cpu);
-operand_t absolute_y_addr(cpu_t *cpu);
-operand_t indirect_addr(cpu_t *cpu);
-operand_t indirect_x_addr(cpu_t *cpu);
-operand_t indirect_y_addr(cpu_t *cpu);
-operand_t relative_addr(cpu_t *cpu);
-
-// No handler for implicit or accumulator addressing modes.
 
 #endif
