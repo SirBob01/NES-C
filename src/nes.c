@@ -40,12 +40,11 @@ int main(int argc, char **argv) {
 
     // Emulate and refresh device IO every frame
     while (true) {
-        bool emu_state = true;
-        while (emu_state) {
+        while (true) {
             // read_state_cpu(&emu.cpu, strbuf, sizeof(strbuf));
             // puts(strbuf);
             unsigned prev_frame = emu.frames;
-            emu_state = update_emulator(&emu);
+            update_emulator(&emu);
             unsigned curr_frame = emu.frames;
 
             if (curr_frame > prev_frame) {
@@ -54,7 +53,7 @@ int main(int argc, char **argv) {
         }
 
         bool io_state = refresh_io(&io, &emu);
-        if (!emu_state || !io_state) {
+        if (!io_state) {
             break;
         }
     }
