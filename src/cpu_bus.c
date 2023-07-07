@@ -1,5 +1,6 @@
 #include "./cpu_bus.h"
 #include "./mappers/nrom.h"
+#include "ppu.h"
 
 void create_cpu_bus(cpu_bus_t *bus, rom_t *rom, apu_t *apu, ppu_t *ppu) {
     bus->rom = rom;
@@ -105,7 +106,11 @@ unsigned char *get_memory_cpu_bus(cpu_bus_t *bus, address_t address) {
 }
 
 unsigned char read_byte_cpu_bus(cpu_bus_t *bus, address_t address) {
-    return *get_memory_cpu_bus(bus, address);
+    unsigned char *ptr = get_memory_cpu_bus(bus, address);
+    if (ptr == &bus->ppu->status) {
+        bus->ppu->status &= ~PPU_STATUS_VBLANK;
+    }
+    return *ptr;
 }
 
 unsigned short read_short_cpu_bus(cpu_bus_t *bus, address_t address) {

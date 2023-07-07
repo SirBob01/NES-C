@@ -17,6 +17,11 @@
 #define PPU_SCANLINE_VBLANK    241
 #define PPU_SCANLINE_PRERENDER 261
 
+// PPU status flags
+#define PPU_STATUS_VBLANK     (1 << 7)
+#define PPU_STATUS_S0_HIT     (1 << 6)
+#define PPU_STATUS_S_OVERFLOW (1 << 5)
+
 /**
  * @brief PPU background fields.
  *
