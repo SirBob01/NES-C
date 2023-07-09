@@ -259,4 +259,26 @@ static const operation_t OP_TABLE[0x100] = {
     {OP_INC, ADDR_ABSOLUTE_X},  {OP_ISC, ADDR_ABSOLUTE_X},
 };
 
+/**
+ * @brief Size of an op + operand by address mode.
+ *
+ * This will determine the program counter increment.
+ *
+ */
+static const unsigned char ADDRESS_MODE_SIZES[13] = {
+    1, // ADDR_IMPLIED
+    2, // ADDR_IMMEDIATE
+    1, // ADDR_ACCUMULATOR
+    2, // ADDR_RELATIVE
+    3, // ADDR_ABSOLUTE
+    3, // ADDR_ABSOLUTE_X
+    3, // ADDR_ABSOLUTE_Y
+    2, // ADDR_ZERO_PAGE
+    2, // ADDR_ZERO_PAGE_X
+    2, // ADDR_ZERO_PAGE_Y
+    3, // ADDR_INDIRECT
+    2, // ADDR_INDIRECT_X
+    2, // ADDR_INDIRECT_Y
+};
+
 #endif
