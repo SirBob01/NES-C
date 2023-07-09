@@ -56,7 +56,7 @@ typedef struct {
 } cpu_registers_t;
 
 /**
- * @brief Per-instruction CPU state.
+ * @brief CPU instruction state.
  *
  */
 typedef struct {
@@ -67,22 +67,22 @@ typedef struct {
     unsigned long tick;
 
     /**
+     * @brief Is currently fetching operand?
+     *
+     */
+    bool fetch_operand;
+
+    /**
      * @brief Current opcode.
      *
      */
     unsigned char opcode;
 
     /**
-     * @brief Working hi-byte.
+     * @brief Current operand address.
      *
      */
-    unsigned char hi;
-
-    /**
-     * @brief Working lo-byte.
-     *
-     */
-    unsigned char lo;
+    address_t address;
 } cpu_state_t;
 
 /**
@@ -97,7 +97,7 @@ typedef struct {
     cpu_registers_t registers;
 
     /**
-     * @brief Working state.
+     * @brief Instruction state.
      *
      */
     cpu_state_t state;
@@ -175,6 +175,15 @@ unsigned char pull_byte_cpu(cpu_t *cpu);
  * @param buffer_size
  */
 void read_state_cpu(cpu_t *cpu, char *buffer, unsigned buffer_size);
+
+/**
+ * @brief Check if the CPU is idle, the state between instructions.
+ *
+ * @param cpu
+ * @return true
+ * @return false
+ */
+bool is_idle_cpu(cpu_t *cpu);
 
 /**
  * @brief Update the CPU.

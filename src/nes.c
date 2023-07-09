@@ -1,4 +1,5 @@
 #include "./nes.h"
+#include "cpu.h"
 
 void print_usage() { printf("Usage: nesc %s <input_file>\n", ARG_INPUT_FILE); }
 
@@ -41,7 +42,7 @@ int main(int argc, char **argv) {
     // Emulate and refresh device IO every frame
     while (true) {
         while (true) {
-            if (emu.cpu.state.tick == 0) {
+            if (is_idle_cpu(&emu.cpu)) {
                 read_state_cpu(&emu.cpu, strbuf, sizeof(strbuf));
                 puts(strbuf);
             }

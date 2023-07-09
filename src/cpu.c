@@ -13,6 +13,7 @@ void create_cpu(cpu_t *cpu, cpu_bus_t *bus, interrupt_t *interrupt) {
     // Cycles on reset
     cpu->cycles = 7;
     cpu->state.tick = 0;
+    cpu->state.fetch_operand = true;
 
     // Peripherals
     cpu->bus = bus;
@@ -96,6 +97,14 @@ void read_state_cpu(cpu_t *cpu, char *buffer, unsigned buffer_size) {
     }
 }
 
+bool is_idle_cpu(cpu_t *cpu) {
+    return cpu->state.tick == 0 && cpu->state.fetch_operand;
+}
+
+unsigned char read_pc(cpu_t *cpu) {
+    return read_byte_cpu_bus(cpu->bus, cpu->registers.pc++);
+}
+
 unsigned char fetch_opcode_cpu(cpu_t *cpu) {
     // Handle NMI, IRQ, and RESET interrupts
     if (cpu->interrupt->nmi) {
@@ -112,38 +121,103 @@ unsigned char fetch_opcode_cpu(cpu_t *cpu) {
     }
 
     // No interrupts, next instruction from program counter
-    return read_byte_cpu_bus(cpu->bus, cpu->registers.pc++);
+    cpu->interrupt_vector = CPU_VEC_IRQ_BRK;
+    return read_pc(cpu);
+}
+
+inline void absolute_addr_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->state.address = read_pc(cpu);
+        break;
+    case 2:
+        cpu->state.address |= read_pc(cpu) << 8;
+        cpu->state.tick = 0;
+        break;
+    default:
+        break;
+    }
+}
+
+inline void immediate_addr_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->state.address = cpu->registers.pc++;
+        cpu->state.tick = 0;
+        break;
+    default:
+        break;
+    }
+}
+
+inline void op_jmp_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.pc = cpu->state.address;
+        cpu->state.tick = 0;
+        break;
+    }
+}
+
+inline void op_ldx_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.x = read_byte_cpu_bus(cpu->bus, cpu->state.address);
+        cpu->state.tick = 0;
+        break;
+    }
 }
 
 void update_cpu(cpu_t *cpu) {
     // Start of instruction
-    if (cpu->state.tick == 0) {
+    if (is_idle_cpu(cpu)) {
         cpu->state.opcode = fetch_opcode_cpu(cpu);
+        reset_interrupt(cpu->interrupt);
     }
 
     // Process current opcode
     operation_t operation = OP_TABLE[cpu->state.opcode];
 
-    switch (operation.address_mode) {
-    // case ADDR_ABSOLUTE:
-    //     break;
-    default:
-        printf("Error: Unhandled addressing mode\n");
-        exit(1);
-    }
+    // Operation ticks are 1-indexed
+    cpu->state.tick++;
+    if (cpu->state.fetch_operand) {
+        switch (operation.address_mode) {
+        case ADDR_ABSOLUTE:
+            absolute_addr_cpu(cpu);
+            break;
+        case ADDR_IMMEDIATE:
+            immediate_addr_cpu(cpu);
+            break;
+        default:
+            printf("Error: Unhandled addressing mode\n");
+            exit(1);
+        }
 
-    switch (operation.mnemonic) {
-    // case OP_JMP:
-    // op_jmp(cpu, operation.address_mode);
-    // break;
-    default:
-        printf("Error: Unknown CPU opcode $%02X at $%04X\n",
-               cpu->state.opcode,
-               cpu->registers.pc);
-        exit(1);
+        // Enable process instruction
+        if (cpu->state.tick == 0 && cpu->state.fetch_operand) {
+            cpu->state.fetch_operand = false;
+        }
+    } else {
+        switch (operation.mnemonic) {
+        case OP_JMP:
+            op_jmp_cpu(cpu);
+            break;
+        case OP_LDX:
+            op_ldx_cpu(cpu);
+            break;
+        default:
+            printf("Error: Unknown CPU opcode $%02X at $%04X\n",
+                   cpu->state.opcode,
+                   cpu->registers.pc);
+            exit(1);
+        }
+
+        // Enable fetch operand
+        if (cpu->state.tick == 0 && !cpu->state.fetch_operand) {
+            cpu->state.fetch_operand = true;
+        }
     }
 
     // Increment cycles
     cpu->cycles++;
-    cpu->state.tick++;
 }

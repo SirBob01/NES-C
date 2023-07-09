@@ -27,15 +27,18 @@ static char *test_nestest() {
     char dst[256];
     bool running = true;
     while (running && lines) {
-        fgets(src, sizeof(src), file);
-        src[strlen(src) - 2] = 0;
-        read_state_cpu(&emu.cpu, dst, sizeof(dst));
-        printf("%s %lu\n", src, strlen(src));
-        printf("%s %lu\n\n", dst, strlen(dst));
-        mu_assert("NESTEST CPU state does not match nestest.log",
-                  strcmp(src, dst) == 0);
+        if (is_idle_cpu(&emu.cpu)) {
+            fgets(src, sizeof(src), file);
+            src[strlen(src) - 2] = 0;
+            read_state_cpu(&emu.cpu, dst, sizeof(dst));
+            printf("%s %lu\n", src, strlen(src));
+            printf("%s %lu\n\n", dst, strlen(dst));
+            mu_assert("NESTEST CPU state does not match nestest.log",
+                      strcmp(src, dst) == 0);
+
+            lines--;
+        }
         update_emulator(&emu);
-        lines--;
     }
 
     // Read the final test result in 0x2
