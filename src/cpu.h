@@ -56,15 +56,51 @@ typedef struct {
 } cpu_registers_t;
 
 /**
- * @brief CPU emulation state.
+ * @brief Per-instruction CPU state.
  *
  */
 typedef struct {
     /**
-     * @brief Register state.
+     * @brief Current sub-operation tick.
+     *
+     */
+    unsigned long tick;
+
+    /**
+     * @brief Current opcode.
+     *
+     */
+    unsigned char opcode;
+
+    /**
+     * @brief Working hi-byte.
+     *
+     */
+    unsigned char hi;
+
+    /**
+     * @brief Working lo-byte.
+     *
+     */
+    unsigned char lo;
+} cpu_state_t;
+
+/**
+ * @brief 6502 central processing unit.
+ *
+ */
+typedef struct {
+    /**
+     * @brief Registers.
      *
      */
     cpu_registers_t registers;
+
+    /**
+     * @brief Working state.
+     *
+     */
+    cpu_state_t state;
 
     /**
      * @brief Number of cycles.

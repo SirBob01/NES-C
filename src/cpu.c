@@ -12,6 +12,7 @@ void create_cpu(cpu_t *cpu, cpu_bus_t *bus, interrupt_t *interrupt) {
 
     // Cycles on reset
     cpu->cycles = 7;
+    cpu->state.tick = 0;
 
     // Peripherals
     cpu->bus = bus;
@@ -111,10 +112,38 @@ unsigned char fetch_opcode_cpu(cpu_t *cpu) {
     }
 
     // No interrupts, next instruction from program counter
-    return read_byte_cpu_bus(cpu->bus, cpu->registers.pc);
+    return read_byte_cpu_bus(cpu->bus, cpu->registers.pc++);
 }
 
 void update_cpu(cpu_t *cpu) {
-    // Fetch opcode
-    unsigned char opcode = fetch_opcode_cpu(cpu);
+    // Start of instruction
+    if (cpu->state.tick == 0) {
+        cpu->state.opcode = fetch_opcode_cpu(cpu);
+    }
+
+    // Process current opcode
+    operation_t operation = OP_TABLE[cpu->state.opcode];
+
+    switch (operation.address_mode) {
+    // case ADDR_ABSOLUTE:
+    //     break;
+    default:
+        printf("Error: Unhandled addressing mode\n");
+        exit(1);
+    }
+
+    switch (operation.mnemonic) {
+    // case OP_JMP:
+    // op_jmp(cpu, operation.address_mode);
+    // break;
+    default:
+        printf("Error: Unknown CPU opcode $%02X at $%04X\n",
+               cpu->state.opcode,
+               cpu->registers.pc);
+        exit(1);
+    }
+
+    // Increment cycles
+    cpu->cycles++;
+    cpu->state.tick++;
 }
