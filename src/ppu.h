@@ -11,6 +11,10 @@
 #define PPU_SCANLINES 262
 #define PPU_LINEDOTS  341
 
+/**
+ * @brief 2C02 picture processing unit.
+ *
+ */
 typedef struct {
     /**
      * @brief PPUCTRL register.

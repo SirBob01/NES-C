@@ -88,9 +88,7 @@ void destroy_emulator(emulator_t *emu);
  * @brief Update the emulator.
  *
  * @param emu
- * @return true
- * @return false
  */
-bool update_emulator(emulator_t *emu);
+void update_emulator(emulator_t *emu);
 
 #endif

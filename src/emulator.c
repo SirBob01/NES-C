@@ -14,7 +14,7 @@ void create_emulator(emulator_t *emu, const char *rom_path) {
     emu->frames = 0;
 
     // Set the program counter
-    emu->cpu.pc = read_short_cpu_bus(&emu->cpu_bus, CPU_VEC_RESET);
+    emu->cpu.registers.pc = read_short_cpu_bus(&emu->cpu_bus, CPU_VEC_RESET);
 }
 
 void destroy_emulator(emulator_t *emu) {
@@ -24,25 +24,24 @@ void destroy_emulator(emulator_t *emu) {
     unload_rom(&emu->rom);
 }
 
-bool update_emulator(emulator_t *emu) {
-    unsigned prev_cycles = emu->cpu.cycles;
-    bool cpu_state = update_cpu(&emu->cpu);
-    unsigned delta_cycles = emu->cpu.cycles - prev_cycles;
+void update_emulator(emulator_t *emu) {
+    // Update the CPU
+    update_cpu(&emu->cpu);
 
-    // Reset interrupts
-    reset_interrupt(&emu->interrupt);
+    // Update APU every other cycle
+    if ((emu->cpu.cycles & 1) == 0) {
+        update_apu(&emu->apu);
+    }
 
-    // Update peripherals
-    update_apu(&emu->apu);
-    for (unsigned c = 0; c < 3 * delta_cycles; c++) {
+    // Update the PPU 3 times a cycle
+    for (unsigned c = 0; c < 3; c++) {
         update_ppu(&emu->ppu);
     }
 
     // Update frame counter
-    emu->cycle_accumulator += delta_cycles;
+    emu->cycle_accumulator++;
     if (3 * emu->cycle_accumulator >= PPU_LINEDOTS * PPU_SCANLINES) {
         emu->cycle_accumulator = 0;
         emu->frames++;
     }
-    return cpu_state;
 }
