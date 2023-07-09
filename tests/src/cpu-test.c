@@ -10,7 +10,7 @@ int tests_run = 0;
 static char *test_nestest() {
     emulator_t emu;
     create_emulator(&emu, "../roms/nestest/nestest.nes");
-    emu.cpu.pc = 0xC000;
+    emu.cpu.registers.pc = 0xC000;
 
     FILE *file = fopen("../roms/nestest/nestest.log", "r");
     mu_assert("NESTEST Could not open nestest.log", file != NULL);
@@ -34,7 +34,7 @@ static char *test_nestest() {
         printf("%s %lu\n\n", dst, strlen(dst));
         mu_assert("NESTEST CPU state does not match nestest.log",
                   strcmp(src, dst) == 0);
-        running = update_emulator(&emu);
+        update_emulator(&emu);
         lines--;
     }
 
@@ -75,11 +75,7 @@ static char *test_blargg_instr_test_v5() {
         create_emulator(&emu, test_roms[i]);
 
         for (unsigned j = 0; j < CYCLE_TIMEOUT; j++) {
-            bool running = update_emulator(&emu);
-            if (!running) {
-                break;
-            }
-
+            update_emulator(&emu);
             unsigned char m0 = read_byte_cpu_bus(&emu.cpu_bus, 0x6001);
             unsigned char m1 = read_byte_cpu_bus(&emu.cpu_bus, 0x6002);
             unsigned char m2 = read_byte_cpu_bus(&emu.cpu_bus, 0x6003);
@@ -91,12 +87,11 @@ static char *test_blargg_instr_test_v5() {
         }
 
         for (unsigned j = 0; j < CYCLE_TIMEOUT; j++) {
-            bool running = update_emulator(&emu);
+            update_emulator(&emu);
             unsigned char status = read_byte_cpu_bus(&emu.cpu_bus, 0x6000);
             char *str = (char *)get_memory_cpu_bus(&emu.cpu_bus, 0x6004);
-            if (((strstr(str, "Passed") || strstr(str, "Failed")) &&
-                 status <= 0x7F) ||
-                !running) {
+            if ((strstr(str, "Passed") || strstr(str, "Failed")) &&
+                status <= 0x7F) {
                 break;
             }
         }

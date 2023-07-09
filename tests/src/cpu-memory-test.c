@@ -172,18 +172,13 @@ static char *test_mapper0() {
 static char *test_stack() {
     emulator_t emu;
     create_emulator(&emu, "../roms/nestest/nestest.nes");
-    mu_assert("Stack address start", emu.cpu.s == 0xfd);
+    mu_assert("Stack address start", emu.cpu.registers.s == 0xfd);
 
     push_byte_cpu(&emu.cpu, 0x3);
-    mu_assert("Stack address after push", emu.cpu.s == 0xfc);
+    mu_assert("Stack address after push", emu.cpu.registers.s == 0xfc);
 
-    push_short_cpu(&emu.cpu, 0x1234);
-    mu_assert("Stack address after push", emu.cpu.s == 0xfa);
-
-    mu_assert("Stack push top short", pop_short_cpu(&emu.cpu) == 0x1234);
-    mu_assert("Stack address after pop", emu.cpu.s == 0xfc);
-    mu_assert("Stack pop top byte", pop_byte_cpu(&emu.cpu) == 0x3);
-    mu_assert("Stack address end", emu.cpu.s == 0xfd);
+    mu_assert("Stack pop top byte", pull_byte_cpu(&emu.cpu) == 0x3);
+    mu_assert("Stack address end", emu.cpu.registers.s == 0xfd);
 
     destroy_emulator(&emu);
     return 0;
