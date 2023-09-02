@@ -1,25 +1,22 @@
 #include "./cpu.h"
 #include "./ops.h"
+#include "cpu_bus.h"
+#include "interrupt.h"
+#include "memory.h"
 
 void create_cpu(cpu_t *cpu, cpu_bus_t *bus, interrupt_t *interrupt) {
     // Set registers
-    cpu->a = 0;
-    cpu->x = 0;
-    cpu->y = 0;
-    cpu->pc = 0;
-    cpu->s = 0xfd;
-
-    // Set status flags
-    cpu->status.c = false;
-    cpu->status.z = false;
-    cpu->status.i = true;
-    cpu->status.d = false;
-    cpu->status.b = false;
-    cpu->status.o = false;
-    cpu->status.n = false;
+    cpu->registers.a = 0;
+    cpu->registers.x = 0;
+    cpu->registers.y = 0;
+    cpu->registers.pc = 0;
+    cpu->registers.s = 0xfd;
+    cpu->registers.p = 0x20 | CPU_STATUS_I;
 
     // Cycles on reset
     cpu->cycles = 7;
+    cpu->state.tick = 0;
+    cpu->state.opstate = CPU_OPSTATE_FETCH;
 
     // Peripherals
     cpu->bus = bus;
@@ -29,44 +26,47 @@ void create_cpu(cpu_t *cpu, cpu_bus_t *bus, interrupt_t *interrupt) {
 
 void destroy_cpu(cpu_t *cpu) {}
 
-unsigned char get_status_cpu(cpu_t *cpu) {
-    unsigned char status = 0;
-    status |= cpu->status.c << 0;
-    status |= cpu->status.z << 1;
-    status |= cpu->status.i << 2;
-    status |= cpu->status.d << 3;
-    status |= cpu->status.b << 4;
-    status |= 1 << 5;
-    status |= cpu->status.o << 6;
-    status |= cpu->status.n << 7;
-    return status;
+void set_status_cpu(cpu_t *cpu, unsigned char mask, bool value) {
+    cpu->registers.p = (cpu->registers.p & ~mask) | (-value & mask);
+}
+
+void set_opstate_cpu(cpu_t *cpu, cpu_opstate_t opstate) {
+    cpu->state.opstate = opstate;
+    cpu->state.tick = 0;
+}
+
+unsigned char read_byte_cpu(cpu_t *cpu, address_t address) {
+    operation_t operation = OP_TABLE[cpu->state.opcode];
+    if (operation.address_mode == ADDR_ACCUMULATOR) {
+        return cpu->registers.a;
+    } else {
+        return read_byte_cpu_bus(cpu->bus, address);
+    }
+}
+
+void write_byte_cpu(cpu_t *cpu, address_t address, unsigned char value) {
+    operation_t operation = OP_TABLE[cpu->state.opcode];
+    if (operation.address_mode == ADDR_ACCUMULATOR) {
+        cpu->registers.a = value;
+    } else {
+        write_byte_cpu_bus(cpu->bus, address, value);
+    }
 }
 
 void push_byte_cpu(cpu_t *cpu, unsigned char value) {
-    write_byte_cpu_bus(cpu->bus, 0x100 | cpu->s, value);
-    cpu->s--;
+    write_byte_cpu_bus(cpu->bus, 0x100 | cpu->registers.s, value);
+    cpu->registers.s--;
 }
 
-void push_short_cpu(cpu_t *cpu, unsigned short value) {
-    push_byte_cpu(cpu, value >> 8);
-    push_byte_cpu(cpu, value);
-}
-
-unsigned char pop_byte_cpu(cpu_t *cpu) {
-    cpu->s++;
-    return read_byte_cpu_bus(cpu->bus, 0x100 | cpu->s);
-}
-
-unsigned short pop_short_cpu(cpu_t *cpu) {
-    unsigned char a0 = pop_byte_cpu(cpu);
-    unsigned char a1 = pop_byte_cpu(cpu);
-    return a0 | (a1 << 8);
+unsigned char pull_byte_cpu(cpu_t *cpu) {
+    cpu->registers.s++;
+    return read_byte_cpu_bus(cpu->bus, 0x100 | cpu->registers.s);
 }
 
 void read_state_cpu(cpu_t *cpu, char *buffer, unsigned buffer_size) {
-    unsigned char opcode_byte = read_byte_cpu_bus(cpu->bus, cpu->pc);
-    opcode_t opcode = OP_TABLE[opcode_byte];
-    unsigned char term_count = ADDRESS_MODE_SIZES[opcode.address_mode];
+    unsigned char opcode = read_byte_cpu_bus(cpu->bus, cpu->registers.pc);
+    operation_t operation = OP_TABLE[opcode];
+    unsigned char term_count = ADDRESS_MODE_SIZES[operation.address_mode];
     switch (term_count) {
     case 1:
         snprintf(buffer,
@@ -74,13 +74,13 @@ void read_state_cpu(cpu_t *cpu, char *buffer, unsigned buffer_size) {
                  "%04X  %02X        A:%02X X:%02X Y:%02X P:%02X SP:%02X "
                  "PPU:%3d,%3d CYC:"
                  "%lu",
-                 cpu->pc,
-                 opcode_byte,
-                 cpu->a,
-                 cpu->x,
-                 cpu->y,
-                 get_status_cpu(cpu),
-                 cpu->s,
+                 cpu->registers.pc,
+                 opcode,
+                 cpu->registers.a,
+                 cpu->registers.x,
+                 cpu->registers.y,
+                 cpu->registers.p,
+                 cpu->registers.s,
                  cpu->bus->ppu->scanline,
                  cpu->bus->ppu->dot,
                  cpu->cycles);
@@ -91,14 +91,14 @@ void read_state_cpu(cpu_t *cpu, char *buffer, unsigned buffer_size) {
                  "%04X  %02X %02X     A:%02X X:%02X Y:%02X P:%02X SP:%02X "
                  "PPU:%3d,%3d CYC:"
                  "%lu",
-                 cpu->pc,
-                 opcode_byte,
-                 read_byte_cpu_bus(cpu->bus, cpu->pc + 1),
-                 cpu->a,
-                 cpu->x,
-                 cpu->y,
-                 get_status_cpu(cpu),
-                 cpu->s,
+                 cpu->registers.pc,
+                 opcode,
+                 read_byte_cpu_bus(cpu->bus, cpu->registers.pc + 1),
+                 cpu->registers.a,
+                 cpu->registers.x,
+                 cpu->registers.y,
+                 cpu->registers.p,
+                 cpu->registers.s,
                  cpu->bus->ppu->scanline,
                  cpu->bus->ppu->dot,
                  cpu->cycles);
@@ -109,15 +109,15 @@ void read_state_cpu(cpu_t *cpu, char *buffer, unsigned buffer_size) {
                  "%04X  %02X %02X %02X  A:%02X X:%02X Y:%02X P:%02X SP:%02X "
                  "PPU:%3d,%3d CYC:"
                  "%lu",
-                 cpu->pc,
-                 opcode_byte,
-                 read_byte_cpu_bus(cpu->bus, cpu->pc + 1),
-                 read_byte_cpu_bus(cpu->bus, cpu->pc + 2),
-                 cpu->a,
-                 cpu->x,
-                 cpu->y,
-                 get_status_cpu(cpu),
-                 cpu->s,
+                 cpu->registers.pc,
+                 opcode,
+                 read_byte_cpu_bus(cpu->bus, cpu->registers.pc + 1),
+                 read_byte_cpu_bus(cpu->bus, cpu->registers.pc + 2),
+                 cpu->registers.a,
+                 cpu->registers.x,
+                 cpu->registers.y,
+                 cpu->registers.p,
+                 cpu->registers.s,
                  cpu->bus->ppu->scanline,
                  cpu->bus->ppu->dot,
                  cpu->cycles);
@@ -127,733 +127,1819 @@ void read_state_cpu(cpu_t *cpu, char *buffer, unsigned buffer_size) {
     }
 }
 
-unsigned char fetch_op_cpu(cpu_t *cpu) {
+bool is_idle_cpu(cpu_t *cpu) { return cpu->state.opstate == CPU_OPSTATE_FETCH; }
+
+unsigned char read_pc(cpu_t *cpu) {
+    return read_byte_cpu_bus(cpu->bus, cpu->registers.pc++);
+}
+
+void addr_implied_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->state.skip_transition = true;
+        set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+        break;
+    }
+}
+
+void addr_immediate_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->state.address = cpu->registers.pc++;
+        cpu->state.skip_transition = true;
+        set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+        break;
+    }
+}
+
+void addr_accumulator_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->state.skip_transition = true;
+        set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+        break;
+    }
+}
+
+void addr_relative_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        // Address will store the offset
+        cpu->state.address = (signed char)(read_pc(cpu));
+        cpu->state.skip_transition = true;
+        set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+        break;
+    }
+}
+
+void addr_absolute_cpu(cpu_t *cpu, bool skip_transition) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->state.address = read_pc(cpu);
+        break;
+    case 2:
+        cpu->state.address |= read_pc(cpu) << 8;
+        if (cpu->state.opgroup != CPU_OPGROUP_RW) {
+            cpu->state.skip_transition = skip_transition;
+            set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+        }
+        break;
+    case 3:
+        cpu->state.tmp = read_byte_cpu(cpu, cpu->state.address);
+        break;
+    case 4:
+        write_byte_cpu(cpu, cpu->state.address, cpu->state.tmp);
+        set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+        break;
+    }
+}
+
+void addr_zero_page_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->state.address = read_pc(cpu);
+        if (cpu->state.opgroup != CPU_OPGROUP_RW) {
+            set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+        }
+        break;
+    case 2:
+        cpu->state.tmp = read_byte_cpu(cpu, cpu->state.address);
+        break;
+    case 3:
+        write_byte_cpu(cpu, cpu->state.address, cpu->state.tmp);
+        set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+        break;
+    }
+}
+
+void addr_indirect_x_cpu(cpu_t *cpu) {
+    switch (cpu->state.opgroup) {
+    case CPU_OPGROUP_RW:
+        switch (cpu->state.tick) {
+        case 1:
+            cpu->state.base_address = read_pc(cpu);
+            break;
+        case 2:
+            cpu->state.base_address += cpu->registers.x;
+            break;
+        case 3:
+            cpu->state.address =
+                read_byte_cpu_bus(cpu->bus,
+                                  (unsigned char)(cpu->state.base_address));
+            break;
+        case 4:
+            cpu->state.address |=
+                read_byte_cpu_bus(cpu->bus,
+                                  (unsigned char)(cpu->state.base_address + 1))
+                << 8;
+            break;
+        case 5:
+            cpu->state.tmp = read_byte_cpu(cpu, cpu->state.address);
+            break;
+        case 6:
+            write_byte_cpu(cpu, cpu->state.address, cpu->state.tmp);
+            cpu->state.skip_transition = false;
+            set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+            break;
+        }
+        break;
+    default:
+        switch (cpu->state.tick) {
+        case 1:
+            cpu->state.base_address = read_pc(cpu);
+            break;
+        case 2:
+            cpu->state.base_address += cpu->registers.x;
+            break;
+        case 3:
+            cpu->state.address =
+                read_byte_cpu_bus(cpu->bus,
+                                  (unsigned char)(cpu->state.base_address));
+            break;
+        case 4:
+            cpu->state.address |=
+                read_byte_cpu_bus(cpu->bus,
+                                  (unsigned char)(cpu->state.base_address + 1))
+                << 8;
+            cpu->state.skip_transition = false;
+            set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+            break;
+        }
+        break;
+    }
+}
+
+void addr_indirect_y_cpu(cpu_t *cpu) {
+    switch (cpu->state.opgroup) {
+    case CPU_OPGROUP_RW:
+        switch (cpu->state.tick) {
+        case 1:
+            cpu->state.base_address = read_pc(cpu);
+            break;
+        case 2:
+            cpu->state.address =
+                read_byte_cpu_bus(cpu->bus,
+                                  (unsigned char)(cpu->state.base_address));
+            break;
+        case 3:
+            cpu->state.address |=
+                read_byte_cpu_bus(cpu->bus,
+                                  (unsigned char)(cpu->state.base_address + 1))
+                << 8;
+            break;
+        case 4:
+            cpu->state.address += cpu->registers.y;
+            break;
+        case 5:
+            cpu->state.tmp = read_byte_cpu(cpu, cpu->state.address);
+            break;
+        case 6:
+            write_byte_cpu(cpu, cpu->state.address, cpu->state.tmp);
+            set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+            break;
+        }
+        break;
+    case CPU_OPGROUP_R:
+        switch (cpu->state.tick) {
+        case 1:
+            cpu->state.base_address = read_pc(cpu);
+            break;
+        case 2:
+            cpu->state.address =
+                read_byte_cpu_bus(cpu->bus,
+                                  (unsigned char)(cpu->state.base_address));
+            break;
+        case 3:
+            cpu->state.address |=
+                read_byte_cpu_bus(cpu->bus,
+                                  (unsigned char)(cpu->state.base_address + 1))
+                << 8;
+            cpu->state.base_address = cpu->state.address;
+            break;
+        case 4:
+            cpu->state.address = cpu->state.base_address + cpu->registers.y;
+            cpu->state.skip_transition =
+                !((cpu->state.base_address & 0xff) + cpu->registers.y > 0xff);
+            set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+            break;
+        }
+        break;
+    default:
+        switch (cpu->state.tick) {
+        case 1:
+            cpu->state.base_address = read_pc(cpu);
+            break;
+        case 2:
+            cpu->state.address =
+                read_byte_cpu_bus(cpu->bus,
+                                  (unsigned char)(cpu->state.base_address));
+            break;
+        case 3:
+            cpu->state.address |=
+                read_byte_cpu_bus(cpu->bus,
+                                  (unsigned char)(cpu->state.base_address + 1))
+                << 8;
+            cpu->state.base_address = cpu->state.address;
+            break;
+        case 4:
+            cpu->state.address = cpu->state.base_address + cpu->registers.y;
+            set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+            break;
+        }
+        break;
+    }
+}
+
+void addr_indirect_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->state.base_address =
+            read_byte_cpu_bus(cpu->bus, cpu->registers.pc);
+        break;
+    case 2:
+        cpu->state.base_address |=
+            read_byte_cpu_bus(cpu->bus, cpu->registers.pc + 1) << 8;
+        break;
+    case 3:
+        cpu->state.address =
+            read_byte_cpu_bus(cpu->bus, cpu->state.base_address);
+        break;
+    case 4: {
+        address_t next_addr;
+        if ((cpu->state.base_address & 0xff) == 0xff) {
+            next_addr = cpu->state.base_address & 0xff00;
+        } else {
+            next_addr = cpu->state.base_address + 1;
+        }
+        cpu->state.address |= read_byte_cpu_bus(cpu->bus, next_addr) << 8;
+        cpu->state.skip_transition = true;
+        set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+    } break;
+    }
+}
+
+void addr_absolute_y_cpu(cpu_t *cpu) {
+    switch (cpu->state.opgroup) {
+    case CPU_OPGROUP_R:
+        switch (cpu->state.tick) {
+        case 1:
+            cpu->state.base_address = read_pc(cpu);
+            break;
+        case 2:
+            cpu->state.base_address |= read_pc(cpu) << 8;
+            break;
+        case 3:
+            cpu->state.address = cpu->state.base_address + cpu->registers.y;
+            cpu->state.skip_transition =
+                !((cpu->state.base_address & 0xff) + cpu->registers.y > 0xff);
+            set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+            break;
+        }
+        break;
+    case CPU_OPGROUP_RW:
+        switch (cpu->state.tick) {
+        case 1:
+            cpu->state.base_address = read_pc(cpu);
+            break;
+        case 2:
+            cpu->state.base_address |= read_pc(cpu) << 8;
+            break;
+        case 3:
+            cpu->state.address = cpu->state.base_address + cpu->registers.y;
+            break;
+        case 4:
+            cpu->state.tmp = read_byte_cpu(cpu, cpu->state.address);
+            break;
+        case 5:
+            write_byte_cpu(cpu, cpu->state.address, cpu->state.tmp);
+            set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+            break;
+        }
+        break;
+    default:
+        switch (cpu->state.tick) {
+        case 1:
+            cpu->state.base_address = read_pc(cpu);
+            break;
+        case 2:
+            cpu->state.base_address |= read_pc(cpu) << 8;
+            break;
+        case 3:
+            cpu->state.address = cpu->state.base_address + cpu->registers.y;
+            set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+            break;
+        }
+        break;
+    }
+}
+
+void addr_zero_page_x_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->state.base_address = read_pc(cpu);
+        break;
+    case 2:
+        cpu->state.address =
+            (unsigned char)(cpu->state.base_address + cpu->registers.x);
+        if (cpu->state.opgroup != CPU_OPGROUP_RW) {
+            set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+        }
+        break;
+    case 3:
+        cpu->state.tmp = read_byte_cpu(cpu, cpu->state.address);
+        break;
+    case 4:
+        write_byte_cpu(cpu, cpu->state.address, cpu->state.tmp);
+        set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+        break;
+    }
+}
+
+void addr_zero_page_y_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->state.base_address = read_pc(cpu);
+        break;
+    case 2:
+        cpu->state.address =
+            (unsigned char)(cpu->state.base_address + cpu->registers.y);
+        if (cpu->state.opgroup != CPU_OPGROUP_RW) {
+            set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+        }
+        break;
+    case 3:
+        cpu->state.tmp = read_byte_cpu(cpu, cpu->state.address);
+        break;
+    case 4:
+        write_byte_cpu(cpu, cpu->state.address, cpu->state.tmp);
+        set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+        break;
+    }
+}
+
+void addr_absolute_x_cpu(cpu_t *cpu) {
+    switch (cpu->state.opgroup) {
+    case CPU_OPGROUP_RW:
+        switch (cpu->state.tick) {
+        case 1:
+            cpu->state.base_address = read_pc(cpu);
+            break;
+        case 2:
+            cpu->state.base_address |= read_pc(cpu) << 8;
+            break;
+        case 3:
+            cpu->state.address = cpu->state.base_address + cpu->registers.x;
+            break;
+        case 4:
+            cpu->state.tmp = read_byte_cpu(cpu, cpu->state.address);
+            break;
+        case 5:
+            write_byte_cpu(cpu, cpu->state.address, cpu->state.tmp);
+            set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+            break;
+        }
+        break;
+    case CPU_OPGROUP_R:
+        switch (cpu->state.tick) {
+        case 1:
+            cpu->state.base_address = read_pc(cpu);
+            break;
+        case 2:
+            cpu->state.base_address |= read_pc(cpu) << 8;
+            break;
+        case 3:
+            cpu->state.address = cpu->state.base_address + cpu->registers.x;
+            cpu->state.skip_transition =
+                !((cpu->state.base_address & 0xff) + cpu->registers.x > 0xff);
+            set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+            break;
+        }
+        break;
+    default:
+        switch (cpu->state.tick) {
+        case 1:
+            cpu->state.base_address = read_pc(cpu);
+            break;
+        case 2:
+            cpu->state.base_address |= read_pc(cpu) << 8;
+            break;
+        case 3:
+            cpu->state.address = cpu->state.base_address + cpu->registers.x;
+            set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+            break;
+        }
+        break;
+    }
+}
+
+void op_jmp_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.pc = cpu->state.address;
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_ldx_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.x = read_byte_cpu(cpu, cpu->state.address);
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.x == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.x & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_stx_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        write_byte_cpu(cpu, cpu->state.address, cpu->registers.x);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_jsr_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->state.address = read_pc(cpu);
+        break;
+    case 2:
+        // Internal op, not relevant here
+        break;
+    case 3:
+        push_byte_cpu(cpu, cpu->registers.pc >> 8);
+        break;
+    case 4:
+        push_byte_cpu(cpu, cpu->registers.pc & 0xff);
+        break;
+    case 5:
+        cpu->registers.pc = cpu->state.address | (read_pc(cpu) << 8);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_nop_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_sec_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        set_status_cpu(cpu, CPU_STATUS_C, true);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_bcs_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        if (cpu->registers.p & CPU_STATUS_C) {
+            cpu->registers.pc += cpu->state.address;
+        } else {
+            set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        }
+        break;
+    case 2: {
+        address_t prev_pc = cpu->registers.pc - cpu->state.address;
+        if ((cpu->registers.pc & 0xff00) == (prev_pc & 0xff00)) {
+            set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        }
+    } break;
+    case 3:
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_clc_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        set_status_cpu(cpu, CPU_STATUS_C, false);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_bcc_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        if (!(cpu->registers.p & CPU_STATUS_C)) {
+            cpu->registers.pc += cpu->state.address;
+        } else {
+            set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        }
+        break;
+    case 2: {
+        address_t prev_pc = cpu->registers.pc - cpu->state.address;
+        if ((cpu->registers.pc & 0xff00) == (prev_pc & 0xff00)) {
+            set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        }
+    } break;
+    case 3:
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_lda_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.a = read_byte_cpu(cpu, cpu->state.address);
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.a & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_beq_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        if (cpu->registers.p & CPU_STATUS_Z) {
+            cpu->registers.pc += cpu->state.address;
+        } else {
+            set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        }
+        break;
+    case 2: {
+        address_t prev_pc = cpu->registers.pc - cpu->state.address;
+        if ((cpu->registers.pc & 0xff00) == (prev_pc & 0xff00)) {
+            set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        }
+    } break;
+    case 3:
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_bne_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        if (!(cpu->registers.p & CPU_STATUS_Z)) {
+            cpu->registers.pc += cpu->state.address;
+        } else {
+            set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        }
+        break;
+    case 2: {
+        address_t prev_pc = cpu->registers.pc - cpu->state.address;
+        if ((cpu->registers.pc & 0xff00) == (prev_pc & 0xff00)) {
+            set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        }
+    } break;
+    case 3:
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_sta_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        write_byte_cpu(cpu, cpu->state.address, cpu->registers.a);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_bit_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        unsigned char val = read_byte_cpu(cpu, cpu->state.address);
+        set_status_cpu(cpu, CPU_STATUS_Z, !(cpu->registers.a & val));
+        set_status_cpu(cpu, CPU_STATUS_N, val & 0x80);
+        set_status_cpu(cpu, CPU_STATUS_O, val & 0x40);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+
+    } break;
+    }
+}
+
+void op_bvs_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        if (cpu->registers.p & CPU_STATUS_O) {
+            cpu->registers.pc += cpu->state.address;
+        } else {
+            set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        }
+        break;
+    case 2: {
+        address_t prev_pc = cpu->registers.pc - cpu->state.address;
+        if ((cpu->registers.pc & 0xff00) == (prev_pc & 0xff00)) {
+            set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        }
+    } break;
+    case 3:
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_bvc_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        if (!(cpu->registers.p & CPU_STATUS_O)) {
+            cpu->registers.pc += cpu->state.address;
+        } else {
+            set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        }
+        break;
+    case 2: {
+        address_t prev_pc = cpu->registers.pc - cpu->state.address;
+        if ((cpu->registers.pc & 0xff00) == (prev_pc & 0xff00)) {
+            set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        }
+    } break;
+    case 3:
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_bpl_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        if (!(cpu->registers.p & CPU_STATUS_N)) {
+            cpu->registers.pc += cpu->state.address;
+        } else {
+            set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        }
+        break;
+    case 2: {
+        address_t prev_pc = cpu->registers.pc - cpu->state.address;
+        if ((cpu->registers.pc & 0xff00) == (prev_pc & 0xff00)) {
+            set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        }
+    } break;
+    case 3:
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_rts_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        read_pc(cpu);
+        break;
+    case 2:
+        break;
+    case 3:
+        cpu->registers.pc = pull_byte_cpu(cpu);
+        break;
+    case 4:
+        cpu->registers.pc |= pull_byte_cpu(cpu) << 8;
+        break;
+    case 5:
+        cpu->registers.pc++;
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_sei_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        set_status_cpu(cpu, CPU_STATUS_I, true);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_sed_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        set_status_cpu(cpu, CPU_STATUS_D, true);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_php_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        read_byte_cpu(cpu, cpu->registers.pc);
+        break;
+    case 2:
+        set_status_cpu(cpu, CPU_STATUS_B, true);
+        push_byte_cpu(cpu, cpu->registers.p);
+        set_status_cpu(cpu, CPU_STATUS_B, false);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_pla_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        read_byte_cpu(cpu, cpu->registers.pc);
+        break;
+    case 2:
+        break;
+    case 3:
+        cpu->registers.a = pull_byte_cpu(cpu);
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.a & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_and_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.a &= read_byte_cpu(cpu, cpu->state.address);
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.a & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_cmp_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        unsigned char val = read_byte_cpu(cpu, cpu->state.address);
+        unsigned char sub = cpu->registers.a - val;
+        set_status_cpu(cpu, CPU_STATUS_C, cpu->registers.a >= val);
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == val);
+        set_status_cpu(cpu, CPU_STATUS_N, sub & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_cld_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        set_status_cpu(cpu, CPU_STATUS_D, false);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_pha_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        read_byte_cpu(cpu, cpu->registers.pc);
+        break;
+    case 2:
+        push_byte_cpu(cpu, cpu->registers.a);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_plp_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        read_byte_cpu(cpu, cpu->registers.pc);
+        break;
+    case 2:
+        break;
+    case 3: {
+        unsigned char status = pull_byte_cpu(cpu);
+        cpu->registers.p = (cpu->registers.p & 0x30) | (status & 0xcf);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_bmi_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        if (cpu->registers.p & CPU_STATUS_N) {
+            cpu->registers.pc += cpu->state.address;
+        } else {
+            set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        }
+        break;
+    case 2: {
+        address_t prev_pc = cpu->registers.pc - cpu->state.address;
+        if ((cpu->registers.pc & 0xff00) == (prev_pc & 0xff00)) {
+            set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        }
+    } break;
+    case 3:
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_ora_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.a |= read_byte_cpu(cpu, cpu->state.address);
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.a & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_clv_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        set_status_cpu(cpu, CPU_STATUS_O, false);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_eor_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.a ^= read_byte_cpu(cpu, cpu->state.address);
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.a & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_adc_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        unsigned char m = read_byte_cpu(cpu, cpu->state.address);
+        unsigned char n = cpu->registers.a;
+        unsigned short sum = m + n + (cpu->registers.p & 1);
+        cpu->registers.a = sum;
+        set_status_cpu(cpu, CPU_STATUS_C, sum > 0xff);
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.a & 0x80);
+        set_status_cpu(
+            cpu,
+            CPU_STATUS_O,
+            ((m ^ cpu->registers.a) & (n ^ cpu->registers.a) & 0x80) > 0);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_ldy_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.y = read_byte_cpu(cpu, cpu->state.address);
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.y == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.y & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_cpy_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        unsigned char val = read_byte_cpu(cpu, cpu->state.address);
+        unsigned char sub = cpu->registers.y - val;
+        set_status_cpu(cpu, CPU_STATUS_C, cpu->registers.y >= val);
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.y == val);
+        set_status_cpu(cpu, CPU_STATUS_N, sub & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_cpx_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        unsigned char val = read_byte_cpu(cpu, cpu->state.address);
+        unsigned char sub = cpu->registers.x - val;
+        set_status_cpu(cpu, CPU_STATUS_C, cpu->registers.x >= val);
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.x == val);
+        set_status_cpu(cpu, CPU_STATUS_N, sub & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_sbc_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        unsigned char m = ~read_byte_cpu(cpu, cpu->state.address);
+        unsigned char n = cpu->registers.a;
+        unsigned short diff = n + m + (cpu->registers.p & 1);
+        cpu->registers.a = diff;
+        set_status_cpu(cpu, CPU_STATUS_C, diff > 0xff);
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.a & 0x80);
+        set_status_cpu(
+            cpu,
+            CPU_STATUS_O,
+            ((m ^ cpu->registers.a) & (n ^ cpu->registers.a) & 0x80) > 0);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_iny_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.y++;
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.y == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.y & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_inx_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.x++;
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.x == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.x & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_dey_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.y--;
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.y == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.y & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_dex_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.x--;
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.x == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.x & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_tay_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.y = cpu->registers.a;
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.y == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.y & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_tax_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.x = cpu->registers.a;
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.x == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.x & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_tya_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.a = cpu->registers.y;
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.a & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_txa_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.a = cpu->registers.x;
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.a & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_tsx_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.x = cpu->registers.s;
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.x == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.x & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_txs_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.s = cpu->registers.x;
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_rti_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        read_pc(cpu);
+        break;
+    case 2:
+        break;
+    case 3:
+        cpu->registers.p = pull_byte_cpu(cpu) | 0x20;
+        break;
+    case 4:
+        cpu->registers.pc = pull_byte_cpu(cpu);
+        break;
+    case 5:
+        cpu->registers.pc |= pull_byte_cpu(cpu) << 8;
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_lsr_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        unsigned char val = read_byte_cpu(cpu, cpu->state.address);
+        set_status_cpu(cpu, CPU_STATUS_C, val & 0x1);
+        val >>= 1;
+        set_status_cpu(cpu, CPU_STATUS_Z, val == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, false);
+        write_byte_cpu(cpu, cpu->state.address, val);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_asl_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        unsigned char val = read_byte_cpu(cpu, cpu->state.address);
+        set_status_cpu(cpu, CPU_STATUS_C, val & 0x80);
+        val <<= 1;
+        set_status_cpu(cpu, CPU_STATUS_Z, val == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, val >> 7);
+        write_byte_cpu(cpu, cpu->state.address, val);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_ror_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        unsigned char val = read_byte_cpu(cpu, cpu->state.address);
+        unsigned char old_c = cpu->registers.p & CPU_STATUS_C;
+        set_status_cpu(cpu, CPU_STATUS_C, val & 0x1);
+        val >>= 1;
+        val |= (old_c << 7);
+
+        set_status_cpu(cpu, CPU_STATUS_Z, val == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, val >> 7);
+        write_byte_cpu(cpu, cpu->state.address, val);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_rol_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        unsigned char val = read_byte_cpu(cpu, cpu->state.address);
+        unsigned char old_c = cpu->registers.p & CPU_STATUS_C;
+        set_status_cpu(cpu, CPU_STATUS_C, val & 0x80);
+        val <<= 1;
+        val |= old_c;
+
+        set_status_cpu(cpu, CPU_STATUS_Z, val == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, val >> 7);
+        write_byte_cpu(cpu, cpu->state.address, val);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_sty_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        write_byte_cpu(cpu, cpu->state.address, cpu->registers.y);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_inc_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        unsigned char val = read_byte_cpu(cpu, cpu->state.address);
+        val++;
+        set_status_cpu(cpu, CPU_STATUS_Z, val == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, val & 0x80);
+        write_byte_cpu(cpu, cpu->state.address, val);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_dec_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        unsigned char val = read_byte_cpu(cpu, cpu->state.address);
+        val--;
+        set_status_cpu(cpu, CPU_STATUS_Z, val == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, val & 0x80);
+        write_byte_cpu(cpu, cpu->state.address, val);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_lax_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.a = read_byte_cpu(cpu, cpu->state.address);
+        cpu->registers.x = read_byte_cpu(cpu, cpu->state.address);
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.a & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_sax_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        write_byte_cpu(cpu,
+                       cpu->state.address,
+                       cpu->registers.a & cpu->registers.x);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_dcp_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        // DEC
+        unsigned char val = read_byte_cpu(cpu, cpu->state.address);
+        val--;
+        write_byte_cpu(cpu, cpu->state.address, val);
+
+        // CMP
+        unsigned char sub = cpu->registers.a - val;
+        set_status_cpu(cpu, CPU_STATUS_C, cpu->registers.a >= val);
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == val);
+        set_status_cpu(cpu, CPU_STATUS_N, sub & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_isc_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        // INC
+        unsigned char val = read_byte_cpu(cpu, cpu->state.address);
+        val++;
+        write_byte_cpu(cpu, cpu->state.address, val);
+
+        // SBC
+        unsigned char m = ~val;
+        unsigned char n = cpu->registers.a;
+        unsigned short diff = n + m + (cpu->registers.p & 1);
+        cpu->registers.a = diff;
+        set_status_cpu(cpu, CPU_STATUS_C, diff > 0xff);
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.a & 0x80);
+        set_status_cpu(
+            cpu,
+            CPU_STATUS_O,
+            ((m ^ cpu->registers.a) & (n ^ cpu->registers.a) & 0x80) > 0);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_slo_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        // ASL
+        unsigned char val = read_byte_cpu(cpu, cpu->state.address);
+        set_status_cpu(cpu, CPU_STATUS_C, val & 0x80);
+        val <<= 1;
+        write_byte_cpu(cpu, cpu->state.address, val);
+
+        // ORA
+        cpu->registers.a |= read_byte_cpu(cpu, cpu->state.address);
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.a & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_rla_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        // ROL
+        unsigned char val = read_byte_cpu(cpu, cpu->state.address);
+        unsigned char old_c = cpu->registers.p & CPU_STATUS_C;
+        set_status_cpu(cpu, CPU_STATUS_C, val & 0x80);
+        val <<= 1;
+        val |= old_c;
+        write_byte_cpu(cpu, cpu->state.address, val);
+
+        // AND
+        cpu->registers.a &= val;
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.a & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    }
+    }
+}
+
+void op_sre_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        // LSR
+        unsigned char val = read_byte_cpu(cpu, cpu->state.address);
+        set_status_cpu(cpu, CPU_STATUS_C, val & 0x1);
+        val >>= 1;
+        set_status_cpu(cpu, CPU_STATUS_Z, val == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, false);
+        write_byte_cpu(cpu, cpu->state.address, val);
+
+        // EOR
+        cpu->registers.a ^= val;
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.a & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    }
+    }
+}
+
+void op_rra_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        // ROR
+        unsigned char val = read_byte_cpu(cpu, cpu->state.address);
+        unsigned char old_c = cpu->registers.p & CPU_STATUS_C;
+        set_status_cpu(cpu, CPU_STATUS_C, val & 0x1);
+        val >>= 1;
+        val |= (old_c << 7);
+
+        set_status_cpu(cpu, CPU_STATUS_Z, val == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, val >> 7);
+        write_byte_cpu(cpu, cpu->state.address, val);
+
+        // ADC
+        unsigned char m = read_byte_cpu(cpu, cpu->state.address);
+        unsigned char n = cpu->registers.a;
+        unsigned short sum = m + n + (cpu->registers.p & 1);
+        cpu->registers.a = sum;
+        set_status_cpu(cpu, CPU_STATUS_C, sum > 0xff);
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.a & 0x80);
+        set_status_cpu(
+            cpu,
+            CPU_STATUS_O,
+            ((m ^ cpu->registers.a) & (n ^ cpu->registers.a) & 0x80) > 0);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    }
+    }
+}
+
+void op_cli_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        set_status_cpu(cpu, CPU_STATUS_I, false);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_anc_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        // AND
+        cpu->registers.a &= read_byte_cpu(cpu, cpu->state.address);
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.a & 0x80);
+
+        // Set C
+        set_status_cpu(cpu, CPU_STATUS_C, cpu->registers.a & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_alr_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        // AND
+        cpu->registers.a &= read_byte_cpu(cpu, cpu->state.address);
+
+        // LSR
+        set_status_cpu(cpu, CPU_STATUS_C, cpu->registers.a & 0x1);
+        cpu->registers.a >>= 1;
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, false);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_arr_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        cpu->registers.a &= read_byte_cpu(cpu, cpu->state.address);
+        cpu->registers.a >>= 1;
+        cpu->registers.a |= (cpu->registers.p & CPU_STATUS_C) << 7;
+
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.a & 0x80);
+
+        set_status_cpu(cpu, CPU_STATUS_C, (cpu->registers.a >> 6) & 0x1);
+        set_status_cpu(cpu,
+                       CPU_STATUS_O,
+                       ((cpu->registers.a >> 5) ^ (cpu->registers.a >> 6)) &
+                           0x1);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_lxa_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        cpu->registers.a = read_byte_cpu(cpu, cpu->state.address);
+        cpu->registers.x = cpu->registers.a;
+        set_status_cpu(cpu, CPU_STATUS_Z, cpu->registers.a == 0);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.a & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void op_sbx_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        unsigned char val = read_byte_cpu(cpu, cpu->state.address);
+        unsigned char and_res = cpu->registers.a & cpu->registers.x;
+        cpu->registers.x = and_res - val;
+        set_status_cpu(cpu, CPU_STATUS_C, and_res >= val);
+        set_status_cpu(cpu, CPU_STATUS_Z, and_res == val);
+        set_status_cpu(cpu, CPU_STATUS_N, cpu->registers.x & 0x80);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_shy_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        address_t target = cpu->state.address;
+        unsigned char val = cpu->registers.y & ((target >> 8) + 1);
+
+        address_t base = target - cpu->registers.y;
+        if ((base & 0xff) + (cpu->registers.y > 0xff)) {
+            target = (target & 0xff) | (val << 8);
+        }
+        write_byte_cpu(cpu, target, val);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_shx_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1: {
+        address_t target = cpu->state.address;
+        unsigned char val = cpu->registers.x & ((target >> 8) + 1);
+
+        address_t base = target - cpu->registers.x;
+        if ((base & 0xff) + (cpu->registers.x > 0xff)) {
+            target = (target & 0xff) | (val << 8);
+        }
+        write_byte_cpu(cpu, target, val);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+    } break;
+    }
+}
+
+void op_brk_cpu(cpu_t *cpu) {
+    switch (cpu->state.tick) {
+    case 1:
+        read_pc(cpu);
+        break;
+    case 2:
+        push_byte_cpu(cpu, cpu->registers.pc >> 8);
+        break;
+    case 3:
+        push_byte_cpu(cpu, cpu->registers.pc & 0xff);
+        break;
+    case 4:
+        push_byte_cpu(cpu, cpu->registers.p | CPU_STATUS_B);
+        break;
+    case 5:
+        cpu->registers.pc = read_byte_cpu(cpu, CPU_VEC_IRQ_BRK);
+        break;
+    case 6:
+        cpu->registers.pc |= read_byte_cpu(cpu, CPU_VEC_IRQ_BRK + 1) << 8;
+        set_status_cpu(cpu, CPU_STATUS_I, true);
+        set_opstate_cpu(cpu, CPU_OPSTATE_FETCH);
+        break;
+    }
+}
+
+void fetch_cpu(cpu_t *cpu) {
     // Handle NMI, IRQ, and RESET interrupts
     if (cpu->interrupt->nmi) {
         cpu->interrupt_vector = CPU_VEC_NMI;
-        return 0;
-    }
-    if (cpu->interrupt->irq && !cpu->status.i) {
+        cpu->state.opcode = 0;
+    } else if (cpu->interrupt->irq && !(cpu->registers.p & CPU_STATUS_I)) {
         cpu->interrupt_vector = CPU_VEC_IRQ_BRK;
-        return 0;
-    }
-    if (cpu->interrupt->reset && !cpu->status.i) {
+        cpu->state.opcode = 0;
+    } else if (cpu->interrupt->reset && !(cpu->registers.p & CPU_STATUS_I)) {
         cpu->interrupt_vector = CPU_VEC_RESET;
-        return 0;
+        cpu->state.opcode = 0;
+    } else {
+        // No interrupts, next instruction from program counter
+        cpu->interrupt_vector = CPU_VEC_IRQ_BRK;
+        cpu->state.opcode = read_pc(cpu);
     }
 
-    // No interrupts, next instruction from program counter
-    return read_byte_cpu_bus(cpu->bus, cpu->pc);
-}
-
-operand_t decode_op_cpu(cpu_t *cpu, unsigned char opcode_byte) {
-    opcode_t opcode = OP_TABLE[opcode_byte];
-
-    switch (opcode.address_mode) {
-    case ADDR_IMMEDIATE:
-        return immediate_addr(cpu);
-    case ADDR_ZERO_PAGE:
-        return zero_page_addr(cpu);
-    case ADDR_ZERO_PAGE_X:
-        return zero_page_x_addr(cpu);
-    case ADDR_ZERO_PAGE_Y:
-        return zero_page_y_addr(cpu);
-    case ADDR_RELATIVE:
-        return relative_addr(cpu);
-    case ADDR_ABSOLUTE:
-        return absolute_addr(cpu);
-    case ADDR_ABSOLUTE_X:
-        return absolute_x_addr(cpu);
-    case ADDR_ABSOLUTE_Y:
-        return absolute_y_addr(cpu);
-    case ADDR_INDIRECT:
-        return indirect_addr(cpu);
-    case ADDR_INDIRECT_X:
-        return indirect_x_addr(cpu);
-    case ADDR_INDIRECT_Y:
-        return indirect_y_addr(cpu);
-    default:
-        return (operand_t){0, 0};
-    }
-}
-
-bool execute_op_cpu(cpu_t *cpu, unsigned char opcode_byte, operand_t operand) {
-    // Update the program counter.
-    opcode_t opcode = OP_TABLE[opcode_byte];
-    cpu->pc += ADDRESS_MODE_SIZES[opcode.address_mode];
-
-    // Set number of delay cycles
-    unsigned char delay_cycles;
-    switch (opcode.op_mode) {
-    case OP_STA:
-    case OP_STX:
-    case OP_STY:
-    case OP_SAX:
-    case OP_DCP:
-    case OP_ISC:
+    operation_t operation = OP_TABLE[cpu->state.opcode];
+    switch (operation.mnemonic) {
+    case OP_ASL:
+    case OP_LSR:
+    case OP_ROL:
+    case OP_ROR:
+    case OP_INC:
+    case OP_DEC:
     case OP_SLO:
-    case OP_RLA:
     case OP_SRE:
+    case OP_RLA:
     case OP_RRA:
-    case OP_SHX:
-    case OP_SHY:
-        delay_cycles = 0;
-        break;
-    default:
-        delay_cycles = operand.page_crossed;
-        break;
-    }
-
-    // Execute
-    switch (opcode.op_mode) {
-    case OP_JMP:
-        cpu->pc = operand.address;
-        break;
-    case OP_LDX:
-        cpu->x = read_byte_cpu_bus(cpu->bus, operand.address);
-        cpu->status.z = cpu->x == 0;
-        cpu->status.n = cpu->x >> 7;
-        break;
-    case OP_STX:
-        write_byte_cpu_bus(cpu->bus, operand.address, cpu->x);
-        break;
-    case OP_JSR:
-        push_short_cpu(cpu, cpu->pc - 1);
-        cpu->pc = operand.address;
-        break;
-    case OP_SEC:
-        cpu->status.c = 1;
-        break;
-    case OP_BCS:
-        if (cpu->status.c) {
-            cpu->pc = operand.address;
-            delay_cycles++;
-        } else {
-            delay_cycles = 0;
-        }
-        break;
-    case OP_CLC:
-        cpu->status.c = 0;
-        break;
-    case OP_BCC:
-        if (!cpu->status.c) {
-            cpu->pc = operand.address;
-            delay_cycles++;
-        } else {
-            delay_cycles = 0;
-        }
+    case OP_ISC:
+    case OP_DCP:
+        cpu->state.opgroup = CPU_OPGROUP_RW;
         break;
     case OP_LDA:
-        cpu->a = read_byte_cpu_bus(cpu->bus, operand.address);
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = cpu->a >> 7;
-        break;
-    case OP_BEQ:
-        if (cpu->status.z) {
-            cpu->pc = operand.address;
-            delay_cycles++;
-        } else {
-            delay_cycles = 0;
-        }
-        break;
-    case OP_BNE:
-        if (!cpu->status.z) {
-            cpu->pc = operand.address;
-            delay_cycles++;
-        } else {
-            delay_cycles = 0;
-        }
+    case OP_LDX:
+    case OP_LDY:
+    case OP_EOR:
+    case OP_AND:
+    case OP_ORA:
+    case OP_ADC:
+    case OP_SBC:
+    case OP_CMP:
+    case OP_BIT:
+    case OP_LAX:
+    case OP_NOP:
+        cpu->state.opgroup = CPU_OPGROUP_R;
         break;
     case OP_STA:
-        write_byte_cpu_bus(cpu->bus, operand.address, cpu->a);
-        break;
-    case OP_BIT: {
-        unsigned char val = read_byte_cpu_bus(cpu->bus, operand.address);
-        cpu->status.z = (cpu->a & val) == 0;
-        cpu->status.n = val >> 7;
-        cpu->status.o = (val >> 6) & 1;
-        break;
-    }
-    case OP_BVS:
-        if (cpu->status.o) {
-            cpu->pc = operand.address;
-            delay_cycles++;
-        } else {
-            delay_cycles = 0;
-        }
-        break;
-    case OP_BVC:
-        if (!cpu->status.o) {
-            cpu->pc = operand.address;
-            delay_cycles++;
-        } else {
-            delay_cycles = 0;
-        }
-        break;
-    case OP_BPL:
-        if (!cpu->status.n) {
-            cpu->pc = operand.address;
-            delay_cycles++;
-        } else {
-            delay_cycles = 0;
-        }
-        break;
-    case OP_RTS:
-        cpu->pc = pop_short_cpu(cpu) + 1;
-        break;
-    case OP_SEI:
-        cpu->status.i = 1;
-        break;
-    case OP_SED:
-        cpu->status.d = 1;
-        break;
-    case OP_PHP:
-        // Pushed copy should have break flag and bit 5 set
-        cpu->status.b = true;
-        push_byte_cpu(cpu, get_status_cpu(cpu) | 0x20);
-        cpu->status.b = false;
-        break;
-    case OP_PLA:
-        cpu->a = pop_byte_cpu(cpu);
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = cpu->a >> 7;
-        break;
-    case OP_AND:
-        cpu->a &= read_byte_cpu_bus(cpu->bus, operand.address);
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = cpu->a >> 7;
-        break;
-    case OP_CMP: {
-        unsigned char val = read_byte_cpu_bus(cpu->bus, operand.address);
-        unsigned char sub = cpu->a - val;
-        cpu->status.c = cpu->a >= val;
-        cpu->status.z = cpu->a == val;
-        cpu->status.n = sub >> 7;
-        break;
-    }
-    case OP_CLD:
-        cpu->status.d = 0;
-        break;
-    case OP_PHA:
-        push_byte_cpu(cpu, cpu->a);
-        break;
-    case OP_PLP: {
-        unsigned char status = pop_byte_cpu(cpu);
-        cpu->status.c = status & 0x1;
-        cpu->status.z = status & 0x2;
-        cpu->status.i = status & 0x4;
-        cpu->status.d = status & 0x8;
-        cpu->status.o = status & 0x40;
-        cpu->status.n = status & 0x80;
-        break;
-    }
-    case OP_BMI:
-        if (cpu->status.n) {
-            cpu->pc = operand.address;
-            delay_cycles++;
-        } else {
-            delay_cycles = 0;
-        }
-        break;
-    case OP_ORA:
-        cpu->a |= read_byte_cpu_bus(cpu->bus, operand.address);
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = cpu->a >> 7;
-        break;
-    case OP_CLV:
-        cpu->status.o = 0;
-        break;
-    case OP_EOR:
-        cpu->a ^= read_byte_cpu_bus(cpu->bus, operand.address);
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = cpu->a >> 7;
-        break;
-    case OP_ADC: {
-        unsigned char m = read_byte_cpu_bus(cpu->bus, operand.address);
-        unsigned char n = cpu->a;
-        unsigned short res = m + n + cpu->status.c;
-        cpu->a = res;
-        cpu->status.c = res > 0xff;
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = cpu->a >> 7;
-        cpu->status.o = ((m ^ cpu->a) & (n ^ cpu->a) & 0x80) > 0;
-        break;
-    }
-    case OP_LDY:
-        cpu->y = read_byte_cpu_bus(cpu->bus, operand.address);
-        cpu->status.z = cpu->y == 0;
-        cpu->status.n = cpu->y >> 7;
-        break;
-    case OP_CPY: {
-        unsigned char val = read_byte_cpu_bus(cpu->bus, operand.address);
-        unsigned char sub = cpu->y - val;
-        cpu->status.c = cpu->y >= val;
-        cpu->status.z = cpu->y == val;
-        cpu->status.n = sub >> 7;
-        break;
-    }
-    case OP_CPX: {
-        unsigned char val = read_byte_cpu_bus(cpu->bus, operand.address);
-        unsigned char sub = cpu->x - val;
-        cpu->status.c = cpu->x >= val;
-        cpu->status.z = cpu->x == val;
-        cpu->status.n = sub >> 7;
-        break;
-    }
-    case OP_SBC: {
-        unsigned char m = ~read_byte_cpu_bus(cpu->bus, operand.address);
-        unsigned char n = cpu->a;
-        unsigned short res = m + n + cpu->status.c;
-        cpu->a = res;
-        cpu->status.c = res > 0xff;
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = cpu->a >> 7;
-        cpu->status.o = ((m ^ cpu->a) & (n ^ cpu->a) & 0x80) > 0;
-        break;
-    }
-    case OP_INY:
-        cpu->y++;
-        cpu->status.z = cpu->y == 0;
-        cpu->status.n = cpu->y >> 7;
-        break;
-    case OP_INX:
-        cpu->x++;
-        cpu->status.z = cpu->x == 0;
-        cpu->status.n = cpu->x >> 7;
-        break;
-    case OP_DEY:
-        cpu->y--;
-        cpu->status.z = cpu->y == 0;
-        cpu->status.n = cpu->y >> 7;
-        break;
-    case OP_DEX:
-        cpu->x--;
-        cpu->status.z = cpu->x == 0;
-        cpu->status.n = cpu->x >> 7;
-        break;
-    case OP_TAY:
-        cpu->y = cpu->a;
-        cpu->status.z = cpu->y == 0;
-        cpu->status.n = cpu->y >> 7;
-        break;
-    case OP_TAX:
-        cpu->x = cpu->a;
-        cpu->status.z = cpu->x == 0;
-        cpu->status.n = cpu->x >> 7;
-        break;
-    case OP_TYA:
-        cpu->a = cpu->y;
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = cpu->a >> 7;
-        break;
-    case OP_TXA:
-        cpu->a = cpu->x;
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = cpu->a >> 7;
-        break;
-    case OP_TSX:
-        cpu->x = cpu->s;
-        cpu->status.z = cpu->x == 0;
-        cpu->status.n = cpu->x >> 7;
-        break;
-    case OP_TXS:
-        cpu->s = cpu->x;
-        break;
-    case OP_RTI: {
-        // Pop status register
-        unsigned char status = pop_byte_cpu(cpu);
-        cpu->status.c = status & 0x1;
-        cpu->status.z = status & 0x2;
-        cpu->status.i = status & 0x4;
-        cpu->status.d = status & 0x8;
-        cpu->status.o = status & 0x40;
-        cpu->status.n = status & 0x80;
-
-        // Pop program counter
-        cpu->pc = pop_short_cpu(cpu);
-        break;
-    }
-    case OP_LSR:
-        switch (opcode.address_mode) {
-        case ADDR_ACCUMULATOR:
-            cpu->status.c = cpu->a & 0x1;
-            cpu->a >>= 1;
-            cpu->status.z = cpu->a == 0;
-            cpu->status.n = false; // bit 7 is always 0
-            break;
-        default: {
-            unsigned char val = read_byte_cpu_bus(cpu->bus, operand.address);
-            cpu->status.c = val & 0x1;
-            val >>= 1;
-            cpu->status.z = val == 0;
-            cpu->status.n = false;
-            write_byte_cpu_bus(cpu->bus, operand.address, val);
-            break;
-        }
-        }
-        break;
-    case OP_ASL:
-        switch (opcode.address_mode) {
-        case ADDR_ACCUMULATOR:
-            cpu->status.c = cpu->a & 0x80;
-            cpu->a <<= 1;
-            cpu->status.z = cpu->a == 0;
-            cpu->status.n = cpu->a >> 7;
-            break;
-        default: {
-            unsigned char val = read_byte_cpu_bus(cpu->bus, operand.address);
-            cpu->status.c = val & 0x80;
-            val <<= 1;
-            cpu->status.z = val == 0;
-            cpu->status.n = val >> 7;
-            write_byte_cpu_bus(cpu->bus, operand.address, val);
-            break;
-        }
-        }
-        break;
-    case OP_ROR:
-        switch (opcode.address_mode) {
-        case ADDR_ACCUMULATOR: {
-            unsigned char old_c = cpu->status.c;
-            cpu->status.c = cpu->a & 0x1;
-            cpu->a >>= 1;
-            cpu->a |= (old_c << 7);
-
-            cpu->status.z = cpu->a == 0;
-            cpu->status.n = cpu->a >> 7;
-            break;
-        }
-        default: {
-            unsigned char val = read_byte_cpu_bus(cpu->bus, operand.address);
-            unsigned char old_c = cpu->status.c;
-            cpu->status.c = val & 0x1;
-            val >>= 1;
-            val |= (old_c << 7);
-
-            cpu->status.z = val == 0;
-            cpu->status.n = val >> 7;
-            write_byte_cpu_bus(cpu->bus, operand.address, val);
-            break;
-        }
-        }
-        break;
-    case OP_ROL:
-        switch (opcode.address_mode) {
-        case ADDR_ACCUMULATOR: {
-            unsigned char old_c = cpu->status.c;
-            cpu->status.c = cpu->a & 0x80;
-            cpu->a <<= 1;
-            cpu->a |= old_c;
-
-            cpu->status.z = cpu->a == 0;
-            cpu->status.n = cpu->a >> 7;
-            break;
-        }
-        default: {
-            unsigned char val = read_byte_cpu_bus(cpu->bus, operand.address);
-            unsigned char old_c = cpu->status.c;
-            cpu->status.c = val & 0x80;
-            val <<= 1;
-            val |= old_c;
-
-            cpu->status.z = val == 0;
-            cpu->status.n = val >> 7;
-            write_byte_cpu_bus(cpu->bus, operand.address, val);
-            break;
-        }
-        }
-        break;
+    case OP_STX:
     case OP_STY:
-        write_byte_cpu_bus(cpu->bus, operand.address, cpu->y);
-        break;
-    case OP_INC: {
-        unsigned char val = read_byte_cpu_bus(cpu->bus, operand.address);
-        val++;
-        write_byte_cpu_bus(cpu->bus, operand.address, val);
-        cpu->status.z = val == 0;
-        cpu->status.n = val >> 7;
-        break;
-    }
-    case OP_DEC: {
-        unsigned char val = read_byte_cpu_bus(cpu->bus, operand.address);
-        val--;
-        write_byte_cpu_bus(cpu->bus, operand.address, val);
-        cpu->status.z = val == 0;
-        cpu->status.n = val >> 7;
-        break;
-    }
-    case OP_BRK:
-        // Push PC + 2 (+1 because PC is already incremented)
-        push_short_cpu(cpu, cpu->pc + 1);
-
-        // Push status with b set if software interrupt was triggered
-        cpu->status.b = !cpu->interrupt->irq && !cpu->interrupt->nmi &&
-                        !cpu->interrupt->reset;
-        push_byte_cpu(cpu, get_status_cpu(cpu) | 0x20);
-        cpu->status.b = false;
-
-        // Update interrupt disable flag
-        cpu->status.i = true;
-
-        // Execute interrupt handler
-        cpu->pc = read_short_cpu_bus(cpu->bus, cpu->interrupt_vector);
-        break;
-    case OP_LAX:
-        cpu->a = read_byte_cpu_bus(cpu->bus, operand.address);
-        cpu->x = cpu->a;
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = cpu->a >> 7;
-        break;
     case OP_SAX:
-        write_byte_cpu_bus(cpu->bus, operand.address, cpu->a & cpu->x);
-        break;
-    case OP_DCP: {
-        // DEC
-        unsigned char val = read_byte_cpu_bus(cpu->bus, operand.address);
-        val--;
-        write_byte_cpu_bus(cpu->bus, operand.address, val);
-
-        // CMP
-        unsigned char sub = cpu->a - val;
-        cpu->status.c = cpu->a >= val;
-        cpu->status.z = cpu->a == val;
-        cpu->status.n = sub >> 7;
-        break;
-    }
-    case OP_ISC: {
-        // INC
-        unsigned char val = read_byte_cpu_bus(cpu->bus, operand.address);
-        val++;
-        write_byte_cpu_bus(cpu->bus, operand.address, val);
-
-        // SBC
-        unsigned char m = ~read_byte_cpu_bus(cpu->bus, operand.address);
-        unsigned char n = cpu->a;
-        unsigned short res = m + n + cpu->status.c;
-        cpu->a = res;
-        cpu->status.c = res > 0xff;
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = cpu->a >> 7;
-        cpu->status.o = ((m ^ cpu->a) & (n ^ cpu->a) & 0x80) > 0;
-        break;
-    }
-    case OP_SLO:
-        // ASL
-        switch (opcode.address_mode) {
-        case ADDR_ACCUMULATOR:
-            cpu->status.c = cpu->a & 0x80;
-            cpu->a <<= 1;
-            cpu->status.z = cpu->a == 0;
-            cpu->status.n = cpu->a >> 7;
-            break;
-        default: {
-            unsigned char val = read_byte_cpu_bus(cpu->bus, operand.address);
-            cpu->status.c = val & 0x80;
-            val <<= 1;
-            cpu->status.z = val == 0;
-            cpu->status.n = val >> 7;
-            write_byte_cpu_bus(cpu->bus, operand.address, val);
-            break;
-        }
-        }
-
-        // ORA
-        cpu->a |= read_byte_cpu_bus(cpu->bus, operand.address);
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = cpu->a >> 7;
-        break;
-    case OP_RLA:
-        // ROL
-        switch (opcode.address_mode) {
-        case ADDR_ACCUMULATOR: {
-            unsigned char old_c = cpu->status.c;
-            cpu->status.c = cpu->a & 0x80;
-            cpu->a <<= 1;
-            cpu->a |= old_c;
-
-            cpu->status.z = cpu->a == 0;
-            cpu->status.n = cpu->a >> 7;
-            break;
-        }
-        default: {
-            unsigned char val = read_byte_cpu_bus(cpu->bus, operand.address);
-            unsigned char old_c = cpu->status.c;
-            cpu->status.c = val & 0x80;
-            val <<= 1;
-            val |= old_c;
-
-            cpu->status.z = val == 0;
-            cpu->status.n = val >> 7;
-            write_byte_cpu_bus(cpu->bus, operand.address, val);
-            break;
-        }
-        }
-
-        // AND
-        cpu->a &= read_byte_cpu_bus(cpu->bus, operand.address);
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = cpu->a >> 7;
-        break;
-    case OP_SRE:
-        // LSR
-        switch (opcode.address_mode) {
-        case ADDR_ACCUMULATOR:
-            cpu->status.c = cpu->a & 0x1;
-            cpu->a >>= 1;
-            cpu->status.z = cpu->a == 0;
-            cpu->status.n = false; // bit 7 is always 0
-            break;
-        default: {
-            unsigned char val = read_byte_cpu_bus(cpu->bus, operand.address);
-            cpu->status.c = val & 0x1;
-            val >>= 1;
-            cpu->status.z = val == 0;
-            cpu->status.n = false;
-            write_byte_cpu_bus(cpu->bus, operand.address, val);
-            break;
-        }
-        }
-
-        // EOR
-        cpu->a ^= read_byte_cpu_bus(cpu->bus, operand.address);
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = cpu->a >> 7;
-        break;
-    case OP_RRA:
-        // ROR
-        switch (opcode.address_mode) {
-        case ADDR_ACCUMULATOR: {
-            unsigned char old_c = cpu->status.c;
-            cpu->status.c = cpu->a & 0x1;
-            cpu->a >>= 1;
-            cpu->a |= (old_c << 7);
-
-            cpu->status.z = cpu->a == 0;
-            cpu->status.n = cpu->a >> 7;
-            break;
-        }
-        default: {
-            unsigned char val = read_byte_cpu_bus(cpu->bus, operand.address);
-            unsigned char old_c = cpu->status.c;
-            cpu->status.c = val & 0x1;
-            val >>= 1;
-            val |= (old_c << 7);
-
-            cpu->status.z = val == 0;
-            cpu->status.n = val >> 7;
-            write_byte_cpu_bus(cpu->bus, operand.address, val);
-            break;
-        }
-        }
-
-        // ADC
-        unsigned char m = read_byte_cpu_bus(cpu->bus, operand.address);
-        unsigned char n = cpu->a;
-        unsigned short res = m + n + cpu->status.c;
-        cpu->a = res;
-        cpu->status.c = res > 0xff;
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = cpu->a >> 7;
-        cpu->status.o = ((m ^ cpu->a) & (n ^ cpu->a) & 0x80) > 0;
-        break;
-    case OP_ANC:
-        // AND
-        cpu->a &= read_byte_cpu_bus(cpu->bus, operand.address);
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = cpu->a >> 7;
-
-        // Set C
-        cpu->status.c = cpu->a >> 7;
-        break;
-    case OP_ALR: // (ASR)
-        // AND
-        cpu->a &= read_byte_cpu_bus(cpu->bus, operand.address);
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = cpu->a >> 7;
-
-        // LSR
-        cpu->status.c = cpu->a & 0x1;
-        cpu->a >>= 1;
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = false; // bit 7 is always 0
-        break;
-    case OP_ARR: {
-        cpu->a &= read_byte_cpu_bus(cpu->bus, operand.address);
-        cpu->a >>= 1;
-        cpu->a |= (cpu->status.c << 7);
-
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = cpu->a >> 7;
-
-        cpu->status.c = (cpu->a >> 6) & 0x1;
-        cpu->status.o = ((cpu->a >> 5) ^ (cpu->a >> 6)) & 0x1;
-        break;
-    }
-    case OP_SBX: { // (AXS)
-        // CMP and DEX at the same time but set flags like CMP
-        unsigned char val = read_byte_cpu_bus(cpu->bus, operand.address);
-        unsigned char and_res = cpu->a & cpu->x;
-        cpu->x = and_res - val;
-        cpu->status.c = and_res >= val;
-        cpu->status.z = and_res == val;
-        cpu->status.n = cpu->x >> 7;
-        break;
-    }
-    case OP_LXA:
-        cpu->a = read_byte_cpu_bus(cpu->bus, operand.address);
-        cpu->x = cpu->a;
-        cpu->status.z = cpu->a == 0;
-        cpu->status.n = cpu->a >> 7;
-        break;
-    case OP_SHY: {
-        address_t target = operand.address;
-        unsigned char val = cpu->y & ((target >> 8) + 1);
-        if (operand.page_crossed) {
-            target = (target & 0xff) | (val << 8);
-        }
-        write_byte_cpu_bus(cpu->bus, target, val);
-        break;
-    }
-    case OP_SHX: {
-        address_t target = operand.address;
-        unsigned char val = cpu->x & ((target >> 8) + 1);
-        if (operand.page_crossed) {
-            target = (target & 0xff) | (val << 8);
-        }
-        write_byte_cpu_bus(cpu->bus, target, val);
-        break;
-    }
-    case OP_CLI:
-        cpu->status.i = false;
-        break;
-    case OP_NOP:
-        break;
-    case OP_JAM:
-        fprintf(stderr, "JAM opcode encountered: 0x%02X\n", opcode_byte);
-        return false;
+        cpu->state.opgroup = CPU_OPGROUP_W;
         break;
     default:
-        fprintf(stderr, "Unknown opcode: 0x%02X\n", opcode_byte);
-        return false;
+        cpu->state.opgroup = CPU_OPGROUP_NONE;
         break;
     }
 
-    // Update the cycles
-    cpu->cycles += (opcode.cycles + delay_cycles);
-
-    // Reset interrupt vector
-    cpu->interrupt_vector = CPU_VEC_IRQ_BRK;
-
-    return true;
+    switch (operation.mnemonic) {
+    case OP_JSR:
+    case OP_BRK:
+    case OP_RTI:
+    case OP_RTS:
+    case OP_PHA:
+    case OP_PHP:
+    case OP_PLA:
+    case OP_PLP:
+        set_opstate_cpu(cpu, CPU_OPSTATE_EXECUTE);
+        break;
+    default:
+        set_opstate_cpu(cpu, CPU_OPSTATE_DECODE);
+        break;
+    }
 }
 
-bool update_cpu(cpu_t *cpu) {
-    // Fetch
-    unsigned char opcode_byte = fetch_op_cpu(cpu);
+void decode_cpu(cpu_t *cpu) {
+    operation_t operation = OP_TABLE[cpu->state.opcode];
+    reset_interrupt(cpu->interrupt);
+    switch (operation.address_mode) {
+    case ADDR_ABSOLUTE:
+        addr_absolute_cpu(cpu, operation.mnemonic == OP_JMP);
+        break;
+    case ADDR_IMMEDIATE:
+        addr_immediate_cpu(cpu);
+        break;
+    case ADDR_ZERO_PAGE:
+        addr_zero_page_cpu(cpu);
+        break;
+    case ADDR_IMPLIED:
+        addr_implied_cpu(cpu);
+        break;
+    case ADDR_RELATIVE:
+        addr_relative_cpu(cpu);
+        break;
+    case ADDR_ACCUMULATOR:
+        addr_accumulator_cpu(cpu);
+        break;
+    case ADDR_INDIRECT_X:
+        addr_indirect_x_cpu(cpu);
+        break;
+    case ADDR_INDIRECT_Y:
+        addr_indirect_y_cpu(cpu);
+        break;
+    case ADDR_INDIRECT:
+        addr_indirect_cpu(cpu);
+        break;
+    case ADDR_ABSOLUTE_Y:
+        addr_absolute_y_cpu(cpu);
+        break;
+    case ADDR_ZERO_PAGE_X:
+        addr_zero_page_x_cpu(cpu);
+        break;
+    case ADDR_ZERO_PAGE_Y:
+        addr_zero_page_y_cpu(cpu);
+        break;
+    case ADDR_ABSOLUTE_X:
+        addr_absolute_x_cpu(cpu);
+        break;
+    default:
+        printf("Error: Unhandled addressing mode\n");
+        exit(1);
+    }
+}
 
-    // Decode
-    operand_t operands = decode_op_cpu(cpu, opcode_byte);
+void execute_cpu(cpu_t *cpu) {
+    operation_t operation = OP_TABLE[cpu->state.opcode];
+    switch (operation.mnemonic) {
+    case OP_JMP:
+        op_jmp_cpu(cpu);
+        break;
+    case OP_LDX:
+        op_ldx_cpu(cpu);
+        break;
+    case OP_STX:
+        op_stx_cpu(cpu);
+        break;
+    case OP_JSR:
+        op_jsr_cpu(cpu);
+        break;
+    case OP_NOP:
+        op_nop_cpu(cpu);
+        break;
+    case OP_SEC:
+        op_sec_cpu(cpu);
+        break;
+    case OP_BCS:
+        op_bcs_cpu(cpu);
+        break;
+    case OP_CLC:
+        op_clc_cpu(cpu);
+        break;
+    case OP_BCC:
+        op_bcc_cpu(cpu);
+        break;
+    case OP_LDA:
+        op_lda_cpu(cpu);
+        break;
+    case OP_BEQ:
+        op_beq_cpu(cpu);
+        break;
+    case OP_BNE:
+        op_bne_cpu(cpu);
+        break;
+    case OP_STA:
+        op_sta_cpu(cpu);
+        break;
+    case OP_BIT:
+        op_bit_cpu(cpu);
+        break;
+    case OP_BVS:
+        op_bvs_cpu(cpu);
+        break;
+    case OP_BVC:
+        op_bvc_cpu(cpu);
+        break;
+    case OP_BPL:
+        op_bpl_cpu(cpu);
+        break;
+    case OP_RTS:
+        op_rts_cpu(cpu);
+        break;
+    case OP_SEI:
+        op_sei_cpu(cpu);
+        break;
+    case OP_SED:
+        op_sed_cpu(cpu);
+        break;
+    case OP_PHP:
+        op_php_cpu(cpu);
+        break;
+    case OP_PLA:
+        op_pla_cpu(cpu);
+        break;
+    case OP_AND:
+        op_and_cpu(cpu);
+        break;
+    case OP_CMP:
+        op_cmp_cpu(cpu);
+        break;
+    case OP_CLD:
+        op_cld_cpu(cpu);
+        break;
+    case OP_PHA:
+        op_pha_cpu(cpu);
+        break;
+    case OP_PLP:
+        op_plp_cpu(cpu);
+        break;
+    case OP_BMI:
+        op_bmi_cpu(cpu);
+        break;
+    case OP_ORA:
+        op_ora_cpu(cpu);
+        break;
+    case OP_CLV:
+        op_clv_cpu(cpu);
+        break;
+    case OP_EOR:
+        op_eor_cpu(cpu);
+        break;
+    case OP_ADC:
+        op_adc_cpu(cpu);
+        break;
+    case OP_LDY:
+        op_ldy_cpu(cpu);
+        break;
+    case OP_CPY:
+        op_cpy_cpu(cpu);
+        break;
+    case OP_CPX:
+        op_cpx_cpu(cpu);
+        break;
+    case OP_SBC:
+        op_sbc_cpu(cpu);
+        break;
+    case OP_INY:
+        op_iny_cpu(cpu);
+        break;
+    case OP_INX:
+        op_inx_cpu(cpu);
+        break;
+    case OP_DEY:
+        op_dey_cpu(cpu);
+        break;
+    case OP_DEX:
+        op_dex_cpu(cpu);
+        break;
+    case OP_TAY:
+        op_tay_cpu(cpu);
+        break;
+    case OP_TAX:
+        op_tax_cpu(cpu);
+        break;
+    case OP_TYA:
+        op_tya_cpu(cpu);
+        break;
+    case OP_TXA:
+        op_txa_cpu(cpu);
+        break;
+    case OP_TSX:
+        op_tsx_cpu(cpu);
+        break;
+    case OP_TXS:
+        op_txs_cpu(cpu);
+        break;
+    case OP_RTI:
+        op_rti_cpu(cpu);
+        break;
+    case OP_LSR:
+        op_lsr_cpu(cpu);
+        break;
+    case OP_ASL:
+        op_asl_cpu(cpu);
+        break;
+    case OP_ROR:
+        op_ror_cpu(cpu);
+        break;
+    case OP_ROL:
+        op_rol_cpu(cpu);
+        break;
+    case OP_STY:
+        op_sty_cpu(cpu);
+        break;
+    case OP_INC:
+        op_inc_cpu(cpu);
+        break;
+    case OP_DEC:
+        op_dec_cpu(cpu);
+        break;
+    case OP_LAX:
+        op_lax_cpu(cpu);
+        break;
+    case OP_SAX:
+        op_sax_cpu(cpu);
+        break;
+    case OP_DCP:
+        op_dcp_cpu(cpu);
+        break;
+    case OP_ISC:
+        op_isc_cpu(cpu);
+        break;
+    case OP_SLO:
+        op_slo_cpu(cpu);
+        break;
+    case OP_RLA:
+        op_rla_cpu(cpu);
+        break;
+    case OP_SRE:
+        op_sre_cpu(cpu);
+        break;
+    case OP_RRA:
+        op_rra_cpu(cpu);
+        break;
+    case OP_CLI:
+        op_cli_cpu(cpu);
+        break;
+    case OP_ANC:
+        op_anc_cpu(cpu);
+        break;
+    case OP_ALR:
+        op_alr_cpu(cpu);
+        break;
+    case OP_ARR:
+        op_arr_cpu(cpu);
+        break;
+    case OP_LXA:
+        op_lxa_cpu(cpu);
+        break;
+    case OP_SBX:
+        op_sbx_cpu(cpu);
+        break;
+    case OP_SHY:
+        op_shy_cpu(cpu);
+        break;
+    case OP_SHX:
+        op_shx_cpu(cpu);
+        break;
+    case OP_BRK:
+        op_brk_cpu(cpu);
+        break;
+    case OP_JAM:
+        fprintf(stderr, "JAM opcode encountered: 0x%02X\n", cpu->state.opcode);
+        exit(1);
+    default:
+        fprintf(stderr,
+                "Error: Unknown CPU opcode $%02X at $%04X\n",
+                cpu->state.opcode,
+                cpu->registers.pc);
+        exit(1);
+    }
+}
 
-    // Execute
-    return execute_op_cpu(cpu, opcode_byte, operands);
+void update_cpu(cpu_t *cpu) {
+    cpu->cycles++;
+    cpu->state.tick++;
+
+    // Process instruction
+    switch (cpu->state.opstate) {
+    case CPU_OPSTATE_FETCH:
+        fetch_cpu(cpu);
+        break;
+    case CPU_OPSTATE_DECODE:
+        decode_cpu(cpu);
+        break;
+    case CPU_OPSTATE_EXECUTE:
+        execute_cpu(cpu);
+        break;
+    }
+
+    // Skip the transition between decode and execute
+    if (cpu->state.skip_transition &&
+        cpu->state.opstate == CPU_OPSTATE_EXECUTE) {
+        cpu->state.skip_transition = false;
+        cpu->state.tick++;
+        execute_cpu(cpu);
+    }
 }

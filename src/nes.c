@@ -1,4 +1,5 @@
 #include "./nes.h"
+#include "cpu.h"
 
 void print_usage() { printf("Usage: nesc %s <input_file>\n", ARG_INPUT_FILE); }
 
@@ -15,7 +16,7 @@ void parse_args(emulator_t *emu, int argc, char **argv) {
 
     create_emulator(emu, argv[2]);
     if (argc == 4) {
-        emu->cpu.pc = strtol(argv[3], NULL, 16);
+        emu->cpu.registers.pc = strtol(argv[3], NULL, 16);
     }
 }
 
@@ -40,12 +41,13 @@ int main(int argc, char **argv) {
 
     // Emulate and refresh device IO every frame
     while (true) {
-        bool emu_state = true;
-        while (emu_state) {
-            // read_state_cpu(&emu.cpu, strbuf, sizeof(strbuf));
-            // puts(strbuf);
+        while (true) {
+            if (is_idle_cpu(&emu.cpu)) {
+                read_state_cpu(&emu.cpu, strbuf, sizeof(strbuf));
+                puts(strbuf);
+            }
             unsigned prev_frame = emu.frames;
-            emu_state = update_emulator(&emu);
+            update_emulator(&emu);
             unsigned curr_frame = emu.frames;
 
             if (curr_frame > prev_frame) {
@@ -54,7 +56,7 @@ int main(int argc, char **argv) {
         }
 
         bool io_state = refresh_io(&io, &emu);
-        if (!emu_state || !io_state) {
+        if (!io_state) {
             break;
         }
     }
