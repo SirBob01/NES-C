@@ -67,6 +67,12 @@ typedef struct {
     unsigned char oam_dma;
 
     /**
+     * @brief Number of cycles.
+     *
+     */
+    unsigned long cycles;
+
+    /**
      * @brief Current scanline (row).
      *
      */

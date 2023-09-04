@@ -26,16 +26,18 @@ static char *test_nestest() {
     char src[256];
     char dst[256];
     bool running = true;
+    unsigned line_num = 1;
     while (running && lines) {
         fgets(src, sizeof(src), file);
         src[strlen(src) - 2] = 0;
         read_state_cpu(&emu.cpu, dst, sizeof(dst));
-        printf("%s %lu\n", src, strlen(src));
-        printf("%s %lu\n\n", dst, strlen(dst));
+        printf("L%d %s %lu\n", line_num, src, strlen(src));
+        printf("L%d %s %lu\n\n", line_num, dst, strlen(dst));
         mu_assert("NESTEST CPU state does not match nestest.log",
                   strcmp(src, dst) == 0);
         running = update_emulator(&emu);
         lines--;
+        line_num++;
     }
 
     // Read the final test result in 0x2

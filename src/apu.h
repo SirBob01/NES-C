@@ -72,6 +72,12 @@ typedef struct {
     unsigned char frame_counter;
 
     /**
+     * @brief Number of cycles.
+     *
+     */
+    unsigned long cycles;
+
+    /**
      * @brief Pointer to the interrupt state.
      *
      */
