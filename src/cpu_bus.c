@@ -108,28 +108,8 @@ unsigned char read_byte_cpu_bus(cpu_bus_t *bus, address_t address) {
     return *get_memory_cpu_bus(bus, address);
 }
 
-unsigned short read_short_cpu_bus(cpu_bus_t *bus, address_t address) {
-    unsigned char a0 = read_byte_cpu_bus(bus, address);
-    unsigned char a1 = read_byte_cpu_bus(bus, address + 1);
-    return a0 | (a1 << 8);
-}
-
-unsigned short read_short_zp_cpu_bus(cpu_bus_t *bus, unsigned char address) {
-    unsigned char next = address + 1;
-    unsigned char a0 = read_byte_cpu_bus(bus, address);
-    unsigned char a1 = read_byte_cpu_bus(bus, next);
-    return a0 | (a1 << 8);
-}
-
 void write_byte_cpu_bus(cpu_bus_t *bus,
                         address_t address,
                         unsigned char value) {
     *get_memory_cpu_bus(bus, address) = value;
-}
-
-void write_short_cpu_bus(cpu_bus_t *bus,
-                         address_t address,
-                         unsigned short value) {
-    write_byte_cpu_bus(bus, address, value);
-    write_byte_cpu_bus(bus, address + 1, value >> 8);
 }

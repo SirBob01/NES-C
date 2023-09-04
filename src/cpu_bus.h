@@ -115,26 +115,6 @@ void create_cpu_bus(cpu_bus_t *bus, rom_t *rom, apu_t *apu, ppu_t *ppu);
 unsigned char read_byte_cpu_bus(cpu_bus_t *bus, address_t address);
 
 /**
- * @brief Read a short from the CPU's memory map.
- *
- * @param bus
- * @param address
- * @return unsigned short
- */
-unsigned short read_short_cpu_bus(cpu_bus_t *bus, address_t address);
-
-/**
- * @brief Read a short from the CPU's zero-page memory map.
- *
- * This handles the wrap-around of the second byte address.
- *
- * @param bus
- * @param address
- * @return unsigned short
- */
-unsigned short read_short_zp_cpu_bus(cpu_bus_t *bus, unsigned char address);
-
-/**
  * @brief Write a byte to the CPU's memory map.
  *
  * @param bus
@@ -142,16 +122,5 @@ unsigned short read_short_zp_cpu_bus(cpu_bus_t *bus, unsigned char address);
  * @param value
  */
 void write_byte_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value);
-
-/**
- * @brief Write a short to the CPU's memory map.
- *
- * @param bus
- * @param address
- * @param value
- */
-void write_short_cpu_bus(cpu_bus_t *bus,
-                         address_t address,
-                         unsigned short value);
 
 #endif

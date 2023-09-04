@@ -11,8 +11,10 @@ void create_ppu(ppu_t *ppu, ppu_bus_t *bus, interrupt_t *interrupt) {
     ppu->data = 0;
     ppu->oam_dma = 0;
 
+    ppu->cycles = 21; // Initial cycle count
     ppu->scanline = 0;
-    ppu->dot = 21; // Initial cycle count
+    ppu->dot = ppu->cycles;
+
     ppu->odd_frame = false;
 
     ppu->bus = bus;
@@ -39,6 +41,7 @@ void read_state_ppu(ppu_t *ppu, char *buffer, unsigned buffer_size) {
 }
 
 void update_ppu(ppu_t *ppu) {
+    ppu->cycles++;
     ppu->dot++;
     if (ppu->dot >= PPU_LINEDOTS) {
         ppu->dot = 0;

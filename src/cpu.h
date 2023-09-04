@@ -1,9 +1,11 @@
 #ifndef CPU_H
 #define CPU_H
 
+#include "./apu.h"
 #include "./cpu_bus.h"
 #include "./interrupt.h"
 #include "./memory.h"
+#include "./ppu.h"
 
 // Interrupt vector positions
 #define CPU_VEC_NMI     0xfffa
@@ -82,6 +84,12 @@ typedef struct {
      *
      */
     address_t interrupt_vector;
+
+    /**
+     * @brief Test if current instruction is reading/writing the accumulator.
+     *
+     */
+    bool accumulator_mode;
 } cpu_t;
 
 /**
@@ -109,6 +117,24 @@ void destroy_cpu(cpu_t *cpu);
 unsigned char get_status_cpu(cpu_t *cpu);
 
 /**
+ * @brief Read a byte from the CPU bus with side effects.
+ *
+ * @param cpu
+ * @param address
+ * @return unsigned char
+ */
+unsigned char read_byte_cpu(cpu_t *cpu, address_t address);
+
+/**
+ * @brief Write a byte to the CPU bus with side effects.
+ *
+ * @param cpu
+ * @param address
+ * @param value
+ */
+void write_byte_cpu(cpu_t *cpu, address_t address, unsigned char value);
+
+/**
  * @brief Push a byte onto the stack.
  *
  * @param cpu
@@ -117,28 +143,12 @@ unsigned char get_status_cpu(cpu_t *cpu);
 void push_byte_cpu(cpu_t *cpu, unsigned char value);
 
 /**
- * @brief Push a short onto the stack.
- *
- * @param cpu
- * @param value
- */
-void push_short_cpu(cpu_t *cpu, unsigned short value);
-
-/**
  * @brief Peek a byte from the stack.
  *
  * @param cpu
  * @return unsigned char
  */
 unsigned char pop_byte_cpu(cpu_t *cpu);
-
-/**
- * @brief Peek a short from the stack.
- *
- * @param cpu
- * @return unsigned short
- */
-unsigned short pop_short_cpu(cpu_t *cpu);
 
 /**
  * @brief Read the current state of the CPU for debugging.
