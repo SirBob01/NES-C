@@ -45,22 +45,6 @@ unsigned char get_status_cpu(cpu_t *cpu) {
     return status;
 }
 
-unsigned char read_byte_cpu(cpu_t *cpu, address_t address) {
-    if (!cpu->accumulator_mode) {
-        return read_byte_cpu_bus(cpu->bus, address);
-    } else {
-        return cpu->a;
-    }
-}
-
-void write_byte_cpu(cpu_t *cpu, address_t address, unsigned char value) {
-    if (!cpu->accumulator_mode) {
-        write_byte_cpu_bus(cpu->bus, address, value);
-    } else {
-        cpu->a = value;
-    }
-}
-
 void push_byte_cpu(cpu_t *cpu, unsigned char value) {
     write_byte_cpu_bus(cpu->bus, 0x100 | cpu->s, value);
     cpu->s--;
@@ -144,6 +128,22 @@ void update_peripherals_cpu(cpu_t *cpu) {
     }
 }
 
+unsigned char read_byte_cpu(cpu_t *cpu, address_t address) {
+    if (!cpu->accumulator_mode) {
+        return read_byte_cpu_bus(cpu->bus, address);
+    } else {
+        return cpu->a;
+    }
+}
+
+void write_byte_cpu(cpu_t *cpu, address_t address, unsigned char value) {
+    if (!cpu->accumulator_mode) {
+        write_byte_cpu_bus(cpu->bus, address, value);
+    } else {
+        cpu->a = value;
+    }
+}
+
 unsigned char fetch_op_cpu(cpu_t *cpu) {
     // Handle NMI, IRQ, and RESET interrupts
     if (cpu->interrupt->nmi) {
@@ -161,7 +161,9 @@ unsigned char fetch_op_cpu(cpu_t *cpu) {
 
     // No interrupts, next instruction from program counter
     cpu->cycles++;
-    return read_byte_cpu_bus(cpu->bus, cpu->pc++);
+    unsigned char opcode = read_byte_cpu_bus(cpu->bus, cpu->pc++);
+    update_peripherals_cpu(cpu);
+    return opcode;
 }
 
 address_t decode_op_cpu(cpu_t *cpu, unsigned char opcode) {
@@ -338,15 +340,10 @@ address_t decode_op_cpu(cpu_t *cpu, unsigned char opcode) {
         unsigned char address = base + cpu->y;
         return address;
     }
-    default:
-        printf("Error: Unimplemented addressing mode %d for opcode 0x%02X\n",
-               operation.address_mode,
-               opcode);
-        exit(1);
     }
 }
 
-void execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
+bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
     operation_t operation = OP_TABLE[opcode];
 
     switch (operation.mnemonic) {
@@ -1192,18 +1189,24 @@ void execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         update_peripherals_cpu(cpu);
     } break;
     default:
-        printf("Error: Unimplemented opcode 0x%02X\n", opcode);
-        exit(1);
+        printf("Unimplemented opcode 0x%02X\n", opcode);
+        return false;
     }
 
     // Reset instruction states
     cpu->interrupt_vector = CPU_VEC_IRQ_BRK;
     cpu->accumulator_mode = false;
+
+    return true;
 }
 
 bool update_cpu(cpu_t *cpu) {
+    // Fetch
     unsigned char opcode = fetch_op_cpu(cpu);
+
+    // Decode
     address_t operand = decode_op_cpu(cpu, opcode);
-    execute_op_cpu(cpu, opcode, operand);
-    return true;
+
+    // Execute
+    return execute_op_cpu(cpu, opcode, operand);
 }
