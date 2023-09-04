@@ -117,24 +117,6 @@ void destroy_cpu(cpu_t *cpu);
 unsigned char get_status_cpu(cpu_t *cpu);
 
 /**
- * @brief Read a byte from the CPU bus with side effects.
- *
- * @param cpu
- * @param address
- * @return unsigned char
- */
-unsigned char read_byte_cpu(cpu_t *cpu, address_t address);
-
-/**
- * @brief Write a byte to the CPU bus with side effects.
- *
- * @param cpu
- * @param address
- * @param value
- */
-void write_byte_cpu(cpu_t *cpu, address_t address, unsigned char value);
-
-/**
  * @brief Push a byte onto the stack.
  *
  * @param cpu
