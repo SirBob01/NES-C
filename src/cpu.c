@@ -26,8 +26,6 @@ void create_cpu(cpu_t *cpu, cpu_bus_t *bus, interrupt_t *interrupt) {
     cpu->bus = bus;
     cpu->interrupt = interrupt;
     cpu->interrupt_vector = CPU_VEC_IRQ_BRK;
-
-    cpu->accumulator_mode = false;
 }
 
 void destroy_cpu(cpu_t *cpu) {}
@@ -128,22 +126,6 @@ void update_peripherals_cpu(cpu_t *cpu) {
     }
 }
 
-unsigned char read_byte_cpu(cpu_t *cpu, address_t address) {
-    if (!cpu->accumulator_mode) {
-        return read_byte_cpu_bus(cpu->bus, address);
-    } else {
-        return cpu->a;
-    }
-}
-
-void write_byte_cpu(cpu_t *cpu, address_t address, unsigned char value) {
-    if (!cpu->accumulator_mode) {
-        write_byte_cpu_bus(cpu->bus, address, value);
-    } else {
-        cpu->a = value;
-    }
-}
-
 unsigned char fetch_op_cpu(cpu_t *cpu) {
     // Handle NMI, IRQ, and RESET interrupts
     if (cpu->interrupt->nmi) {
@@ -179,7 +161,6 @@ address_t decode_op_cpu(cpu_t *cpu, unsigned char opcode) {
     case OP_PHP:
     case OP_PLA:
     case OP_PLP:
-    case OP_DEY:
         return 0;
     default:
         break;
@@ -206,16 +187,14 @@ address_t decode_op_cpu(cpu_t *cpu, unsigned char opcode) {
         return address;
     }
     case ADDR_IMPLIED:
-        // Skip decoding for implied addressing mode
+    case ADDR_ACCUMULATOR:
+        // Skip decoding for implied and accumulator addressing modes
         return 0;
     case ADDR_RELATIVE:
         cpu->cycles++;
         signed char offset = read_byte_cpu_bus(cpu->bus, cpu->pc++);
         update_peripherals_cpu(cpu);
         return offset + cpu->pc;
-    case ADDR_ACCUMULATOR:
-        cpu->accumulator_mode = true;
-        return 0;
     case ADDR_INDIRECT_X:
         cpu->cycles++;
         unsigned char base = read_byte_cpu_bus(cpu->bus, cpu->pc++);
@@ -254,7 +233,7 @@ address_t decode_op_cpu(cpu_t *cpu, unsigned char opcode) {
         if ((base_address & 0xff00) != (address & 0xff00) ||
             operation.group == OPGROUP_W) {
             cpu->cycles++;
-            read_byte_cpu(cpu, address);
+            read_byte_cpu_bus(cpu->bus, address);
             update_peripherals_cpu(cpu);
         }
         return address;
@@ -296,7 +275,7 @@ address_t decode_op_cpu(cpu_t *cpu, unsigned char opcode) {
         if ((base_address & 0xff00) != (address & 0xff00) ||
             operation.group == OPGROUP_W) {
             cpu->cycles++;
-            read_byte_cpu(cpu, address);
+            read_byte_cpu_bus(cpu->bus, address);
             update_peripherals_cpu(cpu);
         }
         return address;
@@ -317,7 +296,7 @@ address_t decode_op_cpu(cpu_t *cpu, unsigned char opcode) {
         if ((base_address & 0xff00) != (address & 0xff00) ||
             operation.group == OPGROUP_W || operation.group == OPGROUP_RW) {
             cpu->cycles++;
-            read_byte_cpu(cpu, address);
+            read_byte_cpu_bus(cpu->bus, address);
             update_peripherals_cpu(cpu);
         }
         return address;
@@ -352,14 +331,14 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         break;
     case OP_LDX:
         cpu->cycles++;
-        cpu->x = read_byte_cpu(cpu, operand);
+        cpu->x = read_byte_cpu_bus(cpu->bus, operand);
         cpu->status.z = cpu->x == 0;
         cpu->status.n = cpu->x & 0x80;
         update_peripherals_cpu(cpu);
         break;
     case OP_STX:
         cpu->cycles++;
-        write_byte_cpu(cpu, operand, cpu->x);
+        write_byte_cpu_bus(cpu->bus, operand, cpu->x);
         update_peripherals_cpu(cpu);
         break;
     case OP_JSR:
@@ -425,7 +404,7 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         break;
     case OP_LDA:
         cpu->cycles++;
-        cpu->a = read_byte_cpu(cpu, operand);
+        cpu->a = read_byte_cpu_bus(cpu->bus, operand);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
         update_peripherals_cpu(cpu);
@@ -460,12 +439,12 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         break;
     case OP_STA:
         cpu->cycles++;
-        write_byte_cpu(cpu, operand, cpu->a);
+        write_byte_cpu_bus(cpu->bus, operand, cpu->a);
         update_peripherals_cpu(cpu);
         break;
     case OP_BIT:
         cpu->cycles++;
-        unsigned char value = read_byte_cpu(cpu, operand);
+        unsigned char value = read_byte_cpu_bus(cpu->bus, operand);
         cpu->status.z = (cpu->a & value) == 0;
         cpu->status.n = value & 0x80;
         cpu->status.o = value & 0x40;
@@ -564,14 +543,14 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         break;
     case OP_AND:
         cpu->cycles++;
-        cpu->a &= read_byte_cpu(cpu, operand);
+        cpu->a &= read_byte_cpu_bus(cpu->bus, operand);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
         update_peripherals_cpu(cpu);
         break;
     case OP_CMP:
         cpu->cycles++;
-        unsigned char val = read_byte_cpu(cpu, operand);
+        unsigned char val = read_byte_cpu_bus(cpu->bus, operand);
         unsigned char sub = cpu->a - val;
         cpu->status.c = cpu->a >= val;
         cpu->status.z = cpu->a == val;
@@ -624,7 +603,7 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         break;
     case OP_ORA:
         cpu->cycles++;
-        cpu->a |= read_byte_cpu(cpu, operand);
+        cpu->a |= read_byte_cpu_bus(cpu->bus, operand);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
         update_peripherals_cpu(cpu);
@@ -636,7 +615,7 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         break;
     case OP_EOR:
         cpu->cycles++;
-        cpu->a ^= read_byte_cpu(cpu, operand);
+        cpu->a ^= read_byte_cpu_bus(cpu->bus, operand);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
         update_peripherals_cpu(cpu);
@@ -655,14 +634,14 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
     } break;
     case OP_LDY:
         cpu->cycles++;
-        cpu->y = read_byte_cpu(cpu, operand);
+        cpu->y = read_byte_cpu_bus(cpu->bus, operand);
         cpu->status.z = cpu->y == 0;
         cpu->status.n = cpu->y & 0x80;
         update_peripherals_cpu(cpu);
         break;
     case OP_CPY:
         cpu->cycles++;
-        unsigned char valy = read_byte_cpu(cpu, operand);
+        unsigned char valy = read_byte_cpu_bus(cpu->bus, operand);
         unsigned char suby = cpu->y - valy;
         cpu->status.c = cpu->y >= valy;
         cpu->status.z = cpu->y == valy;
@@ -671,7 +650,7 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         break;
     case OP_CPX:
         cpu->cycles++;
-        unsigned char valx = read_byte_cpu(cpu, operand);
+        unsigned char valx = read_byte_cpu_bus(cpu->bus, operand);
         unsigned char subx = cpu->x - valx;
         cpu->status.c = cpu->x >= valx;
         cpu->status.z = cpu->x == valx;
@@ -785,49 +764,55 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
     } break;
     case OP_LSR: {
         cpu->cycles++;
-        unsigned char val = read_byte_cpu(cpu, operand);
+        unsigned char val = operation.address_mode == ADDR_ACCUMULATOR
+                                ? cpu->a
+                                : read_byte_cpu_bus(cpu->bus, operand);
         cpu->status.c = val & 0x1;
         unsigned char result = val >> 1;
         cpu->status.z = result == 0;
         cpu->status.n = false;
         update_peripherals_cpu(cpu);
 
-        if (!cpu->accumulator_mode) {
+        if (operation.address_mode != ADDR_ACCUMULATOR) {
             cpu->cycles++;
-            write_byte_cpu(cpu, operand, val);
+            write_byte_cpu_bus(cpu->bus, operand, val);
             update_peripherals_cpu(cpu);
 
             cpu->cycles++;
-            write_byte_cpu(cpu, operand, result);
+            write_byte_cpu_bus(cpu->bus, operand, result);
             update_peripherals_cpu(cpu);
         } else {
-            write_byte_cpu(cpu, operand, result);
+            cpu->a = result;
         }
     } break;
     case OP_ASL: {
         cpu->cycles++;
-        unsigned char val = read_byte_cpu(cpu, operand);
+        unsigned char val = operation.address_mode == ADDR_ACCUMULATOR
+                                ? cpu->a
+                                : read_byte_cpu_bus(cpu->bus, operand);
         cpu->status.c = val & 0x80;
         unsigned char result = val << 1;
         cpu->status.z = result == 0;
         cpu->status.n = result & 0x80;
         update_peripherals_cpu(cpu);
 
-        if (!cpu->accumulator_mode) {
+        if (operation.address_mode != ADDR_ACCUMULATOR) {
             cpu->cycles++;
-            write_byte_cpu(cpu, operand, val);
+            write_byte_cpu_bus(cpu->bus, operand, val);
             update_peripherals_cpu(cpu);
 
             cpu->cycles++;
-            write_byte_cpu(cpu, operand, result);
+            write_byte_cpu_bus(cpu->bus, operand, result);
             update_peripherals_cpu(cpu);
         } else {
-            write_byte_cpu(cpu, operand, result);
+            cpu->a = result;
         }
     } break;
     case OP_ROR: {
         cpu->cycles++;
-        unsigned char val = read_byte_cpu(cpu, operand);
+        unsigned char val = operation.address_mode == ADDR_ACCUMULATOR
+                                ? cpu->a
+                                : read_byte_cpu_bus(cpu->bus, operand);
         bool c = cpu->status.c;
         cpu->status.c = val & 0x1;
         unsigned char result = (val >> 1) | (c << 7);
@@ -835,21 +820,23 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         cpu->status.n = result & 0x80;
         update_peripherals_cpu(cpu);
 
-        if (!cpu->accumulator_mode) {
+        if (operation.address_mode != ADDR_ACCUMULATOR) {
             cpu->cycles++;
-            write_byte_cpu(cpu, operand, val);
+            write_byte_cpu_bus(cpu->bus, operand, val);
             update_peripherals_cpu(cpu);
 
             cpu->cycles++;
-            write_byte_cpu(cpu, operand, result);
+            write_byte_cpu_bus(cpu->bus, operand, result);
             update_peripherals_cpu(cpu);
         } else {
-            write_byte_cpu(cpu, operand, result);
+            cpu->a = result;
         }
     } break;
     case OP_ROL: {
         cpu->cycles++;
-        unsigned char val = read_byte_cpu(cpu, operand);
+        unsigned char val = operation.address_mode == ADDR_ACCUMULATOR
+                                ? cpu->a
+                                : read_byte_cpu_bus(cpu->bus, operand);
         bool c = cpu->status.c;
         cpu->status.c = val & 0x80;
         unsigned char result = (val << 1) | c;
@@ -857,66 +844,58 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         cpu->status.n = result & 0x80;
         update_peripherals_cpu(cpu);
 
-        if (!cpu->accumulator_mode) {
+        if (operation.address_mode != ADDR_ACCUMULATOR) {
             cpu->cycles++;
-            write_byte_cpu(cpu, operand, val);
+            write_byte_cpu_bus(cpu->bus, operand, val);
             update_peripherals_cpu(cpu);
 
             cpu->cycles++;
-            write_byte_cpu(cpu, operand, result);
+            write_byte_cpu_bus(cpu->bus, operand, result);
             update_peripherals_cpu(cpu);
         } else {
-            write_byte_cpu(cpu, operand, result);
+            cpu->a = result;
         }
     } break;
     case OP_STY:
         cpu->cycles++;
-        write_byte_cpu(cpu, operand, cpu->y);
+        write_byte_cpu_bus(cpu->bus, operand, cpu->y);
         update_peripherals_cpu(cpu);
         break;
     case OP_INC: {
         cpu->cycles++;
-        unsigned char val = read_byte_cpu(cpu, operand);
+        unsigned char val = read_byte_cpu_bus(cpu->bus, operand);
         unsigned char result = val + 1;
         cpu->status.z = result == 0;
         cpu->status.n = result & 0x80;
         update_peripherals_cpu(cpu);
 
-        if (!cpu->accumulator_mode) {
-            cpu->cycles++;
-            write_byte_cpu(cpu, operand, val);
-            update_peripherals_cpu(cpu);
+        cpu->cycles++;
+        write_byte_cpu_bus(cpu->bus, operand, val);
+        update_peripherals_cpu(cpu);
 
-            cpu->cycles++;
-            write_byte_cpu(cpu, operand, result);
-            update_peripherals_cpu(cpu);
-        } else {
-            write_byte_cpu(cpu, operand, result);
-        }
+        cpu->cycles++;
+        write_byte_cpu_bus(cpu->bus, operand, result);
+        update_peripherals_cpu(cpu);
     } break;
     case OP_DEC: {
         cpu->cycles++;
-        unsigned char val = read_byte_cpu(cpu, operand);
+        unsigned char val = read_byte_cpu_bus(cpu->bus, operand);
         unsigned char result = val - 1;
         cpu->status.z = result == 0;
         cpu->status.n = result & 0x80;
         update_peripherals_cpu(cpu);
 
-        if (!cpu->accumulator_mode) {
-            cpu->cycles++;
-            write_byte_cpu(cpu, operand, val);
-            update_peripherals_cpu(cpu);
+        cpu->cycles++;
+        write_byte_cpu_bus(cpu->bus, operand, val);
+        update_peripherals_cpu(cpu);
 
-            cpu->cycles++;
-            write_byte_cpu(cpu, operand, result);
-            update_peripherals_cpu(cpu);
-        } else {
-            write_byte_cpu(cpu, operand, result);
-        }
+        cpu->cycles++;
+        write_byte_cpu_bus(cpu->bus, operand, result);
+        update_peripherals_cpu(cpu);
     } break;
     case OP_LAX:
         cpu->cycles++;
-        cpu->a = read_byte_cpu(cpu, operand);
+        cpu->a = read_byte_cpu_bus(cpu->bus, operand);
         cpu->x = cpu->a;
         cpu->status.z = cpu->x == 0;
         cpu->status.n = cpu->x & 0x80;
@@ -924,49 +903,41 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         break;
     case OP_SAX:
         cpu->cycles++;
-        write_byte_cpu(cpu, operand, cpu->a & cpu->x);
+        write_byte_cpu_bus(cpu->bus, operand, cpu->a & cpu->x);
         update_peripherals_cpu(cpu);
         break;
     case OP_DCP: {
         cpu->cycles++;
-        unsigned char val = read_byte_cpu(cpu, operand);
+        unsigned char val = read_byte_cpu_bus(cpu->bus, operand);
         unsigned char result = val - 1;
         cpu->status.c = cpu->a >= result;
         cpu->status.z = cpu->a == result;
         cpu->status.n = (cpu->a - result) & 0x80;
         update_peripherals_cpu(cpu);
 
-        if (!cpu->accumulator_mode) {
-            cpu->cycles++;
-            write_byte_cpu(cpu, operand, val);
-            update_peripherals_cpu(cpu);
+        cpu->cycles++;
+        write_byte_cpu_bus(cpu->bus, operand, val);
+        update_peripherals_cpu(cpu);
 
-            cpu->cycles++;
-            write_byte_cpu(cpu, operand, result);
-            update_peripherals_cpu(cpu);
-        } else {
-            write_byte_cpu(cpu, operand, val);
-        }
+        cpu->cycles++;
+        write_byte_cpu_bus(cpu->bus, operand, result);
+        update_peripherals_cpu(cpu);
     } break;
     case OP_ISC: {
         cpu->cycles++;
-        unsigned char val = read_byte_cpu(cpu, operand);
+        unsigned char val = read_byte_cpu_bus(cpu->bus, operand);
         unsigned char result = val + 1;
         cpu->status.z = result == 0;
         cpu->status.n = result & 0x80;
         update_peripherals_cpu(cpu);
 
-        if (!cpu->accumulator_mode) {
-            cpu->cycles++;
-            write_byte_cpu(cpu, operand, val);
-            update_peripherals_cpu(cpu);
+        cpu->cycles++;
+        write_byte_cpu_bus(cpu->bus, operand, val);
+        update_peripherals_cpu(cpu);
 
-            cpu->cycles++;
-            write_byte_cpu(cpu, operand, result);
-            update_peripherals_cpu(cpu);
-        } else {
-            write_byte_cpu(cpu, operand, result);
-        }
+        cpu->cycles++;
+        write_byte_cpu_bus(cpu->bus, operand, result);
+        update_peripherals_cpu(cpu);
 
         unsigned char m = ~result;
         unsigned char n = cpu->a;
@@ -979,24 +950,20 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
     } break;
     case OP_SLO: {
         cpu->cycles++;
-        unsigned char val = read_byte_cpu(cpu, operand);
+        unsigned char val = read_byte_cpu_bus(cpu->bus, operand);
         cpu->status.c = val & 0x80;
         unsigned char result = val << 1;
         cpu->status.z = result == 0;
         cpu->status.n = result & 0x80;
         update_peripherals_cpu(cpu);
 
-        if (!cpu->accumulator_mode) {
-            cpu->cycles++;
-            write_byte_cpu(cpu, operand, val);
-            update_peripherals_cpu(cpu);
+        cpu->cycles++;
+        write_byte_cpu_bus(cpu->bus, operand, val);
+        update_peripherals_cpu(cpu);
 
-            cpu->cycles++;
-            write_byte_cpu(cpu, operand, result);
-            update_peripherals_cpu(cpu);
-        } else {
-            write_byte_cpu(cpu, operand, result);
-        }
+        cpu->cycles++;
+        write_byte_cpu_bus(cpu->bus, operand, result);
+        update_peripherals_cpu(cpu);
 
         cpu->a |= result;
         cpu->status.z = cpu->a == 0;
@@ -1004,7 +971,7 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
     } break;
     case OP_RLA: {
         cpu->cycles++;
-        unsigned char val = read_byte_cpu(cpu, operand);
+        unsigned char val = read_byte_cpu_bus(cpu->bus, operand);
         bool c = cpu->status.c;
         cpu->status.c = val & 0x80;
         unsigned char result = (val << 1) | c;
@@ -1012,17 +979,13 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         cpu->status.n = result & 0x80;
         update_peripherals_cpu(cpu);
 
-        if (!cpu->accumulator_mode) {
-            cpu->cycles++;
-            write_byte_cpu(cpu, operand, val);
-            update_peripherals_cpu(cpu);
+        cpu->cycles++;
+        write_byte_cpu_bus(cpu->bus, operand, val);
+        update_peripherals_cpu(cpu);
 
-            cpu->cycles++;
-            write_byte_cpu(cpu, operand, result);
-            update_peripherals_cpu(cpu);
-        } else {
-            write_byte_cpu(cpu, operand, result);
-        }
+        cpu->cycles++;
+        write_byte_cpu_bus(cpu->bus, operand, result);
+        update_peripherals_cpu(cpu);
 
         cpu->a &= result;
         cpu->status.z = cpu->a == 0;
@@ -1030,24 +993,20 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
     } break;
     case OP_SRE: {
         cpu->cycles++;
-        unsigned char val = read_byte_cpu(cpu, operand);
+        unsigned char val = read_byte_cpu_bus(cpu->bus, operand);
         cpu->status.c = val & 0x1;
         unsigned char result = val >> 1;
         cpu->status.z = result == 0;
         cpu->status.n = false;
         update_peripherals_cpu(cpu);
 
-        if (!cpu->accumulator_mode) {
-            cpu->cycles++;
-            write_byte_cpu(cpu, operand, val);
-            update_peripherals_cpu(cpu);
+        cpu->cycles++;
+        write_byte_cpu_bus(cpu->bus, operand, val);
+        update_peripherals_cpu(cpu);
 
-            cpu->cycles++;
-            write_byte_cpu(cpu, operand, result);
-            update_peripherals_cpu(cpu);
-        } else {
-            write_byte_cpu(cpu, operand, result);
-        }
+        cpu->cycles++;
+        write_byte_cpu_bus(cpu->bus, operand, result);
+        update_peripherals_cpu(cpu);
 
         cpu->a ^= result;
         cpu->status.z = cpu->a == 0;
@@ -1055,7 +1014,7 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
     } break;
     case OP_RRA: {
         cpu->cycles++;
-        unsigned char val = read_byte_cpu(cpu, operand);
+        unsigned char val = read_byte_cpu_bus(cpu->bus, operand);
         bool c = cpu->status.c;
         cpu->status.c = val & 0x1;
         unsigned char result = (val >> 1) | (c << 7);
@@ -1063,17 +1022,13 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         cpu->status.n = result & 0x80;
         update_peripherals_cpu(cpu);
 
-        if (!cpu->accumulator_mode) {
-            cpu->cycles++;
-            write_byte_cpu(cpu, operand, val);
-            update_peripherals_cpu(cpu);
+        cpu->cycles++;
+        write_byte_cpu_bus(cpu->bus, operand, val);
+        update_peripherals_cpu(cpu);
 
-            cpu->cycles++;
-            write_byte_cpu(cpu, operand, result);
-            update_peripherals_cpu(cpu);
-        } else {
-            write_byte_cpu(cpu, operand, result);
-        }
+        cpu->cycles++;
+        write_byte_cpu_bus(cpu->bus, operand, result);
+        update_peripherals_cpu(cpu);
 
         unsigned char m = result;
         unsigned char n = cpu->a;
@@ -1086,7 +1041,7 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
     } break;
     case OP_ANC: {
         cpu->cycles++;
-        cpu->a &= read_byte_cpu(cpu, operand);
+        cpu->a &= read_byte_cpu_bus(cpu->bus, operand);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
         cpu->status.c = cpu->status.n;
@@ -1094,7 +1049,7 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
     } break;
     case OP_ALR: {
         cpu->cycles++;
-        cpu->a &= read_byte_cpu(cpu, operand);
+        cpu->a &= read_byte_cpu_bus(cpu->bus, operand);
         cpu->status.c = cpu->a & 0x1;
         cpu->a >>= 1;
         cpu->status.z = cpu->a == 0;
@@ -1103,7 +1058,7 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
     } break;
     case OP_ARR: {
         cpu->cycles++;
-        cpu->a &= read_byte_cpu(cpu, operand);
+        cpu->a &= read_byte_cpu_bus(cpu->bus, operand);
         cpu->a = (cpu->a >> 1) | (cpu->status.c << 7);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
@@ -1113,7 +1068,7 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
     } break;
     case OP_SBX: {
         cpu->cycles++;
-        unsigned char val = read_byte_cpu(cpu, operand);
+        unsigned char val = read_byte_cpu_bus(cpu->bus, operand);
         unsigned char result = cpu->a & cpu->x;
         cpu->x = result - val;
         cpu->status.c = result >= val;
@@ -1123,7 +1078,7 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
     } break;
     case OP_LXA: {
         cpu->cycles++;
-        cpu->a = read_byte_cpu(cpu, operand);
+        cpu->a = read_byte_cpu_bus(cpu->bus, operand);
         cpu->x = cpu->a;
         cpu->status.z = cpu->x == 0;
         cpu->status.n = cpu->x & 0x80;
@@ -1138,7 +1093,7 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         if ((base & 0xff) + (cpu->y > 0xff)) {
             target = (target & 0xff) | (val << 8);
         }
-        write_byte_cpu(cpu, target, val);
+        write_byte_cpu_bus(cpu->bus, target, val);
         update_peripherals_cpu(cpu);
     } break;
     case OP_SHX: {
@@ -1150,7 +1105,7 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         if ((base & 0xff) + (cpu->x > 0xff)) {
             target = (target & 0xff) | (val << 8);
         }
-        write_byte_cpu(cpu, target, val);
+        write_byte_cpu_bus(cpu->bus, target, val);
         update_peripherals_cpu(cpu);
     } break;
     case OP_CLI:
@@ -1180,11 +1135,12 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         update_peripherals_cpu(cpu);
 
         cpu->cycles++;
-        unsigned char pcl = read_byte_cpu(cpu, cpu->interrupt_vector);
+        unsigned char pcl = read_byte_cpu_bus(cpu->bus, cpu->interrupt_vector);
         update_peripherals_cpu(cpu);
 
         cpu->cycles++;
-        unsigned char pch = read_byte_cpu(cpu, cpu->interrupt_vector + 1);
+        unsigned char pch =
+            read_byte_cpu_bus(cpu->bus, cpu->interrupt_vector + 1);
         cpu->pc = (pch << 8) | pcl;
         update_peripherals_cpu(cpu);
     } break;
@@ -1195,7 +1151,6 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
 
     // Reset instruction states
     cpu->interrupt_vector = CPU_VEC_IRQ_BRK;
-    cpu->accumulator_mode = false;
 
     return true;
 }

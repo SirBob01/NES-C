@@ -84,12 +84,6 @@ typedef struct {
      *
      */
     address_t interrupt_vector;
-
-    /**
-     * @brief Test if current instruction is reading/writing the accumulator.
-     *
-     */
-    bool accumulator_mode;
 } cpu_t;
 
 /**
