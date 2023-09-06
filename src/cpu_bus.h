@@ -91,8 +91,21 @@ typedef struct {
     ppu_t *ppu;
 } cpu_bus_t;
 
+/**
+ * @brief Mirror an address according to the CPU memory map.
+ *
+ * @param address
+ * @return address_t
+ */
 address_t mirror_address_cpu_bus(address_t address);
-unsigned char *apply_memory_mapper_cpu_bus(cpu_bus_t *bus, address_t address);
+
+/**
+ * @brief Get the physical pointer to memory for a given address.
+ *
+ * @param bus
+ * @param address
+ * @return unsigned char*
+ */
 unsigned char *get_memory_cpu_bus(cpu_bus_t *bus, address_t address);
 
 /**
@@ -112,7 +125,7 @@ void create_cpu_bus(cpu_bus_t *bus, rom_t *rom, apu_t *apu, ppu_t *ppu);
  * @param address
  * @return unsigned char
  */
-unsigned char read_byte_cpu_bus(cpu_bus_t *bus, address_t address);
+unsigned char read_cpu_bus(cpu_bus_t *bus, address_t address);
 
 /**
  * @brief Write a byte to the CPU's memory map.
@@ -121,6 +134,6 @@ unsigned char read_byte_cpu_bus(cpu_bus_t *bus, address_t address);
  * @param address
  * @param value
  */
-void write_byte_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value);
+void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value);
 
 #endif
