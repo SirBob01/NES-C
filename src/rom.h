@@ -60,6 +60,12 @@ typedef struct {
     unsigned long chr_rom_size;
 
     /**
+     * @brief Size of the program RAM in bytes.
+     *
+     */
+    unsigned long prg_ram_size;
+
+    /**
      * @brief ROM mirroring mode.
      *
      */
