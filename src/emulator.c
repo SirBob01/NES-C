@@ -14,8 +14,8 @@ void create_emulator(emulator_t *emu, const char *rom_path) {
     emu->frames = 0;
 
     // Set the program counter
-    unsigned char pcl = read_byte_cpu_bus(&emu->cpu_bus, CPU_VEC_RESET);
-    unsigned char pch = read_byte_cpu_bus(&emu->cpu_bus, CPU_VEC_RESET + 1);
+    unsigned char pcl = read_cpu_bus(&emu->cpu_bus, CPU_VEC_RESET);
+    unsigned char pch = read_cpu_bus(&emu->cpu_bus, CPU_VEC_RESET + 1);
     emu->cpu.pc = (pch << 8) | pcl;
 }
 

@@ -42,7 +42,7 @@ static char *test_nestest() {
 
     // Read the final test result in 0x2
     mu_assert("NESTEST result is not succesful",
-              read_byte_cpu_bus(&emu.cpu_bus, 0x2) == 0x00);
+              read_cpu_bus(&emu.cpu_bus, 0x2) == 0x00);
 
     destroy_emulator(&emu);
     fclose(file);
@@ -82,9 +82,9 @@ static char *test_blargg_instr_test_v5() {
                 break;
             }
 
-            unsigned char m0 = read_byte_cpu_bus(&emu.cpu_bus, 0x6001);
-            unsigned char m1 = read_byte_cpu_bus(&emu.cpu_bus, 0x6002);
-            unsigned char m2 = read_byte_cpu_bus(&emu.cpu_bus, 0x6003);
+            unsigned char m0 = read_cpu_bus(&emu.cpu_bus, 0x6001);
+            unsigned char m1 = read_cpu_bus(&emu.cpu_bus, 0x6002);
+            unsigned char m2 = read_cpu_bus(&emu.cpu_bus, 0x6003);
 
             // Verify that test works
             if (m0 == 0xDE && m1 == 0xB0 && m2 == 0x61) {
@@ -94,7 +94,7 @@ static char *test_blargg_instr_test_v5() {
 
         for (unsigned j = 0; j < CYCLE_TIMEOUT; j++) {
             bool running = update_emulator(&emu);
-            unsigned char status = read_byte_cpu_bus(&emu.cpu_bus, 0x6000);
+            unsigned char status = read_cpu_bus(&emu.cpu_bus, 0x6000);
             char *str = (char *)get_memory_cpu_bus(&emu.cpu_bus, 0x6004);
             if (((strstr(str, "Passed") || strstr(str, "Failed")) &&
                  status <= 0x7F) ||
@@ -103,7 +103,7 @@ static char *test_blargg_instr_test_v5() {
             }
         }
 
-        unsigned char status = read_byte_cpu_bus(&emu.cpu_bus, 0x6000);
+        unsigned char status = read_cpu_bus(&emu.cpu_bus, 0x6000);
         char *str = (char *)get_memory_cpu_bus(&emu.cpu_bus, 0x6004);
         printf("INSTR_TEST_V5 %s result %02X \n%s\n",
                test_roms[i],

@@ -111,20 +111,20 @@ void destroy_cpu(cpu_t *cpu);
 unsigned char get_status_cpu(cpu_t *cpu);
 
 /**
- * @brief Push a byte onto the stack.
+ * @brief Push a byte onto the CPU stack.
  *
  * @param cpu
  * @param value
  */
-void push_byte_cpu(cpu_t *cpu, unsigned char value);
+void push_stack_cpu(cpu_t *cpu, unsigned char value);
 
 /**
- * @brief Peek a byte from the stack.
+ * @brief Peek a byte from the CPU stack.
  *
  * @param cpu
  * @return unsigned char
  */
-unsigned char pop_byte_cpu(cpu_t *cpu);
+unsigned char pop_stack_cpu(cpu_t *cpu);
 
 /**
  * @brief Read the current state of the CPU for debugging.

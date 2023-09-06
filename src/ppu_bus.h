@@ -36,8 +36,22 @@ typedef struct {
     rom_t *rom;
 } ppu_bus_t;
 
+/**
+ * @brief Mirror an address according to the ROM mirroring mode.
+ *
+ * @param address
+ * @param mirroring
+ * @return address_t
+ */
 address_t mirror_address_ppu_bus(address_t address, rom_mirroring_t mirroring);
-unsigned char *apply_memory_mapper_ppu_bus(ppu_bus_t *bus, address_t address);
+
+/**
+ * @brief Get the physical pointer to memory for a given address.
+ *
+ * @param bus
+ * @param address
+ * @return unsigned char*
+ */
 unsigned char *get_memory_ppu_bus(ppu_bus_t *bus, address_t address);
 
 /**

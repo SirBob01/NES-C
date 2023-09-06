@@ -162,8 +162,8 @@ static char *test_mapper0() {
     emulator_t emu;
     create_emulator(&emu, "../roms/nestest/nestest.nes");
 
-    unsigned char pcl = read_byte_cpu_bus(&emu.cpu_bus, CPU_VEC_RESET);
-    unsigned char pch = read_byte_cpu_bus(&emu.cpu_bus, CPU_VEC_RESET + 1);
+    unsigned char pcl = read_cpu_bus(&emu.cpu_bus, CPU_VEC_RESET);
+    unsigned char pch = read_cpu_bus(&emu.cpu_bus, CPU_VEC_RESET + 1);
     address_t pc = (pch << 8) | pcl;
     mu_assert("MAPPER 0 RESET VECTOR", pc == 0xc004);
 
@@ -176,10 +176,10 @@ static char *test_stack() {
     create_emulator(&emu, "../roms/nestest/nestest.nes");
     mu_assert("Stack address start", emu.cpu.s == 0xfd);
 
-    push_byte_cpu(&emu.cpu, 0x3);
+    push_stack_cpu(&emu.cpu, 0x3);
     mu_assert("Stack address after push", emu.cpu.s == 0xfc);
 
-    mu_assert("Stack pop top byte", pop_byte_cpu(&emu.cpu) == 0x3);
+    mu_assert("Stack pop top byte", pop_stack_cpu(&emu.cpu) == 0x3);
     mu_assert("Stack address after pop", emu.cpu.s == 0xfd);
 
     destroy_emulator(&emu);

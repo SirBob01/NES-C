@@ -104,12 +104,10 @@ unsigned char *get_memory_cpu_bus(cpu_bus_t *bus, address_t address) {
     }
 }
 
-unsigned char read_byte_cpu_bus(cpu_bus_t *bus, address_t address) {
+unsigned char read_cpu_bus(cpu_bus_t *bus, address_t address) {
     return *get_memory_cpu_bus(bus, address);
 }
 
-void write_byte_cpu_bus(cpu_bus_t *bus,
-                        address_t address,
-                        unsigned char value) {
+void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value) {
     *get_memory_cpu_bus(bus, address) = value;
 }
