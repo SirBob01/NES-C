@@ -59,6 +59,10 @@ rom_header_t get_header_rom(const unsigned char *buffer) {
     header.trainer = buffer[6] & 0x4;
     header.four_screen = buffer[6] & 0x8;
     header.mapper = (buffer[7] & 0xf0) | ((buffer[6] & 0xf0) >> 4);
+    header.prg_ram_size = buffer[8] * (1 << 13);
+    if (header.prg_ram_size == 0) {
+        header.prg_ram_size = 0x2000;
+    }
 
     // Console type
     switch (buffer[7] & 0x03) {
@@ -101,6 +105,7 @@ void read_state_rom(rom_t *rom, char *buffer, unsigned buffer_size) {
              "* CHR ROM Offset: %u\n"
              "* PRG ROM Size: %lu\n"
              "* CHR ROM Size: %lu\n"
+             "* PRG RAM Size: %lu\n"
              "* Mirroring: %s\n"
              "* Battery: %s\n"
              "* Trainer: %s\n"
@@ -112,6 +117,7 @@ void read_state_rom(rom_t *rom, char *buffer, unsigned buffer_size) {
              (unsigned)(get_chr_rom(rom) - rom->data.buffer),
              rom->header.prg_rom_size,
              rom->header.chr_rom_size,
+             rom->header.prg_ram_size,
              rom->header.mirroring == MIRROR_HORIZONTAL ? "Horizontal"
                                                         : "Vertical",
              rom->header.battery ? "Yes" : "No",
