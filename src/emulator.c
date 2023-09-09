@@ -2,11 +2,16 @@
 
 void create_emulator(emulator_t *emu, const char *rom_path) {
     load_rom(&emu->rom, rom_path);
+    create_mapper(&emu->mapper, &emu->rom);
     create_cpu(&emu->cpu, &emu->cpu_bus, &emu->interrupt);
     create_apu(&emu->apu, &emu->interrupt);
     create_ppu(&emu->ppu, &emu->ppu_bus, &emu->interrupt);
-    create_cpu_bus(&emu->cpu_bus, &emu->rom, &emu->apu, &emu->ppu);
-    create_ppu_bus(&emu->ppu_bus, &emu->rom);
+    create_cpu_bus(&emu->cpu_bus,
+                   &emu->rom,
+                   &emu->mapper,
+                   &emu->apu,
+                   &emu->ppu);
+    create_ppu_bus(&emu->ppu_bus, &emu->rom, &emu->mapper);
     reset_interrupt(&emu->interrupt);
 
     // Initialize frame counter variables
@@ -23,6 +28,7 @@ void destroy_emulator(emulator_t *emu) {
     destroy_cpu(&emu->cpu);
     destroy_apu(&emu->apu);
     destroy_ppu(&emu->ppu);
+    destroy_mapper(&emu->mapper);
     unload_rom(&emu->rom);
 }
 

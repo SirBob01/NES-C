@@ -7,6 +7,27 @@
 
 int tests_run = 0;
 
+/**
+ * @brief Read a string from the CPU bus.
+ *
+ * @param bus
+ * @param address
+ * @param dst
+ * @param n
+ * @return unsigned
+ */
+unsigned
+read_cpu_string(cpu_bus_t *bus, address_t address, char *dst, unsigned n) {
+    char c = read_cpu_bus(bus, address);
+    unsigned length = 0;
+    while (c && length < n - 1) {
+        dst[length++] = c;
+        c = read_cpu_bus(bus, ++address);
+    }
+    dst[length] = 0;
+    return length;
+}
+
 static char *test_nestest() {
     emulator_t emu;
     create_emulator(&emu, "../roms/nestest/nestest.nes");
@@ -50,7 +71,7 @@ static char *test_nestest() {
 }
 
 static char *test_blargg_instr_test_v5() {
-    char *test_roms[16] = {
+    const char *test_roms[16] = {
         "../roms/instr_test_v5/01-basics.nes",
         "../roms/instr_test_v5/02-implied.nes",
         "../roms/instr_test_v5/03-immediate.nes",
@@ -70,46 +91,47 @@ static char *test_blargg_instr_test_v5() {
     };
 
     // Number of cycles before timing out
-    unsigned long CYCLE_TIMEOUT = 2500000000;
+    const unsigned long CYCLE_TIMEOUT = 100000000;
+
+    // Test results
+    unsigned char status = 0;
+    char result[64] = {0};
 
     for (unsigned i = 0; i < 16; i++) {
         emulator_t emu;
         create_emulator(&emu, test_roms[i]);
 
-        for (unsigned j = 0; j < CYCLE_TIMEOUT; j++) {
+        bool verified = false;
+        for (unsigned cycles = 0; cycles < CYCLE_TIMEOUT; cycles++) {
             bool running = update_emulator(&emu);
-            if (!running) {
-                break;
-            }
+            mu_assert("INSTR_TEST_V5 emulator fatally crashed.", running);
 
-            unsigned char m0 = read_cpu_bus(&emu.cpu_bus, 0x6001);
-            unsigned char m1 = read_cpu_bus(&emu.cpu_bus, 0x6002);
-            unsigned char m2 = read_cpu_bus(&emu.cpu_bus, 0x6003);
+            if (!verified) {
+                unsigned char m0 = read_cpu_bus(&emu.cpu_bus, 0x6001);
+                unsigned char m1 = read_cpu_bus(&emu.cpu_bus, 0x6002);
+                unsigned char m2 = read_cpu_bus(&emu.cpu_bus, 0x6003);
 
-            // Verify that test works
-            if (m0 == 0xDE && m1 == 0xB0 && m2 == 0x61) {
-                break;
+                // Verify the magic numbers and restart the loop
+                if (m0 == 0xDE && m1 == 0xB0 && m2 == 0x61) {
+                    verified = true;
+                    cycles = 0;
+                }
+            } else {
+                status = read_cpu_bus(&emu.cpu_bus, 0x6000);
+                read_cpu_string(&emu.cpu_bus, 0x6004, result, sizeof(result));
+                if ((strstr(result, "Passed") || strstr(result, "Failed")) &&
+                    status <= 0x7F) {
+                    break;
+                }
             }
         }
 
-        for (unsigned j = 0; j < CYCLE_TIMEOUT; j++) {
-            bool running = update_emulator(&emu);
-            unsigned char status = read_cpu_bus(&emu.cpu_bus, 0x6000);
-            char *str = (char *)get_memory_cpu_bus(&emu.cpu_bus, 0x6004);
-            if (((strstr(str, "Passed") || strstr(str, "Failed")) &&
-                 status <= 0x7F) ||
-                !running) {
-                break;
-            }
-        }
+        printf("INSTR_TEST_V5 %s\n", test_roms[i]);
+        printf("Result: %02X\n", status);
+        printf("%s\n", result);
 
-        unsigned char status = read_cpu_bus(&emu.cpu_bus, 0x6000);
-        char *str = (char *)get_memory_cpu_bus(&emu.cpu_bus, 0x6004);
-        printf("INSTR_TEST_V5 %s result %02X \n%s\n",
-               test_roms[i],
-               status,
-               get_memory_cpu_bus(&emu.cpu_bus, 0x6004));
-        mu_assert("INSTR_TEST_V5 result not successful", strstr(str, "Passed"));
+        mu_assert("INSTR_TEST_V5 result not successful",
+                  strstr(result, "Passed"));
 
         destroy_emulator(&emu);
     }
