@@ -4,6 +4,7 @@
 #include "./apu.h"
 #include "./cpu.h"
 #include "./cpu_bus.h"
+#include "./mapper.h"
 #include "./memory.h"
 #include "./ppu.h"
 #include "./ppu_bus.h"
@@ -19,6 +20,12 @@ typedef struct {
      *
      */
     rom_t rom;
+
+    /**
+     * @brief Cartridge memory mapper.
+     *
+     */
+    mapper_t mapper;
 
     /**
      * @brief Central procesing unit.

@@ -1,27 +1,59 @@
 #ifndef MAPPER_NROM_H
 #define MAPPER_NROM_H
 
-#include "../cpu_bus.h"
 #include "../memory.h"
-#include "../ppu_bus.h"
 #include "../rom.h"
 
 /**
- * @brief NROM CPU memory mapper.
+ * @brief Get the raw pointer result of NROM mapping for the CPU.
  *
- * @param bus
+ * @param rom
  * @param address
  * @return unsigned char*
  */
-unsigned char *nrom_cpu(cpu_bus_t *bus, address_t address);
+unsigned char *get_cpu_memory_nrom(rom_t *rom, address_t address);
 
 /**
- * @brief NROM PPU memory mapper.
+ * @brief Get the raw pointer result of NROM mapping for the PPU.
  *
- * @param bus
+ * @param rom
  * @param address
  * @return unsigned char*
  */
-unsigned char *nrom_ppu(ppu_bus_t *bus, address_t address);
+unsigned char *get_ppu_memory_nrom(rom_t *rom, address_t address);
+
+/**
+ * @brief Read from NROM CPU memory.
+ *
+ * @param rom
+ * @param address
+ */
+unsigned char read_cpu_nrom(rom_t *rom, address_t address);
+
+/**
+ * @brief Read from NROM PPU memory.
+ *
+ * @param rom
+ * @param address
+ */
+unsigned char read_ppu_nrom(rom_t *rom, address_t address);
+
+/**
+ * @brief Write to NROM CPU memory. This will throw an error.
+ *
+ * @param rom
+ * @param address
+ * @param value
+ */
+void write_cpu_nrom(rom_t *rom, address_t address, unsigned char value);
+
+/**
+ * @brief Write to NROM PPU memory. This will throw an error.
+ *
+ * @param rom
+ * @param address
+ * @param value
+ */
+void write_ppu_nrom(rom_t *rom, address_t address, unsigned char value);
 
 #endif

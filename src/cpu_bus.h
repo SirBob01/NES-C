@@ -2,6 +2,7 @@
 #define CPU_BUS_H
 
 #include "./apu.h"
+#include "./mapper.h"
 #include "./ppu.h"
 #include "./rom.h"
 
@@ -9,7 +10,7 @@
 #define CPU_RAM_SIZE 1 << 16
 
 // CPU memory map address offsets
-#define CPU_MAP_RAM          0x0000
+#define CPU_MAP_START        0x0000
 #define CPU_MAP_MIRROR_0     0x0800
 #define CPU_MAP_MIRROR_1     0x1000
 #define CPU_MAP_MIRROR_2     0x1800
@@ -18,6 +19,8 @@
 #define CPU_MAP_APU_IO       0x4000
 #define CPU_MAP_APU_IO_DEBUG 0x4018
 #define CPU_MAP_CARTRIDGE    0x4020
+#define CPU_MAP_RAM          0x6000 // Implicitly defined by iNES format
+#define CPU_MAP_ROM          0x8000
 
 // Memory mapped APU registers
 #define APU_REG_PULSE1_0      0x4000
@@ -73,10 +76,16 @@ typedef struct {
     interrupt_t interrupt;
 
     /**
-     * @brief Pointer to ROM.
+     * @brief Pointer to the ROM.
      *
      */
     rom_t *rom;
+
+    /**
+     * @brief Pointer to the mapper.
+     *
+     */
+    mapper_t *mapper;
 
     /**
      * @brief Pointer to the APU.
@@ -92,12 +101,28 @@ typedef struct {
 } cpu_bus_t;
 
 /**
+ * @brief Create the CPU bus.
+ *
+ * @param bus
+ * @param rom
+ * @param mapper
+ * @param apu
+ * @param ppu
+ */
+void create_cpu_bus(cpu_bus_t *bus,
+                    rom_t *rom,
+                    mapper_t *mapper,
+                    apu_t *apu,
+                    ppu_t *ppu);
+
+/**
  * @brief Mirror an address according to the CPU memory map.
  *
  * @param address
+ * @param prg_ram_size
  * @return address_t
  */
-address_t mirror_address_cpu_bus(address_t address);
+address_t mirror_address_cpu_bus(address_t address, unsigned long prg_ram_size);
 
 /**
  * @brief Get the physical pointer to memory for a given address.
@@ -107,16 +132,6 @@ address_t mirror_address_cpu_bus(address_t address);
  * @return unsigned char*
  */
 unsigned char *get_memory_cpu_bus(cpu_bus_t *bus, address_t address);
-
-/**
- * @brief Create the CPU bus.
- *
- * @param bus
- * @param rom
- * @param apu
- * @param ppu
- */
-void create_cpu_bus(cpu_bus_t *bus, rom_t *rom, apu_t *apu, ppu_t *ppu);
 
 /**
  * @brief Read a byte from the CPU's memory map.

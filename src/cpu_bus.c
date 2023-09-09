@@ -1,41 +1,35 @@
 #include "./cpu_bus.h"
-#include "./mappers/nrom.h"
 
-void create_cpu_bus(cpu_bus_t *bus, rom_t *rom, apu_t *apu, ppu_t *ppu) {
+void create_cpu_bus(cpu_bus_t *bus,
+                    rom_t *rom,
+                    mapper_t *mapper,
+                    apu_t *apu,
+                    ppu_t *ppu) {
     bus->rom = rom;
+    bus->mapper = mapper;
     bus->apu = apu;
     bus->ppu = ppu;
     memset(bus->memory, 0, CPU_RAM_SIZE);
 }
 
-address_t mirror_address_cpu_bus(address_t address) {
+address_t mirror_address_cpu_bus(address_t address,
+                                 unsigned long prg_ram_size) {
     if (address < CPU_MAP_PPU_REG) {
         // Mirrored RAM region
-        return CPU_MAP_RAM + ((address - CPU_MAP_RAM) % 0x800);
+        return CPU_MAP_START + ((address - CPU_MAP_START) % 0x800);
     } else if (address < CPU_MAP_APU_IO) {
         // Mirrored PPU register memory
         return CPU_MAP_PPU_REG + ((address - CPU_MAP_PPU_REG) % 0x8);
+    } else if (address >= CPU_MAP_RAM) {
+        // Mirrored PRG RAM memory
+        return CPU_MAP_RAM + ((address - CPU_MAP_RAM) % prg_ram_size);
     }
     return address;
 }
 
-unsigned char *apply_memory_mapper_cpu_bus(cpu_bus_t *bus, address_t address) {
-    switch (bus->rom->header.mapper) {
-    case 0:
-        return nrom_cpu(bus, address);
-    default:
-        fprintf(stderr,
-                "Error: Unsupported CPU mapper %d\n",
-                bus->rom->header.mapper);
-        exit(1);
-    }
-}
-
 unsigned char *get_memory_cpu_bus(cpu_bus_t *bus, address_t address) {
-    if (address >= CPU_MAP_CARTRIDGE) {
-        return apply_memory_mapper_cpu_bus(bus, address);
-    }
-    address_t norm_address = mirror_address_cpu_bus(address);
+    address_t norm_address =
+        mirror_address_cpu_bus(address, bus->rom->header.prg_ram_size);
     switch (norm_address) {
     case PPU_REG_CTRL:
         return &bus->ppu->ctrl;
@@ -105,9 +99,17 @@ unsigned char *get_memory_cpu_bus(cpu_bus_t *bus, address_t address) {
 }
 
 unsigned char read_cpu_bus(cpu_bus_t *bus, address_t address) {
-    return *get_memory_cpu_bus(bus, address);
+    if (address >= CPU_MAP_ROM) {
+        return read_cpu_mapper(bus->mapper, address);
+    } else {
+        return *get_memory_cpu_bus(bus, address);
+    }
 }
 
 void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value) {
-    *get_memory_cpu_bus(bus, address) = value;
+    if (address >= CPU_MAP_ROM) {
+        write_cpu_mapper(bus->mapper, address, value);
+    } else {
+        *get_memory_cpu_bus(bus, address) = value;
+    }
 }

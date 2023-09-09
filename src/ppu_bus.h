@@ -1,6 +1,7 @@
 #ifndef PPU_BUS_H
 #define PPU_BUS_H
 
+#include "./mapper.h"
 #include "./memory.h"
 #include "./rom.h"
 
@@ -34,7 +35,22 @@ typedef struct {
      *
      */
     rom_t *rom;
+
+    /**
+     * @brief Pointer to the mapper.
+     *
+     */
+    mapper_t *mapper;
 } ppu_bus_t;
+
+/**
+ * @brief Create the PPU bus.
+ *
+ * @param bus
+ * @param rom
+ * @param mapper
+ */
+void create_ppu_bus(ppu_bus_t *bus, rom_t *rom, mapper_t *mapper);
 
 /**
  * @brief Mirror an address according to the ROM mirroring mode.
@@ -55,29 +71,21 @@ address_t mirror_address_ppu_bus(address_t address, rom_mirroring_t mirroring);
 unsigned char *get_memory_ppu_bus(ppu_bus_t *bus, address_t address);
 
 /**
- * @brief Create the PPU bus.
- *
- * @param bus
- * @param rom
- */
-void create_ppu_bus(ppu_bus_t *bus, rom_t *rom);
-
-/**
  * @brief Read a byte from the PPU address bus.
  *
  * @param bus
- * @param addr
+ * @param address
  * @return unsigned char
  */
-unsigned char read_ppu_bus(ppu_bus_t *bus, address_t addr);
+unsigned char read_ppu_bus(ppu_bus_t *bus, address_t address);
 
 /**
  * @brief Write a byte to the PPU address bus.
  *
  * @param bus
- * @param addr
- * @param data
+ * @param address
+ * @param value
  */
-void write_ppu_bus(ppu_bus_t *bus, address_t addr, unsigned char data);
+void write_ppu_bus(ppu_bus_t *bus, address_t address, unsigned char value);
 
 #endif
