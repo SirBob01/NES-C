@@ -3,6 +3,9 @@
 
 #define MMC1_SERIAL_PORT 0x8000
 
+#include "../memory.h"
+#include "../rom.h"
+
 /**
  * @brief MMC1 mapper state.
  *
@@ -34,5 +37,51 @@ void create_mmc1(mmc1_t *mapper);
  * @param mapper
  */
 void destroy_mmc1(mmc1_t *mapper);
+
+/**
+ * @brief Read from MMC1 CPU memory.
+ *
+ * @param mapper
+ * @param rom
+ * @param address
+ * @return unsigned char
+ */
+unsigned char read_cpu_mmc1(mmc1_t *mapper, rom_t *rom, address_t address);
+
+/**
+ * @brief Read from MMC1 PPU memory.
+ *
+ * @param mapper
+ * @param rom
+ * @param address
+ * @return unsigned char
+ */
+unsigned char read_ppu_mmc1(mmc1_t *mapper, rom_t *rom, address_t address);
+
+/**
+ * @brief Write to MMC1 CPU memory.
+ *
+ * @param mapper
+ * @param rom
+ * @param address
+ * @param value
+ */
+void write_cpu_mmc1(mmc1_t *mapper,
+                    rom_t *rom,
+                    address_t address,
+                    unsigned char value);
+
+/**
+ * @brief Write to MMC1 PPU memory.
+ *
+ * @param mapper
+ * @param rom
+ * @param address
+ * @param value
+ */
+void write_ppu_mmc1(mmc1_t *mapper,
+                    rom_t *rom,
+                    address_t address,
+                    unsigned char value);
 
 #endif

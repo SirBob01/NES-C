@@ -67,15 +67,6 @@ void destroy_mapper(mapper_t *mapper);
 unsigned char read_cpu_mapper(mapper_t *mapper, address_t address);
 
 /**
- * @brief Write to a CPU mapper.
- *
- * @param mapper
- * @param address
- * @param value
- */
-void write_cpu_mapper(mapper_t *mapper, address_t address, unsigned char value);
-
-/**
  * @brief Read from a PPU mapper.
  *
  * @param mapper
@@ -84,6 +75,15 @@ void write_cpu_mapper(mapper_t *mapper, address_t address, unsigned char value);
  * @return unsigned char
  */
 unsigned char read_ppu_mapper(mapper_t *mapper, address_t address);
+
+/**
+ * @brief Write to a CPU mapper.
+ *
+ * @param mapper
+ * @param address
+ * @param value
+ */
+void write_cpu_mapper(mapper_t *mapper, address_t address, unsigned char value);
 
 /**
  * @brief Write to a PPU mapper.
