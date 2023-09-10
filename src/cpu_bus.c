@@ -102,7 +102,12 @@ unsigned char read_cpu_bus(cpu_bus_t *bus, address_t address) {
     if (address >= CPU_MAP_ROM) {
         return read_cpu_mapper(bus->mapper, address);
     } else {
-        return *get_memory_cpu_bus(bus, address);
+        unsigned char *ptr = get_memory_cpu_bus(bus, address);
+        unsigned char result = *ptr;
+        if (ptr == &bus->ppu->status) {
+            bus->ppu->status &= ~PPU_STATUS_VBLANK;
+        }
+        return result;
     }
 }
 
@@ -110,7 +115,11 @@ void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value) {
     if (address >= CPU_MAP_ROM) {
         write_cpu_mapper(bus->mapper, address, value);
     } else {
-        *get_memory_cpu_bus(bus, address) = value;
+        unsigned char *ptr = get_memory_cpu_bus(bus, address);
+        bool readonly = ptr == &bus->ppu->status;
+        if (!readonly) {
+            *get_memory_cpu_bus(bus, address) = value;
+        }
     }
 }
 
