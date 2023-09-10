@@ -151,4 +151,16 @@ unsigned char read_cpu_bus(cpu_bus_t *bus, address_t address);
  */
 void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value);
 
+/**
+ * @brief Read a string from the CPU bus.
+ *
+ * @param bus
+ * @param address
+ * @param dst
+ * @param n
+ * @return unsigned
+ */
+unsigned
+read_string_cpu_bus(cpu_bus_t *bus, address_t address, char *dst, unsigned n);
+
 #endif

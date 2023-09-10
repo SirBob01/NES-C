@@ -7,27 +7,6 @@
 
 int tests_run = 0;
 
-/**
- * @brief Read a string from the CPU bus.
- *
- * @param bus
- * @param address
- * @param dst
- * @param n
- * @return unsigned
- */
-unsigned
-read_cpu_string(cpu_bus_t *bus, address_t address, char *dst, unsigned n) {
-    char c = read_cpu_bus(bus, address);
-    unsigned length = 0;
-    while (c && length < n - 1) {
-        dst[length++] = c;
-        c = read_cpu_bus(bus, ++address);
-    }
-    dst[length] = 0;
-    return length;
-}
-
 static char *test_nestest() {
     emulator_t emu;
     create_emulator(&emu, "../roms/nestest/nestest.nes");
@@ -71,7 +50,7 @@ static char *test_nestest() {
 }
 
 static char *test_blargg_instr_test_v5() {
-    const char *test_roms[16] = {
+    const char *test_roms[20] = {
         "../roms/instr_test_v5/01-basics.nes",
         "../roms/instr_test_v5/02-implied.nes",
         "../roms/instr_test_v5/03-immediate.nes",
@@ -88,6 +67,12 @@ static char *test_blargg_instr_test_v5() {
         "../roms/instr_test_v5/14-rti.nes",
         "../roms/instr_test_v5/15-brk.nes",
         "../roms/instr_test_v5/16-special.nes",
+        "../roms/instr_misc/01-abs_x_wrap.nes",
+        "../roms/instr_misc/02-branch_wrap.nes",
+
+        // TODO: Run these as soon as PPU is setup
+        "../roms/instr_misc/03-dummy_reads.nes",
+        "../roms/instr_misc/04-dummy_reads_apu.nes",
     };
 
     // Number of cycles before timing out
@@ -97,7 +82,7 @@ static char *test_blargg_instr_test_v5() {
     unsigned char status = 0;
     char result[64] = {0};
 
-    for (unsigned i = 0; i < 16; i++) {
+    for (unsigned i = 0; i < 18; i++) {
         emulator_t emu;
         create_emulator(&emu, test_roms[i]);
 
@@ -118,7 +103,10 @@ static char *test_blargg_instr_test_v5() {
                 }
             } else {
                 status = read_cpu_bus(&emu.cpu_bus, 0x6000);
-                read_cpu_string(&emu.cpu_bus, 0x6004, result, sizeof(result));
+                read_string_cpu_bus(&emu.cpu_bus,
+                                    0x6004,
+                                    result,
+                                    sizeof(result));
                 if ((strstr(result, "Passed") || strstr(result, "Failed")) &&
                     status <= 0x7F) {
                     break;
