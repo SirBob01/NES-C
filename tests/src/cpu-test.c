@@ -69,9 +69,9 @@ static char *test_blargg_instr_test_v5() {
         "../roms/instr_test_v5/16-special.nes",
         "../roms/instr_misc/01-abs_x_wrap.nes",
         "../roms/instr_misc/02-branch_wrap.nes",
-
-        // TODO: Run these as soon as PPU is setup
         "../roms/instr_misc/03-dummy_reads.nes",
+
+        // TODO: Run this as soon as APU is setup
         "../roms/instr_misc/04-dummy_reads_apu.nes",
     };
 
@@ -82,7 +82,7 @@ static char *test_blargg_instr_test_v5() {
     unsigned char status = 0;
     char result[64] = {0};
 
-    for (unsigned i = 0; i < 18; i++) {
+    for (unsigned i = 0; i < 19; i++) {
         emulator_t emu;
         create_emulator(&emu, test_roms[i]);
 

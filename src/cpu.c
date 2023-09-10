@@ -1,6 +1,5 @@
 #include "./cpu.h"
 #include "./ops.h"
-#include "cpu_bus.h"
 
 void create_cpu(cpu_t *cpu, cpu_bus_t *bus, interrupt_t *interrupt) {
     // Set registers
@@ -231,9 +230,9 @@ address_t decode_op_cpu(cpu_t *cpu, unsigned char opcode) {
         address_t base_address = ((adh << 8) | adl);
         address_t address = base_address + cpu->y;
         if ((base_address & 0xff00) != (address & 0xff00) ||
-            operation.group == OPGROUP_W) {
+            operation.group & OPGROUP_W) {
             cpu->cycles++;
-            read_cpu_bus(cpu->bus, address);
+            read_cpu_bus(cpu->bus, (adh << 8) | (adl + cpu->y));
             update_peripherals_cpu(cpu);
         }
         return address;
@@ -273,9 +272,9 @@ address_t decode_op_cpu(cpu_t *cpu, unsigned char opcode) {
         address_t address = base_address + cpu->y;
 
         if ((base_address & 0xff00) != (address & 0xff00) ||
-            operation.group == OPGROUP_W) {
+            operation.group & OPGROUP_W) {
             cpu->cycles++;
-            read_cpu_bus(cpu->bus, address);
+            read_cpu_bus(cpu->bus, (adh << 8) | (adl + cpu->y));
             update_peripherals_cpu(cpu);
         }
         return address;
@@ -294,9 +293,9 @@ address_t decode_op_cpu(cpu_t *cpu, unsigned char opcode) {
         address_t address = base_address + cpu->x;
 
         if ((base_address & 0xff00) != (address & 0xff00) ||
-            operation.group == OPGROUP_W || operation.group == OPGROUP_RW) {
+            operation.group & OPGROUP_W) {
             cpu->cycles++;
-            read_cpu_bus(cpu->bus, address);
+            read_cpu_bus(cpu->bus, (adh << 8) | (adl + cpu->x));
             update_peripherals_cpu(cpu);
         }
         return address;

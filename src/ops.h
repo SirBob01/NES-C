@@ -114,10 +114,10 @@ typedef enum {
  *
  */
 typedef enum {
-    OPGROUP_R,
-    OPGROUP_RW,
-    OPGROUP_W,
-    OPGROUP_NONE,
+    OPGROUP_NONE = 0b00,
+    OPGROUP_R = 0b01,
+    OPGROUP_RW = 0b11,
+    OPGROUP_W = 0b10,
 } opgroup_t;
 
 /**

@@ -11,6 +11,99 @@
 #define PPU_SCANLINES 262
 #define PPU_LINEDOTS  341
 
+// PPU scanline segments
+#define PPU_SCANLINE_VISIBLE   0
+#define PPU_SCANLINE_IDLE      240
+#define PPU_SCANLINE_VBLANK    241
+#define PPU_SCANLINE_PRERENDER 261
+
+// PPU control flags
+#define PPU_CTRL_NAMETABLE_BASE       0b11
+#define PPU_CTRL_VRAM_INC             (1 << 2)
+#define PPU_CTRL_PATTERN_TABLE_SPRITE (1 << 3)
+#define PPU_CTRL_PATTERN_TABLE_BG     (1 << 4)
+#define PPU_CTRL_SPRITE_SIZE          (1 << 5)
+#define PPU_CTRL_MASTER_SLAVE         (1 << 6)
+#define PPU_CTRL_NMI                  (1 << 7)
+
+// PPU mask flags
+#define PPU_MASK_GREYSCALE         (1 << 0)
+#define PPU_MASK_SHOW_BG_LEFT      (1 << 1)
+#define PPU_MASK_SHOW_SPRITES_LEFT (1 << 2)
+#define PPU_MASK_SHOW_BG           (1 << 3)
+#define PPU_MASK_SHOW_SPRITES      (1 << 4)
+#define PPU_MASK_EMPHASIZE_RED     (1 << 5)
+#define PPU_MASK_EMPHASIZE_GREEN   (1 << 6)
+#define PPU_MASK_EMPHASIZE_BLUE    (1 << 7)
+
+// PPU status flags
+#define PPU_STATUS_VBLANK     (1 << 7)
+#define PPU_STATUS_S0_HIT     (1 << 6)
+#define PPU_STATUS_S_OVERFLOW (1 << 5)
+
+/**
+ * @brief PPU background fields.
+ *
+ */
+typedef struct {
+    /**
+     * @brief Current VRAM address.
+     *
+     */
+    unsigned short v;
+
+    /**
+     * @brief Temporary VRAM address.
+     *
+     */
+    unsigned short t;
+
+    /**
+     * @brief Fine X scroll.
+     *
+     */
+    unsigned char x;
+
+    /**
+     * @brief Write toggle.
+     *
+     */
+    bool w;
+
+    /**
+     * @brief Pattern table shift registers. The low 8 bits are the current
+     * tile. Every 8 cycles, new data is loaded into the upper 8 bits of the
+     * register.
+     *
+     */
+    unsigned short pt_shift[2];
+
+    /**
+     * @brief Palette attribute shift registers. The low 2 bits are the palette
+     * for the current tile.
+     *
+     */
+    unsigned char pa_shift[2];
+} ppu_background_t;
+
+/**
+ * @brief PPU sprite fields.
+ *
+ */
+typedef struct {
+    /**
+     * @brief Primary object attribute memory.
+     *
+     */
+    unsigned char primary_oam[256];
+
+    /**
+     * @brief Secondary object attribute memory.
+     *
+     */
+    unsigned char secondary_oam[32];
+} ppu_sprites_t;
+
 typedef struct {
     /**
      * @brief PPUCTRL register.
@@ -94,7 +187,13 @@ typedef struct {
      * @brief Object attribute memory.
      *
      */
-    unsigned char oam[256];
+    ppu_background_t background;
+
+    /**
+     * @brief Sprite fields.
+     *
+     */
+    ppu_sprites_t sprites;
 
     /**
      * @brief Output color buffer.
@@ -139,6 +238,13 @@ void destroy_ppu(ppu_t *ppu);
  * @param buffer_size
  */
 void read_state_ppu(ppu_t *ppu, char *buffer, unsigned buffer_size);
+
+/**
+ * @brief Run the cycles to render pixels to the color buffer.
+ *
+ * @param ppu
+ */
+void render_ppu(ppu_t *ppu);
 
 /**
  * @brief Update the PPU.
