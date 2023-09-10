@@ -113,3 +113,15 @@ void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value) {
         *get_memory_cpu_bus(bus, address) = value;
     }
 }
+
+unsigned
+read_string_cpu_bus(cpu_bus_t *bus, address_t address, char *dst, unsigned n) {
+    char c = read_cpu_bus(bus, address);
+    unsigned length = 0;
+    while (c && length < n - 1) {
+        dst[length++] = c;
+        c = read_cpu_bus(bus, ++address);
+    }
+    dst[length] = 0;
+    return length;
+}
