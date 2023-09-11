@@ -104,9 +104,44 @@ unsigned char read_cpu_bus(cpu_bus_t *bus, address_t address) {
     } else {
         unsigned char *ptr = get_memory_cpu_bus(bus, address);
         unsigned char result = *ptr;
+
+        // Read from write only registers (return the latch)
+        if (ptr == &bus->ppu->ctrl || ptr == &bus->ppu->mask ||
+            ptr == &bus->ppu->oam_addr || ptr == &bus->ppu->scroll ||
+            ptr == &bus->ppu->addr || ptr == &bus->ppu->oam_dma) {
+            result = bus->ppu->io_databus;
+        }
+
+        // Read from PPUSTATUS
         if (ptr == &bus->ppu->status) {
             bus->ppu->status &= ~PPU_STATUS_VBLANK;
+            bus->ppu->internal.w = false;
+
+            // Set low 5 bits of status register to io latch
+            result = (result & 0xE0) | (bus->ppu->io_databus & 0x1F);
+            bus->ppu->io_databus = result;
         }
+
+        // Read from OAMDATA (overwrite result with value from primary OAM)
+        if (ptr == &bus->ppu->oam_data) {
+            result = bus->ppu->sprites.primary_oam[bus->ppu->oam_addr];
+            if ((bus->ppu->oam_addr % 4) == 2) {
+                result &= 0xE3;
+            }
+            bus->ppu->io_databus = result;
+        }
+
+        // Read from PPUDATA (overwrite result with value from VRAM)
+        if (ptr == &bus->ppu->data) {
+            result = read_ppu_bus(bus->ppu->bus, bus->ppu->internal.v & 0x3FFF);
+            bool inc = bus->ppu->ctrl & PPU_CTRL_VRAM_INC;
+            bus->ppu->internal.v += inc ? 32 : 1;
+
+            // Set the high 2 bits to io latch
+            result = (result & 0x3F) | (bus->ppu->io_databus & 0xC0);
+            bus->ppu->io_databus = result;
+        }
+
         return result;
     }
 }
@@ -119,6 +154,84 @@ void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value) {
         bool readonly = ptr == &bus->ppu->status;
         if (!readonly) {
             *get_memory_cpu_bus(bus, address) = value;
+        }
+
+        // Write to PPUMASK, PPUSTATUS, OAMADDR (set the latch)
+        if (ptr == &bus->ppu->mask || ptr == &bus->ppu->status ||
+            ptr == &bus->ppu->oam_addr) {
+            bus->ppu->io_databus = value;
+        }
+
+        // Write to PPUCTRL
+        if (ptr == &bus->ppu->ctrl) {
+            address_t gh = (value & 0x03) << 10;
+            bus->ppu->internal.t = (bus->ppu->internal.t & 0x73FF) | gh;
+            bus->ppu->io_databus = value;
+        }
+
+        // Write to OAMDATA
+        if (ptr == &bus->ppu->oam_data) {
+            if (is_rendering_ppu(bus->ppu)) {
+                bus->ppu->oam_addr += 0x04;
+            } else {
+                bus->ppu->sprites.primary_oam[bus->ppu->oam_addr++] = value;
+            }
+            bus->ppu->io_databus = value;
+        }
+
+        // Write to PPUSCROLL
+        if (ptr == &bus->ppu->scroll) {
+            if (!bus->ppu->internal.w) {
+                address_t abcde = (value & 0xF8) >> 3;
+                address_t fgh = value & 0x07;
+
+                bus->ppu->internal.t = (bus->ppu->internal.t & 0xFFE0) | abcde;
+                bus->ppu->internal.x = fgh;
+            } else {
+                address_t ab = (value & 0xC0) << 2;
+                address_t cde = (value & 0x38) << 2;
+                address_t fgh = (value & 0x07) << 12;
+                address_t tmask = ab | cde | fgh;
+
+                bus->ppu->internal.t = (bus->ppu->internal.t & 0xC1F) | tmask;
+            }
+            bus->ppu->internal.w = !bus->ppu->internal.w;
+            bus->ppu->io_databus = value;
+        }
+
+        // Write to PPUADDR
+        if (ptr == &bus->ppu->addr) {
+            if (!bus->ppu->internal.w) {
+                address_t hi = value & 0x3F;
+                address_t lo = bus->ppu->internal.t & 0x00FF;
+                bus->ppu->internal.t = (hi << 8) | lo;
+            } else {
+                bus->ppu->internal.t = (bus->ppu->internal.t & 0x7F00) | value;
+                bus->ppu->internal.v = bus->ppu->internal.t;
+            }
+            bus->ppu->internal.w = !bus->ppu->internal.w;
+            bus->ppu->io_databus = value;
+        }
+
+        // Write to PPUDATA
+        if (ptr == &bus->ppu->data) {
+            write_ppu_bus(bus->ppu->bus, bus->ppu->internal.v & 0x3FFF, value);
+            bool inc = bus->ppu->ctrl & PPU_CTRL_VRAM_INC;
+            bus->ppu->internal.v += inc ? 32 : 1;
+            bus->ppu->io_databus = value;
+        }
+
+        // Write to OAMDMA (TODO: fix cycle timing, make this a CPU routine?)
+        if (ptr == &bus->ppu->oam_dma) {
+            address_t dma_addr = value << 8;
+            for (unsigned i = 0; i < 256; i++) {
+                // Get
+                unsigned char data = read_cpu_bus(bus, dma_addr + i);
+
+                // Put
+                write_cpu_bus(bus, PPU_REG_OAMDATA, data);
+            }
+            bus->ppu->io_databus = value;
         }
     }
 }

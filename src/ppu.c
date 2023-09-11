@@ -3,13 +3,17 @@
 void create_ppu(ppu_t *ppu, ppu_bus_t *bus, interrupt_t *interrupt) {
     ppu->ctrl = 0;
     ppu->mask = 0;
-    ppu->status = 0;
+    ppu->status = PPU_STATUS_VBLANK | PPU_STATUS_S_OVERFLOW;
     ppu->oam_addr = 0;
     ppu->oam_data = 0;
     ppu->scroll = 0;
     ppu->addr = 0;
     ppu->data = 0;
     ppu->oam_dma = 0;
+
+    ppu->internal.v = 0;
+    ppu->internal.t = 0;
+    ppu->internal.w = false;
 
     ppu->cycles = 21; // Initial cycle count
     ppu->scanline = 0;
@@ -40,6 +44,12 @@ void read_state_ppu(ppu_t *ppu, char *buffer, unsigned buffer_size) {
              ppu->dot);
 }
 
+bool is_rendering_ppu(ppu_t *ppu) {
+    bool flags = ppu->mask & (PPU_MASK_SHOW_BG | PPU_MASK_SHOW_SPRITES);
+    return flags && (ppu->scanline < PPU_SCANLINE_IDLE ||
+                     ppu->scanline == PPU_SCANLINE_PRERENDER);
+}
+
 void render_ppu(ppu_t *ppu) {
     // TODO: Compute this
     unsigned palette_index = rand() % 64;
@@ -50,16 +60,16 @@ void render_ppu(ppu_t *ppu) {
 }
 
 void update_ppu(ppu_t *ppu) {
-    ppu->cycles++;
     if (ppu->scanline < PPU_SCANLINE_IDLE) {
         render_ppu(ppu);
     } else if (ppu->scanline == PPU_SCANLINE_VBLANK && ppu->dot == 1) {
         // Enable VBlank
         ppu->status |= PPU_STATUS_VBLANK;
     } else if (ppu->scanline == PPU_SCANLINE_PRERENDER) {
-        // Disable VBlank
+        // Reset status flags
         if (ppu->dot == 1) {
-            ppu->status &= ~PPU_STATUS_VBLANK;
+            ppu->status &= ~(PPU_STATUS_VBLANK | PPU_STATUS_S_OVERFLOW |
+                             PPU_STATUS_S0_HIT);
         }
         render_ppu(ppu);
     }
@@ -69,7 +79,20 @@ void update_ppu(ppu_t *ppu) {
         ppu->interrupt->nmi = true;
     }
 
+    // Clear OAMADDR
+    if ((ppu->scanline < PPU_SCANLINE_IDLE ||
+         ppu->scanline == PPU_SCANLINE_PRERENDER) &&
+        ppu->dot >= 257 && ppu->dot <= 320) {
+        ppu->oam_addr = 0;
+    }
+
+    // Clear the IO latch every 10 frames
+    if (ppu->cycles % (PPU_LINEDOTS * PPU_SCANLINES * 10) == 0) {
+        ppu->io_databus = 0;
+    }
+
     // Update counters
+    ppu->cycles++;
     ppu->dot++;
     bool skip_cycle = ppu->odd_frame && ppu->scanline == PPU_SCANLINE_PRERENDER;
     if ((ppu->dot == PPU_LINEDOTS - 1 && skip_cycle) ||

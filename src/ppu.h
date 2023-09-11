@@ -42,7 +42,7 @@
 #define PPU_STATUS_S_OVERFLOW (1 << 5)
 
 /**
- * @brief PPU background fields.
+ * @brief PPU internal registers.
  *
  */
 typedef struct {
@@ -50,13 +50,13 @@ typedef struct {
      * @brief Current VRAM address.
      *
      */
-    unsigned short v;
+    address_t v;
 
     /**
      * @brief Temporary VRAM address.
      *
      */
-    unsigned short t;
+    address_t t;
 
     /**
      * @brief Fine X scroll.
@@ -67,6 +67,8 @@ typedef struct {
     /**
      * @brief Write toggle.
      *
+     * If true, writes to PPUADDR will set the high-byte of
+     * the current VRAM address (v).
      */
     bool w;
 
@@ -84,7 +86,7 @@ typedef struct {
      *
      */
     unsigned char pa_shift[2];
-} ppu_background_t;
+} ppu_internal_t;
 
 /**
  * @brief PPU sprite fields.
@@ -184,13 +186,13 @@ typedef struct {
     bool odd_frame;
 
     /**
-     * @brief Object attribute memory.
+     * @brief Internal registers.
      *
      */
-    ppu_background_t background;
+    ppu_internal_t internal;
 
     /**
-     * @brief Sprite fields.
+     * @brief Sprite memory.
      *
      */
     ppu_sprites_t sprites;
@@ -212,6 +214,12 @@ typedef struct {
      *
      */
     interrupt_t *interrupt;
+
+    /**
+     * @brief Data bus for communicating with the CPU.
+     *
+     */
+    unsigned char io_databus;
 } ppu_t;
 
 /**
@@ -238,6 +246,15 @@ void destroy_ppu(ppu_t *ppu);
  * @param buffer_size
  */
 void read_state_ppu(ppu_t *ppu, char *buffer, unsigned buffer_size);
+
+/**
+ * @brief Check if the PPU is currently rendering.
+ *
+ * @param ppu
+ * @return true
+ * @return false
+ */
+bool is_rendering_ppu(ppu_t *ppu);
 
 /**
  * @brief Run the cycles to render pixels to the color buffer.
