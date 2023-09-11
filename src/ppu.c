@@ -80,9 +80,7 @@ void update_ppu(ppu_t *ppu) {
     }
 
     // Clear OAMADDR
-    if ((ppu->scanline < PPU_SCANLINE_IDLE ||
-         ppu->scanline == PPU_SCANLINE_PRERENDER) &&
-        ppu->dot >= 257 && ppu->dot <= 320) {
+    if (is_rendering_ppu(ppu) && ppu->dot >= 257 && ppu->dot <= 320) {
         ppu->oam_addr = 0;
     }
 

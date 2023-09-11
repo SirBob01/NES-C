@@ -10,10 +10,10 @@ int tests_run = 0;
 static char *test_blargg_ppu_vbl_nmi() {
     const char *test_roms[13] = {
         "../roms/ppu_open_bus/ppu_open_bus.nes",
-
-        // TODO: Debug
         "../roms/oam_read/oam_read.nes",
         "../roms/oam_stress/oam_stress.nes",
+
+        // TODO: Debug
         "../roms/ppu_vbl_nmi/01-vbl_basics.nes",
         "../roms/ppu_vbl_nmi/02-vbl_set_time.nes",
         "../roms/ppu_vbl_nmi/03-vbl_clear_time.nes",
@@ -33,7 +33,7 @@ static char *test_blargg_ppu_vbl_nmi() {
     unsigned char status = 0;
     char result[2048] = {0};
 
-    for (unsigned i = 0; i < 1; i++) {
+    for (unsigned i = 0; i < 3; i++) {
         emulator_t emu;
         create_emulator(&emu, test_roms[i]);
 
