@@ -38,9 +38,6 @@ bool update_emulator(emulator_t *emu) {
     bool cpu_state = update_cpu(&emu->cpu);
     unsigned delta_cycles = emu->cpu.cycles - prev_cycles;
 
-    // Reset interrupts
-    reset_interrupt(&emu->interrupt);
-
     // Update frame counter
     emu->cycle_accumulator += delta_cycles;
     if (3 * emu->cycle_accumulator >= PPU_LINEDOTS * PPU_SCANLINES) {

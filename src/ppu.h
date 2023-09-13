@@ -220,6 +220,12 @@ typedef struct {
      *
      */
     unsigned char io_databus;
+
+    /**
+     * @brief Toggle to suppress setting VBlank.
+     *
+     */
+    bool suppress_vbl;
 } ppu_t;
 
 /**

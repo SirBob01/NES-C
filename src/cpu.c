@@ -1,5 +1,6 @@
 #include "./cpu.h"
 #include "./ops.h"
+#include "interrupt.h"
 
 void create_cpu(cpu_t *cpu, cpu_bus_t *bus, interrupt_t *interrupt) {
     // Set registers
@@ -1156,6 +1157,9 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
 bool update_cpu(cpu_t *cpu) {
     // Fetch
     unsigned char opcode = fetch_op_cpu(cpu);
+
+    // Reset interrupts
+    reset_interrupt(cpu->interrupt);
 
     // Decode
     address_t operand = decode_op_cpu(cpu, opcode);

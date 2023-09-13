@@ -117,6 +117,12 @@ unsigned char read_cpu_bus(cpu_bus_t *bus, address_t address) {
             bus->ppu->status &= ~PPU_STATUS_VBLANK;
             bus->ppu->internal.w = false;
 
+            // Suppress setting VBlank if read too close
+            if (bus->ppu->scanline == PPU_SCANLINE_VBLANK &&
+                bus->ppu->dot <= 1) {
+                bus->ppu->suppress_vbl = true;
+            }
+
             // Set low 5 bits of status register to io latch
             result = (result & 0xE0) | (bus->ppu->io_databus & 0x1F);
             bus->ppu->io_databus = result;
@@ -137,8 +143,10 @@ unsigned char read_cpu_bus(cpu_bus_t *bus, address_t address) {
             bool inc = bus->ppu->ctrl & PPU_CTRL_VRAM_INC;
             bus->ppu->internal.v += inc ? 32 : 1;
 
-            // Set the high 2 bits to io latch
-            result = (result & 0x3F) | (bus->ppu->io_databus & 0xC0);
+            // Set the high 2 bits from palette to io latch
+            if (bus->ppu->internal.v >= 0x3F00) {
+                result = (result & 0x3F) | (bus->ppu->io_databus & 0xC0);
+            }
             bus->ppu->io_databus = result;
         }
 
