@@ -15,9 +15,9 @@ static char *test_blargg_ppu_vbl_nmi() {
         "../roms/ppu_vbl_nmi/01-vbl_basics.nes",
         "../roms/ppu_vbl_nmi/02-vbl_set_time.nes",
         "../roms/ppu_vbl_nmi/03-vbl_clear_time.nes",
-
-        // TODO: Fix NMI handling
         "../roms/ppu_vbl_nmi/04-nmi_control.nes",
+
+        // TODO: Fix timing
         "../roms/ppu_vbl_nmi/05-nmi_timing.nes",
         "../roms/ppu_vbl_nmi/06-suppression.nes",
         "../roms/ppu_vbl_nmi/07-nmi_on_timing.nes",
@@ -33,7 +33,7 @@ static char *test_blargg_ppu_vbl_nmi() {
     unsigned char status = 0;
     char result[2048] = {0};
 
-    for (unsigned i = 0; i < 6; i++) {
+    for (unsigned i = 0; i < 7; i++) {
         emulator_t emu;
         create_emulator(&emu, test_roms[i]);
 

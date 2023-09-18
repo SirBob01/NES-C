@@ -74,16 +74,16 @@ typedef struct {
     cpu_bus_t *bus;
 
     /**
-     * @brief Interrupt controller.
+     * @brief Interrupt signal controller.
      *
      */
     interrupt_t *interrupt;
 
     /**
-     * @brief Vector to the current interrupt handler.
+     * @brief NMI assertion flag to delay until next instruction.
      *
      */
-    address_t interrupt_vector;
+    bool nmi_assert;
 } cpu_t;
 
 /**

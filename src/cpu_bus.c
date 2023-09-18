@@ -159,8 +159,8 @@ void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value) {
         write_cpu_mapper(bus->mapper, address, value);
     } else {
         unsigned char *ptr = get_memory_cpu_bus(bus, address);
-        bool readonly = ptr == &bus->ppu->status;
-        if (!readonly) {
+        bool nmi_enabled = bus->ppu->ctrl & PPU_CTRL_NMI;
+        if (ptr != &bus->ppu->status) {
             *get_memory_cpu_bus(bus, address) = value;
         }
 
@@ -175,6 +175,12 @@ void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value) {
             address_t gh = (value & 0x03) << 10;
             bus->ppu->internal.t = (bus->ppu->internal.t & 0x73FF) | gh;
             bus->ppu->io_databus = value;
+
+            // Trigger NMI if VBlank is set
+            if ((bus->ppu->status & PPU_STATUS_VBLANK) &&
+                (bus->ppu->ctrl & PPU_CTRL_NMI) && !nmi_enabled) {
+                bus->ppu->interrupt->nmi = true;
+            }
         }
 
         // Write to OAMDATA

@@ -70,12 +70,6 @@ typedef struct {
     unsigned char memory[CPU_RAM_SIZE];
 
     /**
-     * @brief Interrupt state.
-     *
-     */
-    interrupt_t interrupt;
-
-    /**
      * @brief Pointer to the ROM.
      *
      */
