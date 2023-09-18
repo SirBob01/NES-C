@@ -25,7 +25,6 @@ void create_cpu(cpu_t *cpu, cpu_bus_t *bus, interrupt_t *interrupt) {
     // Peripherals
     cpu->bus = bus;
     cpu->interrupt = interrupt;
-    cpu->interrupt_vector = CPU_VEC_IRQ_BRK;
 }
 
 void destroy_cpu(cpu_t *cpu) {}
@@ -128,17 +127,15 @@ void update_peripherals_cpu(cpu_t *cpu) {
 
 unsigned char fetch_op_cpu(cpu_t *cpu) {
     // Handle NMI, IRQ, and RESET interrupts
+    if ((!cpu->status.i && (cpu->interrupt->irq || cpu->interrupt->reset)) ||
+        cpu->nmi_assert) {
+        cpu->nmi_assert = false;
+        return 0;
+    }
+
+    // Assert the NMI interrupt
     if (cpu->interrupt->nmi) {
-        cpu->interrupt_vector = CPU_VEC_NMI;
-        return 0;
-    }
-    if (cpu->interrupt->irq && !cpu->status.i) {
-        cpu->interrupt_vector = CPU_VEC_IRQ_BRK;
-        return 0;
-    }
-    if (cpu->interrupt->reset && !cpu->status.i) {
-        cpu->interrupt_vector = CPU_VEC_RESET;
-        return 0;
+        cpu->nmi_assert = true;
     }
 
     // No interrupts, next instruction from program counter
@@ -494,7 +491,7 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         break;
     case OP_RTS:
         cpu->cycles++;
-        read_cpu_bus(cpu->bus, cpu->pc++);
+        read_cpu_bus(cpu->bus, cpu->pc);
         update_peripherals_cpu(cpu);
 
         cpu->cycles++;
@@ -739,7 +736,7 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         break;
     case OP_RTI: {
         cpu->cycles++;
-        read_cpu_bus(cpu->bus, cpu->pc++);
+        read_cpu_bus(cpu->bus, cpu->pc);
         update_peripherals_cpu(cpu);
 
         cpu->cycles++;
@@ -1114,8 +1111,12 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         update_peripherals_cpu(cpu);
         break;
     case OP_BRK: {
+        bool software_interrupt = !cpu->interrupt->irq &&
+                                  !cpu->interrupt->nmi &&
+                                  !cpu->interrupt->reset;
         cpu->cycles++;
-        read_cpu_bus(cpu->bus, cpu->pc++);
+        read_cpu_bus(cpu->bus, cpu->pc);
+        cpu->pc += software_interrupt;
         update_peripherals_cpu(cpu);
 
         cpu->cycles++;
@@ -1127,29 +1128,36 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         update_peripherals_cpu(cpu);
 
         cpu->cycles++;
-        cpu->status.b = !cpu->interrupt->irq && !cpu->interrupt->nmi &&
-                        !cpu->interrupt->reset;
+        cpu->status.b = software_interrupt;
         push_stack_cpu(cpu, get_status_cpu(cpu));
         cpu->status.b = false;
-        cpu->status.i = true;
+        cpu->status.i = !cpu->interrupt->nmi;
+        update_peripherals_cpu(cpu);
+
+        // Determine target interrupt vector
+        address_t interrupt_vector = CPU_VEC_IRQ_BRK;
+        if (cpu->interrupt->nmi) {
+            interrupt_vector = CPU_VEC_NMI;
+        } else if (cpu->interrupt->reset) {
+            interrupt_vector = CPU_VEC_RESET;
+        }
+
+        cpu->cycles++;
+        unsigned char pcl = read_cpu_bus(cpu->bus, interrupt_vector);
         update_peripherals_cpu(cpu);
 
         cpu->cycles++;
-        unsigned char pcl = read_cpu_bus(cpu->bus, cpu->interrupt_vector);
-        update_peripherals_cpu(cpu);
-
-        cpu->cycles++;
-        unsigned char pch = read_cpu_bus(cpu->bus, cpu->interrupt_vector + 1);
+        unsigned char pch = read_cpu_bus(cpu->bus, interrupt_vector + 1);
         cpu->pc = (pch << 8) | pcl;
         update_peripherals_cpu(cpu);
+
+        // Reset interrupt signals
+        reset_interrupt(cpu->interrupt);
     } break;
     default:
         printf("Unimplemented opcode 0x%02X\n", opcode);
         return false;
     }
-
-    // Reset instruction states
-    cpu->interrupt_vector = CPU_VEC_IRQ_BRK;
 
     return true;
 }
@@ -1157,9 +1165,6 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
 bool update_cpu(cpu_t *cpu) {
     // Fetch
     unsigned char opcode = fetch_op_cpu(cpu);
-
-    // Reset interrupts
-    reset_interrupt(cpu->interrupt);
 
     // Decode
     address_t operand = decode_op_cpu(cpu, opcode);

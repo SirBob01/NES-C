@@ -82,12 +82,13 @@ void update_ppu(ppu_t *ppu) {
     case PPU_SCANLINE_VBLANK:
         if (ppu->dot == 1 && !ppu->suppress_vbl) {
             ppu->status |= PPU_STATUS_VBLANK;
+
+            // Trigger NMI if enabled.
+            if (ppu->ctrl & PPU_CTRL_NMI) {
+                ppu->interrupt->nmi = true;
+            }
         }
         break;
-    }
-
-    if ((ppu->status & PPU_STATUS_VBLANK) && (ppu->ctrl & PPU_CTRL_NMI)) {
-        ppu->interrupt->nmi = true;
     }
 
     // Reset VBlank suppression
