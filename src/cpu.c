@@ -1,6 +1,7 @@
 #include "./cpu.h"
 #include "./ops.h"
 #include "interrupt.h"
+#include "ppu.h"
 
 void create_cpu(cpu_t *cpu, cpu_bus_t *bus, interrupt_t *interrupt) {
     // Set registers
@@ -126,6 +127,8 @@ void update_peripherals_cpu(cpu_t *cpu) {
 }
 
 unsigned char fetch_op_cpu(cpu_t *cpu) {
+    cpu->cycles++;
+
     // Handle NMI, IRQ, and RESET interrupts
     if ((!cpu->status.i && (cpu->interrupt->irq || cpu->interrupt->reset)) ||
         cpu->nmi_assert) {
@@ -133,15 +136,21 @@ unsigned char fetch_op_cpu(cpu_t *cpu) {
         return 0;
     }
 
-    // Assert the NMI interrupt
+    // TODO: Is this a timing hack?
+    // Assert the NMI interrupt after the first PPU tick
+    update_ppu(cpu->bus->ppu);
     if (cpu->interrupt->nmi) {
         cpu->nmi_assert = true;
     }
+    update_ppu(cpu->bus->ppu);
+    update_ppu(cpu->bus->ppu);
+
+    while (cpu->bus->apu->cycles * 2 < cpu->cycles) {
+        update_apu(cpu->bus->apu);
+    }
 
     // No interrupts, next instruction from program counter
-    cpu->cycles++;
     unsigned char opcode = read_cpu_bus(cpu->bus, cpu->pc++);
-    update_peripherals_cpu(cpu);
     return opcode;
 }
 
