@@ -86,7 +86,7 @@ void update_ppu(ppu_t *ppu) {
 
             // Trigger NMI if enabled.
             if ((ppu->ctrl & PPU_CTRL_NMI) && !ppu->suppress_nmi) {
-                ppu->interrupt->nmi = true;
+                set_nmi_interrupt(ppu->interrupt, true);
             }
         }
         break;
@@ -94,7 +94,7 @@ void update_ppu(ppu_t *ppu) {
 
     // Handle suppressing NMI
     if (ppu->suppress_nmi) {
-        ppu->interrupt->nmi = false;
+        set_nmi_interrupt(ppu->interrupt, false);
     }
 
     // Reset suppression flags
