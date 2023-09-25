@@ -226,6 +226,12 @@ typedef struct {
      *
      */
     bool suppress_vbl;
+
+    /**
+     * @brief Toggle to suppress enabling NMI.
+     *
+     */
+    bool suppress_nmi;
 } ppu_t;
 
 /**
