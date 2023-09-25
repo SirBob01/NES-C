@@ -1,7 +1,5 @@
 #include "./cpu.h"
 #include "./ops.h"
-#include "interrupt.h"
-#include "ppu.h"
 
 void create_cpu(cpu_t *cpu, cpu_bus_t *bus, interrupt_t *interrupt) {
     // Set registers
@@ -117,37 +115,38 @@ void read_state_cpu(cpu_t *cpu, char *buffer, unsigned buffer_size) {
     }
 }
 
-void update_peripherals_cpu(cpu_t *cpu) {
-    while (cpu->bus->ppu->cycles < cpu->cycles * 3) {
-        update_ppu(cpu->bus->ppu);
-    }
-    while (cpu->bus->apu->cycles * 2 < cpu->cycles) {
+void tick_cpu(cpu_t *cpu) {
+    cpu->cycles++;
+    update_ppu(cpu->bus->ppu);
+    if (cpu->cycles % 2 == 0) {
         update_apu(cpu->bus->apu);
     }
+    update_ppu(cpu->bus->ppu);
+    update_ppu(cpu->bus->ppu);
 }
 
 unsigned char fetch_op_cpu(cpu_t *cpu) {
     cpu->cycles++;
 
-    // Handle NMI, IRQ, and RESET interrupts
-    if ((!cpu->status.i && (cpu->interrupt->irq || cpu->interrupt->reset)) ||
-        cpu->nmi_assert) {
+    // Handle interrupts
+    bool maskable_interrupts = get_irq_interrupt(cpu->interrupt) ||
+                               get_reset_interrupt(cpu->interrupt);
+    if ((!cpu->status.i && maskable_interrupts) || cpu->nmi_assert) {
         cpu->nmi_assert = false;
         return 0;
     }
 
-    // TODO: Is this a timing hack?
     // Assert the NMI interrupt after the first PPU tick
+    // This is one of the 4 CPU-PPU clock alignments
     update_ppu(cpu->bus->ppu);
-    if (cpu->interrupt->nmi) {
+    if (get_nmi_interrupt(cpu->interrupt)) {
         cpu->nmi_assert = true;
     }
-    update_ppu(cpu->bus->ppu);
-    update_ppu(cpu->bus->ppu);
-
-    while (cpu->bus->apu->cycles * 2 < cpu->cycles) {
+    if (cpu->cycles % 2 == 0) {
         update_apu(cpu->bus->apu);
     }
+    update_ppu(cpu->bus->ppu);
+    update_ppu(cpu->bus->ppu);
 
     // No interrupts, next instruction from program counter
     unsigned char opcode = read_cpu_bus(cpu->bus, cpu->pc++);
@@ -175,104 +174,89 @@ address_t decode_op_cpu(cpu_t *cpu, unsigned char opcode) {
     // Decode operand based on addressing mode
     switch (operation.address_mode) {
     case ADDR_ABSOLUTE: {
-        cpu->cycles++;
         unsigned char adl = read_cpu_bus(cpu->bus, cpu->pc++);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         unsigned char adh = read_cpu_bus(cpu->bus, cpu->pc++);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         return (adh << 8) | adl;
     }
     case ADDR_IMMEDIATE:
         return cpu->pc++;
     case ADDR_ZERO_PAGE: {
-        cpu->cycles++;
         unsigned char address = read_cpu_bus(cpu->bus, cpu->pc++);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         return address;
     }
     case ADDR_IMPLIED:
     case ADDR_ACCUMULATOR:
         // Skip decoding for implied and accumulator addressing modes
         return 0;
-    case ADDR_RELATIVE:
-        cpu->cycles++;
+    case ADDR_RELATIVE: {
         signed char offset = read_cpu_bus(cpu->bus, cpu->pc++);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         return offset + cpu->pc;
-    case ADDR_INDIRECT_X:
-        cpu->cycles++;
+    }
+    case ADDR_INDIRECT_X: {
         unsigned char base = read_cpu_bus(cpu->bus, cpu->pc++);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
-        cpu->cycles++;
         unsigned char adl_address = base + cpu->x;
         unsigned char adl = read_cpu_bus(cpu->bus, adl_address);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         unsigned char adh_address = adl_address + 1;
         unsigned char adh = read_cpu_bus(cpu->bus, adh_address);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
         return (adh << 8) | adl;
+    }
     case ADDR_INDIRECT_Y: {
-        cpu->cycles++;
         unsigned char ptr_address = read_cpu_bus(cpu->bus, cpu->pc++);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         unsigned char adl_address = ptr_address;
         unsigned char adl = read_cpu_bus(cpu->bus, adl_address);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         unsigned char adh_address = ptr_address + 1;
         unsigned char adh = read_cpu_bus(cpu->bus, adh_address);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
         // Check for page crossing (or write operation)
         address_t base_address = ((adh << 8) | adl);
         address_t address = base_address + cpu->y;
         if ((base_address & 0xff00) != (address & 0xff00) ||
             operation.group & OPGROUP_W) {
-            cpu->cycles++;
             read_cpu_bus(cpu->bus, (adh << 8) | (adl + cpu->y));
-            update_peripherals_cpu(cpu);
+            tick_cpu(cpu);
         }
         return address;
     }
     case ADDR_INDIRECT: {
-        cpu->cycles++;
         unsigned char ptr_adl = read_cpu_bus(cpu->bus, cpu->pc++);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         unsigned char ptr_adh = read_cpu_bus(cpu->bus, cpu->pc++);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         address_t adl_address = (ptr_adh << 8) | ptr_adl;
         unsigned char adl = read_cpu_bus(cpu->bus, adl_address);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         address_t adh_address = (ptr_adh << 8) | ((ptr_adl + 1) & 0xff);
         unsigned char adh = read_cpu_bus(cpu->bus, adh_address);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
         return (adh << 8) | adl;
     }
     case ADDR_ABSOLUTE_Y: {
-        cpu->cycles++;
         unsigned char adl = read_cpu_bus(cpu->bus, cpu->pc++);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         unsigned char adh = read_cpu_bus(cpu->bus, cpu->pc++);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
         // Check for page crossing (or write operation)
         address_t base_address = ((adh << 8) | adl);
@@ -280,20 +264,17 @@ address_t decode_op_cpu(cpu_t *cpu, unsigned char opcode) {
 
         if ((base_address & 0xff00) != (address & 0xff00) ||
             operation.group & OPGROUP_W) {
-            cpu->cycles++;
             read_cpu_bus(cpu->bus, (adh << 8) | (adl + cpu->y));
-            update_peripherals_cpu(cpu);
+            tick_cpu(cpu);
         }
         return address;
     }
     case ADDR_ABSOLUTE_X: {
-        cpu->cycles++;
         unsigned char adl = read_cpu_bus(cpu->bus, cpu->pc++);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         unsigned char adh = read_cpu_bus(cpu->bus, cpu->pc++);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
         // Check for page crossing (or write operation)
         address_t base_address = ((adh << 8) | adl);
@@ -301,28 +282,25 @@ address_t decode_op_cpu(cpu_t *cpu, unsigned char opcode) {
 
         if ((base_address & 0xff00) != (address & 0xff00) ||
             operation.group & OPGROUP_W) {
-            cpu->cycles++;
             read_cpu_bus(cpu->bus, (adh << 8) | (adl + cpu->x));
-            update_peripherals_cpu(cpu);
+            tick_cpu(cpu);
         }
         return address;
     }
     case ADDR_ZERO_PAGE_X: {
-        cpu->cycles++;
         unsigned char base = read_cpu_bus(cpu->bus, cpu->pc++);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         unsigned char address = base + cpu->x;
+        tick_cpu(cpu);
         return address;
     }
     case ADDR_ZERO_PAGE_Y: {
-        cpu->cycles++;
         unsigned char base = read_cpu_bus(cpu->bus, cpu->pc++);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         unsigned char address = base + cpu->y;
+        tick_cpu(cpu);
         return address;
     }
     }
@@ -336,254 +314,215 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         cpu->pc = operand;
         break;
     case OP_LDX:
-        cpu->cycles++;
         cpu->x = read_cpu_bus(cpu->bus, operand);
         cpu->status.z = cpu->x == 0;
         cpu->status.n = cpu->x & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_STX:
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, cpu->x);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
-    case OP_JSR:
-        cpu->cycles++;
+    case OP_JSR: {
         unsigned char adl = read_cpu_bus(cpu->bus, cpu->pc++);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
-        cpu->cycles++;
         push_stack_cpu(cpu, cpu->pc >> 8);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         push_stack_cpu(cpu, cpu->pc & 0xff);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         unsigned char adh = read_cpu_bus(cpu->bus, cpu->pc++);
         cpu->pc = (adh << 8) | adl;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
+    }
     case OP_NOP:
-        cpu->cycles++;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_SEC:
-        cpu->cycles++;
         cpu->status.c = true;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_BCS:
         if (cpu->status.c) {
-            cpu->cycles++;
             read_cpu_bus(cpu->bus, cpu->pc);
-            update_peripherals_cpu(cpu);
+            tick_cpu(cpu);
 
             if ((operand & 0xff00) != (cpu->pc & 0xff00)) {
-                cpu->cycles++;
                 read_cpu_bus(cpu->bus, cpu->pc);
-                update_peripherals_cpu(cpu);
+                tick_cpu(cpu);
             }
             cpu->pc = operand;
         }
         break;
     case OP_CLC:
-        cpu->cycles++;
         cpu->status.c = false;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_BCC:
         if (!cpu->status.c) {
-            cpu->cycles++;
             read_cpu_bus(cpu->bus, cpu->pc);
-            update_peripherals_cpu(cpu);
+            tick_cpu(cpu);
 
             if ((operand & 0xff00) != (cpu->pc & 0xff00)) {
-                cpu->cycles++;
                 read_cpu_bus(cpu->bus, cpu->pc);
-                update_peripherals_cpu(cpu);
+                tick_cpu(cpu);
             }
             cpu->pc = operand;
         }
         break;
     case OP_LDA:
-        cpu->cycles++;
         cpu->a = read_cpu_bus(cpu->bus, operand);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_BEQ:
         if (cpu->status.z) {
-            cpu->cycles++;
             read_cpu_bus(cpu->bus, cpu->pc);
-            update_peripherals_cpu(cpu);
+            tick_cpu(cpu);
 
             if ((operand & 0xff00) != (cpu->pc & 0xff00)) {
-                cpu->cycles++;
                 read_cpu_bus(cpu->bus, cpu->pc);
-                update_peripherals_cpu(cpu);
+                tick_cpu(cpu);
             }
             cpu->pc = operand;
         }
         break;
     case OP_BNE:
         if (!cpu->status.z) {
-            cpu->cycles++;
             read_cpu_bus(cpu->bus, cpu->pc);
-            update_peripherals_cpu(cpu);
+            tick_cpu(cpu);
 
             if ((operand & 0xff00) != (cpu->pc & 0xff00)) {
-                cpu->cycles++;
                 read_cpu_bus(cpu->bus, cpu->pc);
-                update_peripherals_cpu(cpu);
+                tick_cpu(cpu);
             }
             cpu->pc = operand;
         }
         break;
     case OP_STA:
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, cpu->a);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
-    case OP_BIT:
-        cpu->cycles++;
+    case OP_BIT: {
         unsigned char value = read_cpu_bus(cpu->bus, operand);
         cpu->status.z = (cpu->a & value) == 0;
         cpu->status.n = value & 0x80;
         cpu->status.o = value & 0x40;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
+    }
     case OP_BVS:
         if (cpu->status.o) {
-            cpu->cycles++;
             read_cpu_bus(cpu->bus, cpu->pc);
-            update_peripherals_cpu(cpu);
+            tick_cpu(cpu);
 
             if ((operand & 0xff00) != (cpu->pc & 0xff00)) {
-                cpu->cycles++;
                 read_cpu_bus(cpu->bus, cpu->pc);
-                update_peripherals_cpu(cpu);
+                tick_cpu(cpu);
             }
             cpu->pc = operand;
         }
         break;
     case OP_BVC:
         if (!cpu->status.o) {
-            cpu->cycles++;
             read_cpu_bus(cpu->bus, cpu->pc);
-            update_peripherals_cpu(cpu);
+            tick_cpu(cpu);
 
             if ((operand & 0xff00) != (cpu->pc & 0xff00)) {
-                cpu->cycles++;
                 read_cpu_bus(cpu->bus, cpu->pc);
-                update_peripherals_cpu(cpu);
+                tick_cpu(cpu);
             }
             cpu->pc = operand;
         }
         break;
     case OP_BPL:
         if (!cpu->status.n) {
-            cpu->cycles++;
             read_cpu_bus(cpu->bus, cpu->pc);
-            update_peripherals_cpu(cpu);
+            tick_cpu(cpu);
 
             if ((operand & 0xff00) != (cpu->pc & 0xff00)) {
-                cpu->cycles++;
                 read_cpu_bus(cpu->bus, cpu->pc);
-                update_peripherals_cpu(cpu);
+                tick_cpu(cpu);
             }
             cpu->pc = operand;
         }
         break;
     case OP_RTS:
-        cpu->cycles++;
         read_cpu_bus(cpu->bus, cpu->pc);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
-        cpu->cycles++;
         unsigned char pcl = pop_stack_cpu(cpu);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
-        cpu->cycles++;
         unsigned char pch = pop_stack_cpu(cpu);
         cpu->pc = ((pch << 8) | pcl) + 1;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_SEI:
-        cpu->cycles++;
         cpu->status.i = true;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_SED:
-        cpu->cycles++;
         cpu->status.d = true;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_PHP:
-        cpu->cycles++;
         read_cpu_bus(cpu->bus, cpu->pc);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         cpu->status.b = true;
         push_stack_cpu(cpu, get_status_cpu(cpu));
         cpu->status.b = false;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_PLA:
-        cpu->cycles++;
         read_cpu_bus(cpu->bus, cpu->pc);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
-        cpu->cycles++;
         cpu->a = pop_stack_cpu(cpu);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_AND:
-        cpu->cycles++;
         cpu->a &= read_cpu_bus(cpu->bus, operand);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
-    case OP_CMP:
-        cpu->cycles++;
+    case OP_CMP: {
         unsigned char val = read_cpu_bus(cpu->bus, operand);
         unsigned char sub = cpu->a - val;
         cpu->status.c = cpu->a >= val;
         cpu->status.z = cpu->a == val;
         cpu->status.n = sub & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
+    }
     case OP_CLD:
-        cpu->cycles++;
         cpu->status.d = false;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_PHA:
-        cpu->cycles++;
         read_cpu_bus(cpu->bus, cpu->pc);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         push_stack_cpu(cpu, cpu->a);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_PLP:
-        cpu->cycles++;
         read_cpu_bus(cpu->bus, cpu->pc);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
-        cpu->cycles++;
         unsigned char status = pop_stack_cpu(cpu);
         cpu->status.c = status & 0x1;
         cpu->status.z = status & 0x2;
@@ -591,43 +530,37 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         cpu->status.d = status & 0x8;
         cpu->status.o = status & 0x40;
         cpu->status.n = status & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_BMI:
         if (cpu->status.n) {
-            cpu->cycles++;
             read_cpu_bus(cpu->bus, cpu->pc);
-            update_peripherals_cpu(cpu);
+            tick_cpu(cpu);
 
             if ((operand & 0xff00) != (cpu->pc & 0xff00)) {
-                cpu->cycles++;
                 read_cpu_bus(cpu->bus, cpu->pc);
-                update_peripherals_cpu(cpu);
+                tick_cpu(cpu);
             }
             cpu->pc = operand;
         }
         break;
     case OP_ORA:
-        cpu->cycles++;
         cpu->a |= read_cpu_bus(cpu->bus, operand);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_CLV:
-        cpu->cycles++;
         cpu->status.o = false;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_EOR:
-        cpu->cycles++;
         cpu->a ^= read_cpu_bus(cpu->bus, operand);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_ADC: {
-        cpu->cycles++;
         unsigned char m = read_cpu_bus(cpu->bus, operand);
         unsigned char n = cpu->a;
         unsigned short res = m + n + cpu->status.c;
@@ -636,35 +569,33 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
         cpu->status.o = ((m ^ cpu->a) & (n ^ cpu->a) & 0x80) > 0;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
     } break;
     case OP_LDY:
-        cpu->cycles++;
         cpu->y = read_cpu_bus(cpu->bus, operand);
         cpu->status.z = cpu->y == 0;
         cpu->status.n = cpu->y & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
-    case OP_CPY:
-        cpu->cycles++;
+    case OP_CPY: {
         unsigned char valy = read_cpu_bus(cpu->bus, operand);
         unsigned char suby = cpu->y - valy;
         cpu->status.c = cpu->y >= valy;
         cpu->status.z = cpu->y == valy;
         cpu->status.n = suby & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
-    case OP_CPX:
-        cpu->cycles++;
+    }
+    case OP_CPX: {
         unsigned char valx = read_cpu_bus(cpu->bus, operand);
         unsigned char subx = cpu->x - valx;
         cpu->status.c = cpu->x >= valx;
         cpu->status.z = cpu->x == valx;
         cpu->status.n = subx & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
+    }
     case OP_SBC: {
-        cpu->cycles++;
         unsigned char m = ~read_cpu_bus(cpu->bus, operand);
         unsigned char n = cpu->a;
         unsigned short res = m + n + cpu->status.c;
@@ -673,83 +604,71 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
         cpu->status.o = ((m ^ cpu->a) & (n ^ cpu->a) & 0x80) > 0;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
     } break;
     case OP_INY:
-        cpu->cycles++;
         cpu->y++;
         cpu->status.z = cpu->y == 0;
         cpu->status.n = cpu->y & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_INX:
-        cpu->cycles++;
         cpu->x++;
         cpu->status.z = cpu->x == 0;
         cpu->status.n = cpu->x & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_DEY:
-        cpu->cycles++;
         cpu->y--;
         cpu->status.z = cpu->y == 0;
         cpu->status.n = cpu->y & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_DEX:
-        cpu->cycles++;
         cpu->x--;
         cpu->status.z = cpu->x == 0;
         cpu->status.n = cpu->x & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_TAY:
-        cpu->cycles++;
         cpu->y = cpu->a;
         cpu->status.z = cpu->y == 0;
         cpu->status.n = cpu->y & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_TAX:
-        cpu->cycles++;
         cpu->x = cpu->a;
         cpu->status.z = cpu->x == 0;
         cpu->status.n = cpu->x & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_TYA:
-        cpu->cycles++;
         cpu->a = cpu->y;
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_TXA:
-        cpu->cycles++;
         cpu->a = cpu->x;
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_TSX:
-        cpu->cycles++;
         cpu->x = cpu->s;
         cpu->status.z = cpu->x == 0;
         cpu->status.n = cpu->x & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_TXS:
-        cpu->cycles++;
         cpu->s = cpu->x;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_RTI: {
-        cpu->cycles++;
         read_cpu_bus(cpu->bus, cpu->pc);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
-        cpu->cycles++;
         unsigned char status = pop_stack_cpu(cpu);
         cpu->status.c = status & 0x1;
         cpu->status.z = status & 0x2;
@@ -757,19 +676,16 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         cpu->status.d = status & 0x8;
         cpu->status.o = status & 0x40;
         cpu->status.n = status & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         unsigned char pcl = pop_stack_cpu(cpu);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         unsigned char pch = pop_stack_cpu(cpu);
         cpu->pc = (pch << 8) | pcl;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
     } break;
     case OP_LSR: {
-        cpu->cycles++;
         unsigned char val = operation.address_mode == ADDR_ACCUMULATOR
                                 ? cpu->a
                                 : read_cpu_bus(cpu->bus, operand);
@@ -777,22 +693,19 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         unsigned char result = val >> 1;
         cpu->status.z = result == 0;
         cpu->status.n = false;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
         if (operation.address_mode != ADDR_ACCUMULATOR) {
-            cpu->cycles++;
             write_cpu_bus(cpu->bus, operand, val);
-            update_peripherals_cpu(cpu);
+            tick_cpu(cpu);
 
-            cpu->cycles++;
             write_cpu_bus(cpu->bus, operand, result);
-            update_peripherals_cpu(cpu);
+            tick_cpu(cpu);
         } else {
             cpu->a = result;
         }
     } break;
     case OP_ASL: {
-        cpu->cycles++;
         unsigned char val = operation.address_mode == ADDR_ACCUMULATOR
                                 ? cpu->a
                                 : read_cpu_bus(cpu->bus, operand);
@@ -800,22 +713,19 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         unsigned char result = val << 1;
         cpu->status.z = result == 0;
         cpu->status.n = result & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
         if (operation.address_mode != ADDR_ACCUMULATOR) {
-            cpu->cycles++;
             write_cpu_bus(cpu->bus, operand, val);
-            update_peripherals_cpu(cpu);
+            tick_cpu(cpu);
 
-            cpu->cycles++;
             write_cpu_bus(cpu->bus, operand, result);
-            update_peripherals_cpu(cpu);
+            tick_cpu(cpu);
         } else {
             cpu->a = result;
         }
     } break;
     case OP_ROR: {
-        cpu->cycles++;
         unsigned char val = operation.address_mode == ADDR_ACCUMULATOR
                                 ? cpu->a
                                 : read_cpu_bus(cpu->bus, operand);
@@ -824,22 +734,19 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         unsigned char result = (val >> 1) | (c << 7);
         cpu->status.z = result == 0;
         cpu->status.n = result & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
         if (operation.address_mode != ADDR_ACCUMULATOR) {
-            cpu->cycles++;
             write_cpu_bus(cpu->bus, operand, val);
-            update_peripherals_cpu(cpu);
+            tick_cpu(cpu);
 
-            cpu->cycles++;
             write_cpu_bus(cpu->bus, operand, result);
-            update_peripherals_cpu(cpu);
+            tick_cpu(cpu);
         } else {
             cpu->a = result;
         }
     } break;
     case OP_ROL: {
-        cpu->cycles++;
         unsigned char val = operation.address_mode == ADDR_ACCUMULATOR
                                 ? cpu->a
                                 : read_cpu_bus(cpu->bus, operand);
@@ -848,102 +755,86 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         unsigned char result = (val << 1) | c;
         cpu->status.z = result == 0;
         cpu->status.n = result & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
         if (operation.address_mode != ADDR_ACCUMULATOR) {
-            cpu->cycles++;
             write_cpu_bus(cpu->bus, operand, val);
-            update_peripherals_cpu(cpu);
+            tick_cpu(cpu);
 
-            cpu->cycles++;
             write_cpu_bus(cpu->bus, operand, result);
-            update_peripherals_cpu(cpu);
+            tick_cpu(cpu);
         } else {
             cpu->a = result;
         }
     } break;
     case OP_STY:
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, cpu->y);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_INC: {
-        cpu->cycles++;
+
         unsigned char val = read_cpu_bus(cpu->bus, operand);
         unsigned char result = val + 1;
         cpu->status.z = result == 0;
         cpu->status.n = result & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, val);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, result);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
     } break;
     case OP_DEC: {
-        cpu->cycles++;
         unsigned char val = read_cpu_bus(cpu->bus, operand);
         unsigned char result = val - 1;
         cpu->status.z = result == 0;
         cpu->status.n = result & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, val);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, result);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
     } break;
     case OP_LAX:
-        cpu->cycles++;
         cpu->a = read_cpu_bus(cpu->bus, operand);
         cpu->x = cpu->a;
         cpu->status.z = cpu->x == 0;
         cpu->status.n = cpu->x & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_SAX:
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, cpu->a & cpu->x);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_DCP: {
-        cpu->cycles++;
         unsigned char val = read_cpu_bus(cpu->bus, operand);
         unsigned char result = val - 1;
         cpu->status.c = cpu->a >= result;
         cpu->status.z = cpu->a == result;
         cpu->status.n = (cpu->a - result) & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, val);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, result);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
     } break;
     case OP_ISC: {
-        cpu->cycles++;
         unsigned char val = read_cpu_bus(cpu->bus, operand);
         unsigned char result = val + 1;
         cpu->status.z = result == 0;
         cpu->status.n = result & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, val);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, result);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
         unsigned char m = ~result;
         unsigned char n = cpu->a;
@@ -955,86 +846,74 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         cpu->status.o = ((m ^ cpu->a) & (n ^ cpu->a) & 0x80) > 0;
     } break;
     case OP_SLO: {
-        cpu->cycles++;
         unsigned char val = read_cpu_bus(cpu->bus, operand);
         cpu->status.c = val & 0x80;
         unsigned char result = val << 1;
         cpu->status.z = result == 0;
         cpu->status.n = result & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, val);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, result);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
         cpu->a |= result;
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
     } break;
     case OP_RLA: {
-        cpu->cycles++;
         unsigned char val = read_cpu_bus(cpu->bus, operand);
         bool c = cpu->status.c;
         cpu->status.c = val & 0x80;
         unsigned char result = (val << 1) | c;
         cpu->status.z = result == 0;
         cpu->status.n = result & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, val);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, result);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
         cpu->a &= result;
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
     } break;
     case OP_SRE: {
-        cpu->cycles++;
         unsigned char val = read_cpu_bus(cpu->bus, operand);
         cpu->status.c = val & 0x1;
         unsigned char result = val >> 1;
         cpu->status.z = result == 0;
         cpu->status.n = false;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, val);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, result);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
         cpu->a ^= result;
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
     } break;
     case OP_RRA: {
-        cpu->cycles++;
         unsigned char val = read_cpu_bus(cpu->bus, operand);
         bool c = cpu->status.c;
         cpu->status.c = val & 0x1;
         unsigned char result = (val >> 1) | (c << 7);
         cpu->status.z = result == 0;
         cpu->status.n = result & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, val);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         write_cpu_bus(cpu->bus, operand, result);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
         unsigned char m = result;
         unsigned char n = cpu->a;
@@ -1046,52 +925,46 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
         cpu->status.o = ((m ^ cpu->a) & (n ^ cpu->a) & 0x80) > 0;
     } break;
     case OP_ANC: {
-        cpu->cycles++;
         cpu->a &= read_cpu_bus(cpu->bus, operand);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
         cpu->status.c = cpu->status.n;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
     } break;
     case OP_ALR: {
-        cpu->cycles++;
         cpu->a &= read_cpu_bus(cpu->bus, operand);
         cpu->status.c = cpu->a & 0x1;
         cpu->a >>= 1;
         cpu->status.z = cpu->a == 0;
         cpu->status.n = false;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
     } break;
     case OP_ARR: {
-        cpu->cycles++;
         cpu->a &= read_cpu_bus(cpu->bus, operand);
         cpu->a = (cpu->a >> 1) | (cpu->status.c << 7);
         cpu->status.z = cpu->a == 0;
         cpu->status.n = cpu->a & 0x80;
         cpu->status.c = cpu->a & 0x40;
         cpu->status.o = ((cpu->a >> 5) ^ (cpu->a >> 6)) & 0x1;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
     } break;
     case OP_SBX: {
-        cpu->cycles++;
         unsigned char val = read_cpu_bus(cpu->bus, operand);
         unsigned char result = cpu->a & cpu->x;
         cpu->x = result - val;
         cpu->status.c = result >= val;
         cpu->status.z = result == val;
         cpu->status.n = cpu->x & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
     } break;
     case OP_LXA: {
-        cpu->cycles++;
         cpu->a = read_cpu_bus(cpu->bus, operand);
         cpu->x = cpu->a;
         cpu->status.z = cpu->x == 0;
         cpu->status.n = cpu->x & 0x80;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
     } break;
     case OP_SHY: {
-        cpu->cycles++;
         address_t target = operand;
         unsigned char val = cpu->y & ((target >> 8) + 1);
 
@@ -1100,10 +973,9 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
             target = (target & 0xff) | (val << 8);
         }
         write_cpu_bus(cpu->bus, target, val);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
     } break;
     case OP_SHX: {
-        cpu->cycles++;
         address_t target = operand;
         unsigned char val = cpu->x & ((target >> 8) + 1);
 
@@ -1112,53 +984,47 @@ bool execute_op_cpu(cpu_t *cpu, unsigned char opcode, address_t operand) {
             target = (target & 0xff) | (val << 8);
         }
         write_cpu_bus(cpu->bus, target, val);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
     } break;
     case OP_CLI:
-        cpu->cycles++;
         cpu->status.i = false;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
         break;
     case OP_BRK: {
-        bool software_interrupt = !cpu->interrupt->irq &&
-                                  !cpu->interrupt->nmi &&
-                                  !cpu->interrupt->reset;
-        cpu->cycles++;
+        bool software_interrupt = !get_irq_interrupt(cpu->interrupt) &&
+                                  !get_nmi_interrupt(cpu->interrupt) &&
+                                  !get_reset_interrupt(cpu->interrupt);
+
         read_cpu_bus(cpu->bus, cpu->pc);
         cpu->pc += software_interrupt;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         push_stack_cpu(cpu, cpu->pc >> 8);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         push_stack_cpu(cpu, cpu->pc & 0xff);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         cpu->status.b = software_interrupt;
         push_stack_cpu(cpu, get_status_cpu(cpu));
         cpu->status.b = false;
-        cpu->status.i = !cpu->interrupt->nmi;
-        update_peripherals_cpu(cpu);
+        cpu->status.i = !get_nmi_interrupt(cpu->interrupt);
+        tick_cpu(cpu);
 
         // Determine target interrupt vector
         address_t interrupt_vector = CPU_VEC_IRQ_BRK;
-        if (cpu->interrupt->nmi) {
+        if (get_nmi_interrupt(cpu->interrupt)) {
             interrupt_vector = CPU_VEC_NMI;
-        } else if (cpu->interrupt->reset) {
+        } else if (get_reset_interrupt(cpu->interrupt)) {
             interrupt_vector = CPU_VEC_RESET;
         }
 
-        cpu->cycles++;
         unsigned char pcl = read_cpu_bus(cpu->bus, interrupt_vector);
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
-        cpu->cycles++;
         unsigned char pch = read_cpu_bus(cpu->bus, interrupt_vector + 1);
         cpu->pc = (pch << 8) | pcl;
-        update_peripherals_cpu(cpu);
+        tick_cpu(cpu);
 
         // Reset interrupt signals
         reset_interrupt(cpu->interrupt);

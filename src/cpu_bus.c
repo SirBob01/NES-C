@@ -1,4 +1,6 @@
 #include "./cpu_bus.h"
+#include "interrupt.h"
+#include "ppu.h"
 
 void create_cpu_bus(cpu_bus_t *bus,
                     rom_t *rom,
@@ -163,7 +165,7 @@ void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value) {
         write_cpu_mapper(bus->mapper, address, value);
     } else {
         unsigned char *ptr = get_memory_cpu_bus(bus, address);
-        bool nmi_enabled = bus->ppu->ctrl & PPU_CTRL_NMI;
+        unsigned char prev_value = *ptr;
         if (ptr != &bus->ppu->status) {
             *get_memory_cpu_bus(bus, address) = value;
         }
@@ -181,10 +183,10 @@ void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value) {
             bus->ppu->io_databus = value;
 
             // Trigger NMI if VBlank is set
-            if ((bus->ppu->status & PPU_STATUS_VBLANK) &&
-                (bus->ppu->ctrl & PPU_CTRL_NMI) && !nmi_enabled) {
-                bus->ppu->interrupt->nmi = true;
-            }
+            set_nmi_interrupt(bus->ppu->interrupt,
+                              (bus->ppu->status & PPU_STATUS_VBLANK) &&
+                                  (bus->ppu->ctrl & PPU_CTRL_NMI) &&
+                                  !(prev_value & PPU_CTRL_NMI));
         }
 
         // Write to OAMDATA
