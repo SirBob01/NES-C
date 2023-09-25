@@ -24,6 +24,7 @@ void create_ppu(ppu_t *ppu, ppu_bus_t *bus, interrupt_t *interrupt) {
     ppu->bus = bus;
     ppu->interrupt = interrupt;
     ppu->suppress_vbl = false;
+    ppu->suppress_nmi = false;
 }
 
 void destroy_ppu(ppu_t *ppu) {}
@@ -84,15 +85,21 @@ void update_ppu(ppu_t *ppu) {
             ppu->status |= PPU_STATUS_VBLANK;
 
             // Trigger NMI if enabled.
-            if (ppu->ctrl & PPU_CTRL_NMI) {
+            if ((ppu->ctrl & PPU_CTRL_NMI) && !ppu->suppress_nmi) {
                 ppu->interrupt->nmi = true;
             }
         }
         break;
     }
 
-    // Reset VBlank suppression
+    // Handle suppressing NMI
+    if (ppu->suppress_nmi) {
+        ppu->interrupt->nmi = false;
+    }
+
+    // Reset suppression flags
     ppu->suppress_vbl = false;
+    ppu->suppress_nmi = false;
 
     // Update counters
     ppu->cycles++;

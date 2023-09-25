@@ -117,10 +117,14 @@ unsigned char read_cpu_bus(cpu_bus_t *bus, address_t address) {
             bus->ppu->status &= ~PPU_STATUS_VBLANK;
             bus->ppu->internal.w = false;
 
-            // Suppress setting VBlank if read too close
-            if (bus->ppu->scanline == PPU_SCANLINE_VBLANK &&
-                bus->ppu->dot <= 1) {
-                bus->ppu->suppress_vbl = true;
+            // Suppress setting VBlank and NMI if reading too close
+            if (bus->ppu->scanline == PPU_SCANLINE_VBLANK) {
+                if (bus->ppu->dot <= 1) {
+                    bus->ppu->suppress_vbl = true;
+                }
+                if (bus->ppu->dot <= 3) {
+                    bus->ppu->suppress_nmi = true;
+                }
             }
 
             // Set low 5 bits of status register to io latch
