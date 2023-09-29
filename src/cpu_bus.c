@@ -180,6 +180,12 @@ void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value) {
             bus->ppu->internal.t = (bus->ppu->internal.t & 0x73FF) | gh;
             bus->ppu->io_databus = value;
 
+            // Disable NMI if cleared near VBlank disable
+            if ((prev_value & PPU_CTRL_NMI) &&
+                !(bus->ppu->ctrl & PPU_CTRL_NMI) && bus->ppu->dot <= 3) {
+                set_nmi_interrupt(bus->ppu->interrupt, false);
+            }
+
             // Trigger NMI if VBlank is set
             if ((bus->ppu->status & PPU_STATUS_VBLANK) &&
                 (bus->ppu->ctrl & PPU_CTRL_NMI) &&
