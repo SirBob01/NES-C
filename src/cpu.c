@@ -139,11 +139,11 @@ unsigned char fetch_op_cpu(cpu_t *cpu) {
     // Assert the NMI interrupt after the first PPU tick
     // This is one of the 4 CPU-PPU clock alignments
     update_ppu(cpu->bus->ppu);
-    if (get_nmi_interrupt(cpu->interrupt)) {
-        cpu->nmi_assert = true;
-    }
     if (cpu->cycles % 2 == 0) {
         update_apu(cpu->bus->apu);
+    }
+    if (get_nmi_interrupt(cpu->interrupt)) {
+        cpu->nmi_assert = true;
     }
     update_ppu(cpu->bus->ppu);
     update_ppu(cpu->bus->ppu);
