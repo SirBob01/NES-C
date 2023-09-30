@@ -104,13 +104,20 @@ void update_ppu(ppu_t *ppu) {
     // Update counters
     ppu->cycles++;
     ppu->dot++;
-    bool skip_cycle = ppu->odd_frame &&
-                      ppu->scanline == PPU_SCANLINE_PRERENDER && is_rendering;
-    if ((ppu->dot == PPU_LINEDOTS - 1 && skip_cycle) ||
-        (ppu->dot == PPU_LINEDOTS)) {
+
+    // Handle skip cycle
+    if (is_rendering && ppu->odd_frame &&
+        ppu->scanline == PPU_SCANLINE_PRERENDER && ppu->dot == 339) {
+        ppu->dot++;
+    }
+
+    // New scanline
+    if (ppu->dot == PPU_LINEDOTS) {
         ppu->dot = 0;
         ppu->scanline++;
     }
+
+    // New frame
     if (ppu->scanline == PPU_SCANLINES) {
         ppu->scanline = 0;
         ppu->odd_frame = !ppu->odd_frame;

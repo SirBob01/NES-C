@@ -21,8 +21,6 @@ static char *test_blargg_ppu_vbl_nmi() {
         "../roms/ppu_vbl_nmi/07-nmi_on_timing.nes",
         "../roms/ppu_vbl_nmi/08-nmi_off_timing.nes",
         "../roms/ppu_vbl_nmi/09-even_odd_frames.nes",
-
-        // TODO: Fix even-odd frame timing
         "../roms/ppu_vbl_nmi/10-even_odd_timing.nes",
     };
 
@@ -33,7 +31,7 @@ static char *test_blargg_ppu_vbl_nmi() {
     unsigned char status = 0;
     char result[2048] = {0};
 
-    for (unsigned i = 0; i < 12; i++) {
+    for (unsigned i = 0; i < 13; i++) {
         emulator_t emu;
         create_emulator(&emu, test_roms[i]);
 
