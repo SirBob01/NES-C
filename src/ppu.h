@@ -73,19 +73,30 @@ typedef struct {
     bool w;
 
     /**
-     * @brief Pattern table shift registers. The low 8 bits are the current
-     * tile. Every 8 cycles, new data is loaded into the upper 8 bits of the
+     * @brief Nametable latch.
+     *
+     */
+    unsigned char nt_latch;
+
+    /**
+     * @brief Palette attribute latch.
+     *
+     */
+    unsigned char pa_latch;
+
+    /**
+     * @brief Pattern table latches.
+     *
+     */
+    unsigned char pt_latches[2];
+
+    /**
+     * @brief Pattern table shift registers. The high 8 bits are the current
+     * tile. Every 8 cycles, new data is loaded into the low 8 bits of the
      * register.
      *
      */
     unsigned short pt_shift[2];
-
-    /**
-     * @brief Palette attribute shift registers. The low 2 bits are the palette
-     * for the current tile.
-     *
-     */
-    unsigned char pa_shift[2];
 } ppu_internal_t;
 
 /**

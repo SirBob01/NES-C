@@ -42,8 +42,6 @@ int main(int argc, char **argv) {
     while (true) {
         bool emu_state = true;
         while (emu_state) {
-            // read_state_cpu(&emu.cpu, strbuf, sizeof(strbuf));
-            // puts(strbuf);
             unsigned prev_frame = emu.frames;
             emu_state = update_emulator(&emu);
             unsigned curr_frame = emu.frames;
