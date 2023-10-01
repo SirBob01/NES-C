@@ -244,6 +244,9 @@ void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value) {
             bool inc = bus->ppu->ctrl & PPU_CTRL_VRAM_INC;
             bus->ppu->internal.v += inc ? 32 : 1;
             bus->ppu->io_databus = value;
+
+            // TODO:
+            // https://www.nesdev.org/wiki/PPU_scrolling#$2007_reads_and_writes
         }
 
         // Write to OAMDMA (TODO: fix cycle timing, make this a CPU routine?)
