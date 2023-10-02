@@ -65,82 +65,6 @@ typedef enum {
     PPU_EVENT_SKIP_CYCLE,
 } ppu_event_t;
 
-/**
- * @brief PPU internal registers.
- *
- */
-typedef struct {
-    /**
-     * @brief Current VRAM address.
-     *
-     */
-    address_t v;
-
-    /**
-     * @brief Temporary VRAM address.
-     *
-     */
-    address_t t;
-
-    /**
-     * @brief Fine X scroll.
-     *
-     */
-    unsigned char x;
-
-    /**
-     * @brief Write toggle.
-     *
-     * If true, writes to PPUADDR will set the high-byte of
-     * the current VRAM address (v).
-     */
-    bool w;
-
-    /**
-     * @brief Nametable latch.
-     *
-     */
-    unsigned char nt_latch;
-
-    /**
-     * @brief Palette attribute latch.
-     *
-     */
-    unsigned char pa_latch;
-
-    /**
-     * @brief Pattern table latches.
-     *
-     */
-    unsigned char pt_latches[2];
-
-    /**
-     * @brief Pattern table shift registers. The high 8 bits are the current
-     * tile. Every 8 cycles, new data is loaded into the low 8 bits of the
-     * register.
-     *
-     */
-    unsigned short pt_shift[2];
-} ppu_internal_t;
-
-/**
- * @brief PPU sprite fields.
- *
- */
-typedef struct {
-    /**
-     * @brief Primary object attribute memory.
-     *
-     */
-    unsigned char primary_oam[256];
-
-    /**
-     * @brief Secondary object attribute memory.
-     *
-     */
-    unsigned char secondary_oam[32];
-} ppu_sprites_t;
-
 typedef struct {
     /**
      * @brief PPUCTRL register.
@@ -197,6 +121,88 @@ typedef struct {
     unsigned char oam_dma;
 
     /**
+     * @brief Current VRAM address.
+     *
+     */
+    address_t v;
+
+    /**
+     * @brief Temporary VRAM address.
+     *
+     */
+    address_t t;
+
+    /**
+     * @brief Fine X scroll.
+     *
+     */
+    unsigned char x;
+
+    /**
+     * @brief Write toggle.
+     *
+     * If true, writes to PPUADDR will set the high-byte of
+     * the current VRAM address (v).
+     */
+    bool w;
+
+    /**
+     * @brief Nametable latch.
+     *
+     */
+    unsigned char nt_latch;
+
+    /**
+     * @brief Palette attribute latch.
+     *
+     */
+    unsigned char pa_latch;
+
+    /**
+     * @brief Pattern table latches.
+     *
+     */
+    unsigned char pt_latches[2];
+
+    /**
+     * @brief Pattern table shift registers. The high 8 bits are the current
+     * tile. Every 8 cycles, new data is loaded into the low 8 bits of the
+     * register.
+     *
+     */
+    unsigned short pt_shift[2];
+
+    /**
+     * @brief Primary object attribute memory.
+     *
+     */
+    unsigned char primary_oam[256];
+
+    /**
+     * @brief Secondary object attribute memory.
+     *
+     */
+    unsigned char secondary_oam[32];
+
+    /**
+     * @brief Data bus for communicating with the CPU.
+     *
+     */
+    unsigned char io_databus;
+
+    /**
+     * @brief Toggle to suppress setting VBlank.
+     *
+     */
+    bool suppress_vbl;
+
+    /**
+     * @brief Toggle to suppress enabling NMI.
+     *
+     */
+    bool suppress_nmi;
+
+    /**
      * @brief Number of cycles.
      *
      */
@@ -221,18 +227,6 @@ typedef struct {
     bool odd_frame;
 
     /**
-     * @brief Internal registers.
-     *
-     */
-    ppu_internal_t internal;
-
-    /**
-     * @brief Sprite memory.
-     *
-     */
-    ppu_sprites_t sprites;
-
-    /**
      * @brief Output color buffer.
      *
      */
@@ -249,24 +243,6 @@ typedef struct {
      *
      */
     interrupt_t *interrupt;
-
-    /**
-     * @brief Data bus for communicating with the CPU.
-     *
-     */
-    unsigned char io_databus;
-
-    /**
-     * @brief Toggle to suppress setting VBlank.
-     *
-     */
-    bool suppress_vbl;
-
-    /**
-     * @brief Toggle to suppress enabling NMI.
-     *
-     */
-    bool suppress_nmi;
 
     /**
      * @brief Events in the render scanlines.

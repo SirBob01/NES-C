@@ -11,9 +11,9 @@ void create_ppu(ppu_t *ppu, ppu_bus_t *bus, interrupt_t *interrupt) {
     ppu->data = 0;
     ppu->oam_dma = 0;
 
-    ppu->internal.v = 0;
-    ppu->internal.t = 0;
-    ppu->internal.w = false;
+    ppu->v = 0;
+    ppu->t = 0;
+    ppu->w = false;
 
     ppu->cycles = 21; // Initial cycle count
     ppu->scanline = 0;
@@ -119,95 +119,94 @@ bool is_rendering_ppu(ppu_t *ppu) {
 void shift_registers_ppu(ppu_t *ppu) {
     // Write to pattern table shift registers
     for (unsigned i = 0; i < 2; i++) {
-        unsigned short pt_old = ppu->internal.pt_shift[i] & 0xFF00;
-        unsigned short pt_new = ppu->internal.pt_latches[i];
-        ppu->internal.pt_shift[i] = pt_old | pt_new;
+        unsigned short pt_old = ppu->pt_shift[i] & 0xFF00;
+        unsigned short pt_new = ppu->pt_latches[i];
+        ppu->pt_shift[i] = pt_old | pt_new;
     }
 }
 
 void fetch_name_ppu(ppu_t *ppu) {
     address_t nt_base = 0x2000 + 0x400 * (ppu->ctrl & PPU_CTRL_NAMETABLE_BASE);
-    address_t nt_offset = ppu->internal.v & 0x0FFF;
+    address_t nt_offset = ppu->v & 0x0FFF;
     address_t nt_address = nt_base + nt_offset;
-    ppu->internal.nt_latch = read_ppu_bus(ppu->bus, nt_address);
+    ppu->nt_latch = read_ppu_bus(ppu->bus, nt_address);
 }
 
 void fetch_attribute_ppu(ppu_t *ppu) {
     address_t nt_base = 0x2000 + 0x400 * (ppu->ctrl & PPU_CTRL_NAMETABLE_BASE);
     address_t at_base = nt_base + 0x3C0;
-    address_t at_address = at_base | (ppu->internal.v & 0x0C00) |
-                           ((ppu->internal.v >> 4) & 0x38) |
-                           ((ppu->internal.v >> 2) & 0x07);
-    ppu->internal.pa_latch = read_ppu_bus(ppu->bus, at_address);
+    address_t at_address = at_base | (ppu->v & 0x0C00) |
+                           ((ppu->v >> 4) & 0x38) | ((ppu->v >> 2) & 0x07);
+    ppu->pa_latch = read_ppu_bus(ppu->bus, at_address);
 }
 
 void fetch_pattern_lo_ppu(ppu_t *ppu) {
     bool bg_ctrl = ppu->ctrl & PPU_CTRL_PATTERN_TABLE_BG;
     address_t pt_base = bg_ctrl * 0x1000;
-    address_t fine_y = (ppu->internal.v >> 12) & 0x7;
-    address_t pt_offset = ppu->internal.nt_latch * 16 + fine_y;
+    address_t fine_y = (ppu->v >> 12) & 0x7;
+    address_t pt_offset = ppu->nt_latch * 16 + fine_y;
     address_t pt_address = pt_base + pt_offset;
-    ppu->internal.pt_latches[0] = read_ppu_bus(ppu->bus, pt_address);
+    ppu->pt_latches[0] = read_ppu_bus(ppu->bus, pt_address);
 }
 
 void fetch_pattern_hi_ppu(ppu_t *ppu) {
     bool bg_ctrl = ppu->ctrl & PPU_CTRL_PATTERN_TABLE_BG;
     address_t pt_base = bg_ctrl * 0x1000;
-    address_t fine_y = (ppu->internal.v >> 12) & 0x7;
-    address_t pt_offset = ppu->internal.nt_latch * 16 + fine_y;
+    address_t fine_y = (ppu->v >> 12) & 0x7;
+    address_t pt_offset = ppu->nt_latch * 16 + fine_y;
     address_t pt_address = pt_base + pt_offset + 8;
-    ppu->internal.pt_latches[1] = read_ppu_bus(ppu->bus, pt_address);
+    ppu->pt_latches[1] = read_ppu_bus(ppu->bus, pt_address);
 }
 
 void increment_x_ppu(ppu_t *ppu) {
-    if ((ppu->internal.v & 0x001F) == 31) {
-        ppu->internal.v &= ~0x001F;
-        ppu->internal.v ^= 0x0400;
+    if ((ppu->v & 0x001F) == 31) {
+        ppu->v &= ~0x001F;
+        ppu->v ^= 0x0400;
     } else {
-        ppu->internal.v += 1;
+        ppu->v += 1;
     }
 }
 
 void increment_y_ppu(ppu_t *ppu) {
-    if ((ppu->internal.v & 0x7000) != 0x7000) {
-        ppu->internal.v += 0x1000;
+    if ((ppu->v & 0x7000) != 0x7000) {
+        ppu->v += 0x1000;
     } else {
-        ppu->internal.v &= ~0x7000;
-        int y = (ppu->internal.v & 0x03E0) >> 5;
+        ppu->v &= ~0x7000;
+        int y = (ppu->v & 0x03E0) >> 5;
         if (y == 29) {
             y = 0;
-            ppu->internal.v ^= 0x0800;
+            ppu->v ^= 0x0800;
         } else if (y == 31) {
             y = 0;
         } else {
             y += 1;
-            ppu->internal.v = (ppu->internal.v & ~0x03E0) | (y << 5);
+            ppu->v = (ppu->v & ~0x03E0) | (y << 5);
         }
     }
 }
 
 void copy_x_ppu(ppu_t *ppu) {
     unsigned short mask = 0x041F;
-    ppu->internal.v &= ~mask;
-    ppu->internal.v |= (ppu->internal.t & mask);
+    ppu->v &= ~mask;
+    ppu->v |= (ppu->t & mask);
 }
 
 void copy_y_ppu(ppu_t *ppu) {
     unsigned short mask = 0x7BE0;
-    ppu->internal.v &= ~mask;
-    ppu->internal.v |= (ppu->internal.t & mask);
+    ppu->v &= ~mask;
+    ppu->v |= (ppu->t & mask);
 }
 
 void draw_dot_ppu(ppu_t *ppu) {
     // Read palette number from attribute table
     // TODO: This is wrong, need to compute the palette number based on the
     // current tile.
-    unsigned char palette = ppu->internal.pa_latch & 0x3;
+    unsigned char palette = ppu->pa_latch & 0x3;
 
     // Read color number from pattern table
-    unsigned short x_mask = 0x8000 >> ppu->internal.x;
-    bool pt0 = ppu->internal.pt_shift[0] & x_mask;
-    bool pt1 = ppu->internal.pt_shift[1] & x_mask;
+    unsigned short x_mask = 0x8000 >> ppu->x;
+    bool pt0 = ppu->pt_shift[0] & x_mask;
+    bool pt1 = ppu->pt_shift[1] & x_mask;
     unsigned char color = pt0 | (pt1 << 1);
 
     // Fetch the actual color value from the palette
@@ -219,8 +218,8 @@ void draw_dot_ppu(ppu_t *ppu) {
     ppu->color_buffer[buffer_index] = COLOR_PALETTE[color_index];
 
     // Shift registers
-    ppu->internal.pt_shift[0] <<= 1;
-    ppu->internal.pt_shift[1] <<= 1;
+    ppu->pt_shift[0] <<= 1;
+    ppu->pt_shift[1] <<= 1;
 }
 
 void execute_events_ppu(ppu_t *ppu, ppu_event_t *events) {
