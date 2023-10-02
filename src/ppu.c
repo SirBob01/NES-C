@@ -25,9 +25,73 @@ void create_ppu(ppu_t *ppu, ppu_bus_t *bus, interrupt_t *interrupt) {
     ppu->interrupt = interrupt;
     ppu->suppress_vbl = false;
     ppu->suppress_nmi = false;
+
+    create_event_tables_ppu(ppu);
 }
 
 void destroy_ppu(ppu_t *ppu) {}
+
+void create_event_tables_ppu(ppu_t *ppu) {
+    unsigned i;
+    for (unsigned dot = 0; dot < PPU_LINEDOTS; dot++) {
+        // Initialize all events to idle
+        for (i = 0; i < PPU_EVENTS_PER_DOT; i++) {
+            ppu->visible_events[dot][i] = PPU_EVENT_IDLE;
+            ppu->prerender_events[dot][i] = PPU_EVENT_IDLE;
+            ppu->vblank_events[dot][i] = PPU_EVENT_IDLE;
+        }
+
+        // Prerender scanline events
+        i = 0;
+        if (dot == 1) {
+            ppu->prerender_events[dot][i++] = PPU_EVENT_CLEAR_FLAGS;
+        }
+        if (dot >= 280 && dot <= 304) {
+            ppu->prerender_events[dot][i++] = PPU_EVENT_COPY_Y;
+        }
+        if (dot == 338) {
+            ppu->prerender_events[dot][i++] = PPU_EVENT_SKIP_CYCLE;
+        }
+
+        // VBlank scanline events
+        i = 0;
+        if (dot == 1) {
+            ppu->vblank_events[dot][i++] = PPU_EVENT_SET_VBLANK;
+        }
+
+        // Render scanline events
+        i = 0;
+        switch (dot % 8) {
+        case 0:
+            ppu->visible_events[dot][i++] = PPU_EVENT_SHIFT_REGISTERS;
+            break;
+        case 1:
+            ppu->visible_events[dot][i++] = PPU_EVENT_FETCH_NAME;
+            break;
+        case 3:
+            ppu->visible_events[dot][i++] = PPU_EVENT_FETCH_ATTRIBUTE;
+            break;
+        case 5:
+            ppu->visible_events[dot][i++] = PPU_EVENT_FETCH_PATTERN_LO;
+            break;
+        case 7:
+            ppu->visible_events[dot][i++] = PPU_EVENT_FETCH_PATTERN_HI;
+            break;
+        }
+        if ((dot <= 256 || dot >= 328) && dot % 8 == 0) {
+            ppu->visible_events[dot][i++] = PPU_EVENT_INCREMENT_X;
+        }
+        if (dot == 256) {
+            ppu->visible_events[dot][i++] = PPU_EVENT_INCREMENT_Y;
+        }
+        if (dot == 257) {
+            ppu->visible_events[dot][i++] = PPU_EVENT_COPY_X;
+        }
+        if (dot >= 257 && dot <= 320) {
+            ppu->visible_events[dot][i++] = PPU_EVENT_CLEAR_OAMADDR;
+        }
+    }
+}
 
 void read_state_ppu(ppu_t *ppu, char *buffer, unsigned buffer_size) {
     snprintf(buffer,
@@ -52,14 +116,23 @@ bool is_rendering_ppu(ppu_t *ppu) {
                      ppu->scanline == PPU_SCANLINE_PRERENDER);
 }
 
-void fetch_nametable(ppu_t *ppu) {
+void shift_registers_ppu(ppu_t *ppu) {
+    // Write to pattern table shift registers
+    for (unsigned i = 0; i < 2; i++) {
+        unsigned short pt_old = ppu->internal.pt_shift[i] & 0xFF00;
+        unsigned short pt_new = ppu->internal.pt_latches[i];
+        ppu->internal.pt_shift[i] = pt_old | pt_new;
+    }
+}
+
+void fetch_name_ppu(ppu_t *ppu) {
     address_t nt_base = 0x2000 + 0x400 * (ppu->ctrl & PPU_CTRL_NAMETABLE_BASE);
     address_t nt_offset = ppu->internal.v & 0x0FFF;
     address_t nt_address = nt_base + nt_offset;
     ppu->internal.nt_latch = read_ppu_bus(ppu->bus, nt_address);
 }
 
-void fetch_attribute_table(ppu_t *ppu) {
+void fetch_attribute_ppu(ppu_t *ppu) {
     address_t nt_base = 0x2000 + 0x400 * (ppu->ctrl & PPU_CTRL_NAMETABLE_BASE);
     address_t at_base = nt_base + 0x3C0;
     address_t at_address = at_base | (ppu->internal.v & 0x0C00) |
@@ -68,27 +141,25 @@ void fetch_attribute_table(ppu_t *ppu) {
     ppu->internal.pa_latch = read_ppu_bus(ppu->bus, at_address);
 }
 
-void fetch_pattern_table_low(ppu_t *ppu) {
+void fetch_pattern_lo_ppu(ppu_t *ppu) {
     bool bg_ctrl = ppu->ctrl & PPU_CTRL_PATTERN_TABLE_BG;
     address_t pt_base = bg_ctrl * 0x1000;
-    address_t tile_row = (ppu->internal.v & 0x7000) >> 12;
-    address_t pt_offset = ppu->internal.nt_latch * 16 + tile_row;
+    address_t fine_y = (ppu->internal.v >> 12) & 0x7;
+    address_t pt_offset = ppu->internal.nt_latch * 16 + fine_y;
     address_t pt_address = pt_base + pt_offset;
-
     ppu->internal.pt_latches[0] = read_ppu_bus(ppu->bus, pt_address);
 }
 
-void fetch_pattern_table_high(ppu_t *ppu) {
+void fetch_pattern_hi_ppu(ppu_t *ppu) {
     bool bg_ctrl = ppu->ctrl & PPU_CTRL_PATTERN_TABLE_BG;
     address_t pt_base = bg_ctrl * 0x1000;
-    address_t tile_row = (ppu->internal.v & 0x7000) >> 12;
-    address_t pt_offset = ppu->internal.nt_latch * 16 + tile_row;
-    address_t pt_address = pt_base + pt_offset;
-
-    ppu->internal.pt_latches[1] = read_ppu_bus(ppu->bus, pt_address + 8);
+    address_t fine_y = (ppu->internal.v >> 12) & 0x7;
+    address_t pt_offset = ppu->internal.nt_latch * 16 + fine_y;
+    address_t pt_address = pt_base + pt_offset + 8;
+    ppu->internal.pt_latches[1] = read_ppu_bus(ppu->bus, pt_address);
 }
 
-void increment_x(ppu_t *ppu) {
+void increment_x_ppu(ppu_t *ppu) {
     if ((ppu->internal.v & 0x001F) == 31) {
         ppu->internal.v &= ~0x001F;
         ppu->internal.v ^= 0x0400;
@@ -97,7 +168,7 @@ void increment_x(ppu_t *ppu) {
     }
 }
 
-void increment_y(ppu_t *ppu) {
+void increment_y_ppu(ppu_t *ppu) {
     if ((ppu->internal.v & 0x7000) != 0x7000) {
         ppu->internal.v += 0x1000;
     } else {
@@ -115,36 +186,22 @@ void increment_y(ppu_t *ppu) {
     }
 }
 
-void shift_registers(ppu_t *ppu) {
-    // Write to pattern table shift registers
-    for (unsigned i = 0; i < 2; i++) {
-        unsigned short pt_old = ppu->internal.pt_shift[i] & 0xFF00;
-        unsigned short pt_new = ppu->internal.pt_latches[i];
-        ppu->internal.pt_shift[i] = pt_old | pt_new;
-    }
+void copy_x_ppu(ppu_t *ppu) {
+    unsigned short mask = 0x041F;
+    ppu->internal.v &= ~mask;
+    ppu->internal.v |= (ppu->internal.t & mask);
 }
 
-void render_ppu(ppu_t *ppu) {
-    // Perform memory accesses every other dot
-    switch (ppu->dot % 8) {
-    case 0:
-        shift_registers(ppu);
-        break;
-    case 1:
-        fetch_nametable(ppu);
-        break;
-    case 3:
-        fetch_attribute_table(ppu);
-        break;
-    case 5:
-        fetch_pattern_table_low(ppu);
-        break;
-    case 7:
-        fetch_pattern_table_high(ppu);
-        break;
-    }
+void copy_y_ppu(ppu_t *ppu) {
+    unsigned short mask = 0x7BE0;
+    ppu->internal.v &= ~mask;
+    ppu->internal.v |= (ppu->internal.t & mask);
+}
 
+void draw_dot_ppu(ppu_t *ppu) {
     // Read palette number from attribute table
+    // TODO: This is wrong, need to compute the palette number based on the
+    // current tile.
     unsigned char palette = ppu->internal.pa_latch & 0x3;
 
     // Read color number from pattern table
@@ -166,62 +223,113 @@ void render_ppu(ppu_t *ppu) {
     ppu->internal.pt_shift[1] <<= 1;
 }
 
-void update_ppu(ppu_t *ppu) {
-    bool is_rendering = is_rendering_ppu(ppu);
-    if (is_rendering) {
-        // Render the current pixel to the color buffer
-        render_ppu(ppu);
-
-        // Clear OAMADDR
-        if (ppu->dot >= 257 && ppu->dot <= 320) {
-            ppu->oam_addr = 0;
-        }
-
-        // Increment y
-        if (ppu->dot == 256) {
-            increment_y(ppu);
-        }
-
-        // Copy horizontal bits from t to v
-        if (ppu->dot == 257) {
-            unsigned short mask = 0x041F;
-            ppu->internal.v &= ~mask;
-            ppu->internal.v |= (ppu->internal.t & mask);
-        }
-
-        // Copy vertical bits from t to v
-        if (ppu->dot >= 280 && ppu->dot <= 304 &&
-            ppu->scanline == PPU_SCANLINE_PRERENDER) {
-            unsigned short mask = 0x7BE0;
-            ppu->internal.v &= ~mask;
-            ppu->internal.v |= (ppu->internal.t & mask);
-        }
-
-        // Increment x
-        if (ppu->dot >= 328 || ppu->dot <= 256) {
-            if (ppu->dot % 8 == 0) increment_x(ppu);
-        }
-    }
-
-    // Update status flags
-    switch (ppu->scanline) {
-    case PPU_SCANLINE_PRERENDER:
-        if (ppu->dot == 1) {
+void execute_events_ppu(ppu_t *ppu, ppu_event_t *events) {
+    bool enabled = ppu->mask & (PPU_MASK_SHOW_BG | PPU_MASK_SHOW_SPRITES);
+    unsigned i = 0;
+    while (i < PPU_EVENTS_PER_DOT && events[i] != PPU_EVENT_IDLE) {
+        switch (events[i]) {
+        case PPU_EVENT_SHIFT_REGISTERS:
+            if (enabled) {
+                shift_registers_ppu(ppu);
+            }
+            break;
+        case PPU_EVENT_FETCH_NAME:
+            if (enabled) {
+                fetch_name_ppu(ppu);
+            }
+            break;
+        case PPU_EVENT_FETCH_ATTRIBUTE:
+            if (enabled) {
+                fetch_attribute_ppu(ppu);
+            }
+            break;
+        case PPU_EVENT_FETCH_PATTERN_LO:
+            if (enabled) {
+                fetch_pattern_lo_ppu(ppu);
+            }
+            break;
+        case PPU_EVENT_FETCH_PATTERN_HI:
+            if (enabled) {
+                fetch_pattern_hi_ppu(ppu);
+            }
+            break;
+        case PPU_EVENT_INCREMENT_X:
+            if (enabled) {
+                increment_x_ppu(ppu);
+            }
+            break;
+        case PPU_EVENT_INCREMENT_Y:
+            if (enabled) {
+                increment_y_ppu(ppu);
+            }
+            break;
+        case PPU_EVENT_COPY_X:
+            if (enabled) {
+                copy_x_ppu(ppu);
+            }
+            break;
+        case PPU_EVENT_COPY_Y:
+            if (enabled) {
+                copy_y_ppu(ppu);
+            }
+            break;
+        case PPU_EVENT_CLEAR_OAMADDR:
+            if (enabled) {
+                ppu->oam_addr = 0;
+            }
+            break;
+        case PPU_EVENT_CLEAR_FLAGS:
             ppu->status &= ~(PPU_STATUS_VBLANK | PPU_STATUS_S_OVERFLOW |
                              PPU_STATUS_S0_HIT);
+            break;
+        case PPU_EVENT_SKIP_CYCLE:
+            ppu->dot += ppu->odd_frame && enabled;
+            break;
+        case PPU_EVENT_SET_VBLANK:
+            if (!ppu->suppress_vbl) {
+                ppu->status |= PPU_STATUS_VBLANK;
+
+                // Trigger NMI if enabled.
+                if ((ppu->ctrl & PPU_CTRL_NMI) && !ppu->suppress_nmi) {
+                    set_nmi_interrupt(ppu->interrupt, true);
+                }
+            }
+            break;
+        case PPU_EVENT_IDLE:
+            break;
         }
+        i++;
+    }
+}
+
+void advance_frame_ppu(ppu_t *ppu) {
+    ppu->scanline = 0;
+    ppu->odd_frame = !ppu->odd_frame;
+
+    // Clear the IO latch every frame (to simulate value decay)
+    ppu->io_databus = 0;
+}
+
+void update_ppu(ppu_t *ppu) {
+    // Execute events
+    switch (ppu->scanline) {
+    case PPU_SCANLINES:
+        advance_frame_ppu(ppu);
+        break;
+    case PPU_SCANLINE_PRERENDER:
+        execute_events_ppu(ppu, ppu->prerender_events[ppu->dot]);
+        execute_events_ppu(ppu, ppu->visible_events[ppu->dot]);
         break;
     case PPU_SCANLINE_VBLANK:
-        if (ppu->dot == 1 && !ppu->suppress_vbl) {
-            ppu->status |= PPU_STATUS_VBLANK;
-
-            // Trigger NMI if enabled.
-            if ((ppu->ctrl & PPU_CTRL_NMI) && !ppu->suppress_nmi) {
-                set_nmi_interrupt(ppu->interrupt, true);
-            }
+        execute_events_ppu(ppu, ppu->vblank_events[ppu->dot]);
+        break;
+    default:
+        if (ppu->scanline < PPU_SCANLINE_IDLE) {
+            execute_events_ppu(ppu, ppu->visible_events[ppu->dot]);
         }
         break;
     }
+    draw_dot_ppu(ppu);
 
     // Handle suppressing NMI
     if (ppu->suppress_nmi) {
@@ -232,28 +340,11 @@ void update_ppu(ppu_t *ppu) {
     ppu->suppress_vbl = false;
     ppu->suppress_nmi = false;
 
-    // Update counters
+    // Update counters and advance the scanline
     ppu->cycles++;
     ppu->dot++;
-
-    // Handle skip cycle
-    if (is_rendering && ppu->odd_frame &&
-        ppu->scanline == PPU_SCANLINE_PRERENDER && ppu->dot == 339) {
-        ppu->dot++;
-    }
-
-    // New scanline
     if (ppu->dot == PPU_LINEDOTS) {
         ppu->dot = 0;
         ppu->scanline++;
-    }
-
-    // New frame
-    if (ppu->scanline == PPU_SCANLINES) {
-        ppu->scanline = 0;
-        ppu->odd_frame = !ppu->odd_frame;
-
-        // Clear the IO latch every frame (to simulate value decay)
-        ppu->io_databus = 0;
     }
 }
