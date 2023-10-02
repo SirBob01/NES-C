@@ -61,24 +61,31 @@ void create_event_tables_ppu(ppu_t *ppu) {
 
         // Render scanline events
         i = 0;
-        switch (dot % 8) {
-        case 0:
-            ppu->visible_events[dot][i++] = PPU_EVENT_SHIFT_REGISTERS;
-            break;
-        case 1:
-            ppu->visible_events[dot][i++] = PPU_EVENT_FETCH_NAME;
-            break;
-        case 3:
-            ppu->visible_events[dot][i++] = PPU_EVENT_FETCH_ATTRIBUTE;
-            break;
-        case 5:
-            ppu->visible_events[dot][i++] = PPU_EVENT_FETCH_PATTERN_LO;
-            break;
-        case 7:
-            ppu->visible_events[dot][i++] = PPU_EVENT_FETCH_PATTERN_HI;
-            break;
+        if (dot && (dot <= 257 || dot >= 321)) {
+            switch (dot % 8) {
+            case 1:
+                if (dot >= 9) {
+                    ppu->visible_events[dot][i++] = PPU_EVENT_RELOAD_SHIFTERS;
+                }
+                break;
+            case 2:
+                ppu->visible_events[dot][i++] = PPU_EVENT_FETCH_NAME;
+                break;
+            case 4:
+                ppu->visible_events[dot][i++] = PPU_EVENT_FETCH_ATTRIBUTE;
+                break;
+            case 6:
+                ppu->visible_events[dot][i++] = PPU_EVENT_FETCH_PATTERN_LO;
+                break;
+            case 0:
+                ppu->visible_events[dot][i++] = PPU_EVENT_FETCH_PATTERN_HI;
+                break;
+            }
         }
-        if ((dot <= 256 || dot >= 328) && dot % 8 == 0) {
+        if ((dot >= 2 && dot <= 257) || (dot >= 322 && dot <= 337)) {
+            ppu->visible_events[dot][i++] = PPU_EVENT_SHIFT_REGISTERS;
+        }
+        if (dot && (dot <= 256 || dot >= 328) && dot % 8 == 0) {
             ppu->visible_events[dot][i++] = PPU_EVENT_INCREMENT_X;
         }
         if (dot == 256) {
@@ -117,12 +124,24 @@ bool is_rendering_ppu(ppu_t *ppu) {
 }
 
 void shift_registers_ppu(ppu_t *ppu) {
+    ppu->pt_shift[0] <<= 1;
+    ppu->pt_shift[1] <<= 1;
+}
+
+void reload_shifters_ppu(ppu_t *ppu) {
     // Write to pattern table shift registers
     for (unsigned i = 0; i < 2; i++) {
         unsigned short pt_old = ppu->pt_shift[i] & 0xFF00;
         unsigned short pt_new = ppu->pt_latches[i];
         ppu->pt_shift[i] = pt_old | pt_new;
     }
+
+    // Write the quadrant of the attribute table
+    // TODO: The attribute table is one tile behind the pattern table. Why???
+    bool scroll_x = ppu->v & 0x02;
+    bool scroll_y = ppu->v & 0x40;
+    unsigned char quadrant = (scroll_y << 1) | scroll_x;
+    ppu->pa_shift = (ppu->pa_latch >> (quadrant * 2)) & 0x3;
 }
 
 void fetch_name_ppu(ppu_t *ppu) {
@@ -172,7 +191,7 @@ void increment_y_ppu(ppu_t *ppu) {
         ppu->v += 0x1000;
     } else {
         ppu->v &= ~0x7000;
-        int y = (ppu->v & 0x03E0) >> 5;
+        unsigned y = (ppu->v & 0x03E0) >> 5;
         if (y == 29) {
             y = 0;
             ppu->v ^= 0x0800;
@@ -180,8 +199,8 @@ void increment_y_ppu(ppu_t *ppu) {
             y = 0;
         } else {
             y += 1;
-            ppu->v = (ppu->v & ~0x03E0) | (y << 5);
         }
+        ppu->v = (ppu->v & ~0x03E0) | (y << 5);
     }
 }
 
@@ -197,12 +216,18 @@ void copy_y_ppu(ppu_t *ppu) {
     ppu->v |= (ppu->t & mask);
 }
 
-void draw_dot_ppu(ppu_t *ppu) {
-    // Read palette number from attribute table
-    // TODO: This is wrong, need to compute the palette number based on the
-    // current tile.
-    unsigned char palette = ppu->pa_latch & 0x3;
+void set_vblank_ppu(ppu_t *ppu) {
+    if (!ppu->suppress_vbl) {
+        ppu->status |= PPU_STATUS_VBLANK;
 
+        // Trigger NMI if enabled.
+        if ((ppu->ctrl & PPU_CTRL_NMI) && !ppu->suppress_nmi) {
+            set_nmi_interrupt(ppu->interrupt, true);
+        }
+    }
+}
+
+void draw_dot_ppu(ppu_t *ppu) {
     // Read color number from pattern table
     unsigned short x_mask = 0x8000 >> ppu->x;
     bool pt0 = ppu->pt_shift[0] & x_mask;
@@ -210,16 +235,12 @@ void draw_dot_ppu(ppu_t *ppu) {
     unsigned char color = pt0 | (pt1 << 1);
 
     // Fetch the actual color value from the palette
-    address_t color_address = PPU_MAP_PALETTE | (palette << 2) | color;
+    address_t color_address = PPU_MAP_PALETTE | (ppu->pa_shift << 2) | color;
     unsigned char color_index = read_ppu_bus(ppu->bus, color_address);
 
     // Write to the color buffer
     unsigned buffer_index = ppu->scanline * PPU_LINEDOTS + ppu->dot;
     ppu->color_buffer[buffer_index] = COLOR_PALETTE[color_index];
-
-    // Shift registers
-    ppu->pt_shift[0] <<= 1;
-    ppu->pt_shift[1] <<= 1;
 }
 
 void execute_events_ppu(ppu_t *ppu, ppu_event_t *events) {
@@ -230,6 +251,11 @@ void execute_events_ppu(ppu_t *ppu, ppu_event_t *events) {
         case PPU_EVENT_SHIFT_REGISTERS:
             if (enabled) {
                 shift_registers_ppu(ppu);
+            }
+            break;
+        case PPU_EVENT_RELOAD_SHIFTERS:
+            if (enabled) {
+                reload_shifters_ppu(ppu);
             }
             break;
         case PPU_EVENT_FETCH_NAME:
@@ -285,14 +311,7 @@ void execute_events_ppu(ppu_t *ppu, ppu_event_t *events) {
             ppu->dot += ppu->odd_frame && enabled;
             break;
         case PPU_EVENT_SET_VBLANK:
-            if (!ppu->suppress_vbl) {
-                ppu->status |= PPU_STATUS_VBLANK;
-
-                // Trigger NMI if enabled.
-                if ((ppu->ctrl & PPU_CTRL_NMI) && !ppu->suppress_nmi) {
-                    set_nmi_interrupt(ppu->interrupt, true);
-                }
-            }
+            set_vblank_ppu(ppu);
             break;
         case PPU_EVENT_IDLE:
             break;
