@@ -11,6 +11,9 @@
 #define PPU_SCANLINES 262
 #define PPU_LINEDOTS  341
 
+// Maximum number of events per dot
+#define PPU_EVENTS_PER_DOT 30
+
 // PPU scanline segments
 #define PPU_SCANLINE_VISIBLE   0
 #define PPU_SCANLINE_IDLE      240
@@ -40,6 +43,27 @@
 #define PPU_STATUS_VBLANK     (1 << 7)
 #define PPU_STATUS_S0_HIT     (1 << 6)
 #define PPU_STATUS_S_OVERFLOW (1 << 5)
+
+/**
+ * @brief PPU events that occur per-dot.
+ *
+ */
+typedef enum {
+    PPU_EVENT_IDLE,
+    PPU_EVENT_FETCH_NAME,
+    PPU_EVENT_FETCH_ATTRIBUTE,
+    PPU_EVENT_FETCH_PATTERN_LO,
+    PPU_EVENT_FETCH_PATTERN_HI,
+    PPU_EVENT_SHIFT_REGISTERS,
+    PPU_EVENT_COPY_X,
+    PPU_EVENT_COPY_Y,
+    PPU_EVENT_INCREMENT_X,
+    PPU_EVENT_INCREMENT_Y,
+    PPU_EVENT_CLEAR_OAMADDR,
+    PPU_EVENT_CLEAR_FLAGS,
+    PPU_EVENT_SET_VBLANK,
+    PPU_EVENT_SKIP_CYCLE,
+} ppu_event_t;
 
 /**
  * @brief PPU internal registers.
@@ -243,6 +267,24 @@ typedef struct {
      *
      */
     bool suppress_nmi;
+
+    /**
+     * @brief Events in the render scanlines.
+     *
+     */
+    ppu_event_t visible_events[PPU_LINEDOTS][PPU_EVENTS_PER_DOT];
+
+    /**
+     * @brief Events in the pre-render scanline.
+     *
+     */
+    ppu_event_t prerender_events[PPU_LINEDOTS][PPU_EVENTS_PER_DOT];
+
+    /**
+     * @brief Events in the VBlank scanline.
+     *
+     */
+    ppu_event_t vblank_events[PPU_LINEDOTS][PPU_EVENTS_PER_DOT];
 } ppu_t;
 
 /**
@@ -262,6 +304,13 @@ void create_ppu(ppu_t *ppu, ppu_bus_t *bus, interrupt_t *interrupt);
 void destroy_ppu(ppu_t *ppu);
 
 /**
+ * @brief Initialize the per-dot event tables.
+ *
+ * @param ppu
+ */
+void create_event_tables_ppu(ppu_t *ppu);
+
+/**
  * @brief Read the current state of the CPU for debugging.
  *
  * @param ppu
@@ -278,13 +327,6 @@ void read_state_ppu(ppu_t *ppu, char *buffer, unsigned buffer_size);
  * @return false
  */
 bool is_rendering_ppu(ppu_t *ppu);
-
-/**
- * @brief Run the cycles to render pixels to the color buffer.
- *
- * @param ppu
- */
-void render_ppu(ppu_t *ppu);
 
 /**
  * @brief Update the PPU.
