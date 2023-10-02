@@ -12,7 +12,7 @@
 #define PPU_LINEDOTS  341
 
 // Maximum number of events per dot
-#define PPU_EVENTS_PER_DOT 30
+#define PPU_EVENTS_PER_DOT 15
 
 // PPU scanline segments
 #define PPU_SCANLINE_VISIBLE   0
@@ -55,6 +55,7 @@ typedef enum {
     PPU_EVENT_FETCH_PATTERN_LO,
     PPU_EVENT_FETCH_PATTERN_HI,
     PPU_EVENT_SHIFT_REGISTERS,
+    PPU_EVENT_RELOAD_SHIFTERS,
     PPU_EVENT_COPY_X,
     PPU_EVENT_COPY_Y,
     PPU_EVENT_INCREMENT_X,
@@ -171,6 +172,12 @@ typedef struct {
      *
      */
     unsigned short pt_shift[2];
+
+    /**
+     * @brief Palette attribute shift register.
+     *
+     */
+    unsigned short pa_shift;
 
     /**
      * @brief Primary object attribute memory.
