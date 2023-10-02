@@ -1,15 +1,18 @@
 # NES-C
 
-An NES Emulator built for fun (and education)!
+A cycle-accurate NES Emulator built for fun (and education)!
+
+<img src="./media/donkey_kong.png" alt="Donkey Kong" width="500"/>
 
 ## Goals
 
-- Improve general understanding of computer architecture by actually simulating in code
-- Play old ROM games i have lying around on my hard drive
+- Improve general understanding of computer architecture.
+- Play old ROM games i have on my hard drive.
 
 ## TODO
 
-* Implement PPU emulation
+* Fix PPU background rendering
+* Implement PPU sprite evaluation
 * Implement APU emulation
 
 ## License

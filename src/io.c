@@ -6,7 +6,7 @@ void create_io(io_t *io, emulator_t *emu) {
 #ifndef NDEBUG
     create_display(&io->pattern_table, 128, 256, "Pattern Tables");
 #endif
-    create_display(&io->display, 256, 240, "SirBob's NES-C");
+    create_display(&io->display, 256, 240, "NES-C");
     create_audio(&io->audio, &emu->apu.buffer);
     create_input(&io->input);
 }
