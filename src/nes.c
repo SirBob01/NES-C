@@ -51,6 +51,15 @@ int main(int argc, char **argv) {
             }
         }
 
+        // Handle input
+        if (is_keydown_input(&io.input, SDLK_o)) {
+            set_debug_io(&io, true);
+        }
+        if (is_keydown_input(&io.input, SDLK_p)) {
+            set_debug_io(&io, false);
+        }
+
+        // Refresh IO
         bool io_state = refresh_io(&io, &emu);
         if (!emu_state || !io_state) {
             break;

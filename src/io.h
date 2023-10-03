@@ -58,14 +58,21 @@ void create_io(io_t *io, emulator_t *emu);
 void destroy_io(io_t *io);
 
 /**
- * @brief Draw the pattern tables to a display. Note that display must be big
- * enough to fit both tables, totalling 256 tiles of 8x8 pixels each (128x128
- * pixels total).
+ * @brief Enable or disable debug mode for the I/O interfaces.
  *
- * @param display
- * @param rom
+ * @param io
+ * @param debug
  */
-void debug_pattern_tables_io(display_t *display, rom_t *rom);
+void set_debug_io(io_t *io, bool debug);
+
+/**
+ * @brief Check if the I/O interfaces are in debug mode.
+ *
+ * @param io
+ * @return true
+ * @return false
+ */
+bool is_debug_io(io_t *io);
 
 /**
  * @brief Refresh the I/O interfaces.

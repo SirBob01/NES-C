@@ -12,4 +12,10 @@ memory_t allocate_memory(unsigned long size) {
     return memory;
 }
 
-void free_memory(memory_t *memory) { free(memory->buffer); }
+bool is_free_memory(memory_t *memory) { return memory->buffer == NULL; }
+
+void free_memory(memory_t *memory) {
+    free(memory->buffer);
+    memory->buffer = NULL;
+    memory->size = 0;
+}
