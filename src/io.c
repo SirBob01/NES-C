@@ -2,23 +2,48 @@
 
 void create_io(io_t *io, emulator_t *emu) {
     io->emu = emu;
-
-#ifndef NDEBUG
-    create_display(&io->pattern_table, 128, 256, "Pattern Tables");
-#endif
     create_display(&io->display, 256, 240, "NES-C");
     create_audio(&io->audio, &emu->apu.buffer);
     create_input(&io->input);
 }
 
 void destroy_io(io_t *io) {
+    if (is_debug_io(io)) {
+        destroy_display(&io->pattern_table);
+    }
     destroy_display(&io->display);
     destroy_input(&io->input);
     destroy_audio(&io->audio);
 }
 
-void debug_pattern_tables_io(display_t *display, rom_t *rom) {
-    unsigned char *chr_rom = get_chr_rom(rom);
+bool is_debug_io(io_t *io) {
+    // Check if pattern tables are being rendered
+    return !is_free_memory(&io->pattern_table.bitmap);
+}
+
+void set_debug_io(io_t *io, bool debug) {
+    if (is_debug_io(io) == debug) return;
+    if (debug) {
+        create_display(&io->pattern_table, 128, 256, "Pattern Tables");
+    } else {
+        destroy_display(&io->pattern_table);
+    }
+}
+
+void debug_io(io_t *io, emulator_t *emu) {
+    // Draw tile grid
+    const color_t grid_color = {0xff, 0, 0};
+    for (unsigned x = 0; x < io->display.size.x; x++) {
+        for (unsigned y = 0; y < io->display.size.y; y++) {
+            if (x % 8 == 0 || y % 8 == 0) {
+                vec2_t position = {x, y};
+                draw_display(&io->display, position, grid_color);
+            }
+        }
+    }
+
+    // Draw pattern tables
+    unsigned char *chr_rom = get_chr_rom(&emu->rom);
     // For each tile
     for (unsigned i = 0; i < 512; i++) {
         // For each row
@@ -49,10 +74,11 @@ void debug_pattern_tables_io(display_t *display, rom_t *rom) {
                     break;
                 }
                 // Draw the pixel
-                draw_display(display, position, color);
+                draw_display(&io->pattern_table, position, color);
             }
         }
     }
+    refresh_display(&io->pattern_table);
 }
 
 bool refresh_io(io_t *io, emulator_t *emu) {
@@ -67,13 +93,10 @@ bool refresh_io(io_t *io, emulator_t *emu) {
             draw_display(&io->display, position, pixel);
         }
     }
+    if (is_debug_io(io)) {
+        debug_io(io, emu);
+    }
+
     refresh_display(&io->display);
-
-#ifndef NDEBUG
-    // Debug draw the pattern tables.
-    debug_pattern_tables_io(&io->pattern_table, &emu->rom);
-    refresh_display(&io->pattern_table);
-#endif
-
     return !io->input.quit;
 }
