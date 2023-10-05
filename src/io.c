@@ -88,9 +88,9 @@ bool refresh_io(io_t *io, emulator_t *emu) {
     for (unsigned x = 0; x < io->display.size.x; x++) {
         for (unsigned y = 0; y < io->display.size.y; y++) {
             unsigned i = x + y * PPU_LINEDOTS;
-            color_t pixel = emu->ppu.color_buffer[i];
+            unsigned char pixel = emu->ppu.color_buffer[i];
             vec2_t position = {x, y};
-            draw_display(&io->display, position, pixel);
+            draw_display(&io->display, position, COLOR_PALETTE[pixel]);
         }
     }
     if (is_debug_io(io)) {

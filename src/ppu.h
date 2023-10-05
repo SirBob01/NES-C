@@ -1,7 +1,6 @@
 #ifndef PPU_H
 #define PPU_H
 
-#include "./display.h"
 #include "./interrupt.h"
 #include "./memory.h"
 #include "./ppu_bus.h"
@@ -174,10 +173,12 @@ typedef struct {
     unsigned short pt_shift[2];
 
     /**
-     * @brief Palette attribute shift register.
+     * @brief Palette attribute shift registers. The high 8 bits are the
+     * current palette attribute. Every 8 cycles, new data is loaded into the
+     * low 8 bits of the register.
      *
      */
-    unsigned short pa_shift;
+    unsigned short pa_shift[2];
 
     /**
      * @brief Primary object attribute memory.
@@ -237,7 +238,7 @@ typedef struct {
      * @brief Output color buffer.
      *
      */
-    color_t color_buffer[PPU_LINEDOTS * PPU_SCANLINES];
+    unsigned char color_buffer[PPU_LINEDOTS * PPU_SCANLINES];
 
     /**
      * @brief Pointer to the PPU bus.
@@ -292,6 +293,15 @@ void destroy_ppu(ppu_t *ppu);
  * @param ppu
  */
 void create_event_tables_ppu(ppu_t *ppu);
+
+/**
+ * @brief Apply PPU grayscale and/or emphasis effects to a color.
+ *
+ * @param ppu
+ * @param color
+ * @return unsigned char
+ */
+unsigned char apply_color_effect(ppu_t *ppu, unsigned char color);
 
 /**
  * @brief Read the current state of the CPU for debugging.
