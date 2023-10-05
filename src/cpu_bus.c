@@ -128,7 +128,8 @@ unsigned char read_cpu_bus(cpu_bus_t *bus, address_t address) {
             }
 
             // Set low 5 bits of status register to io latch
-            result = (result & 0xE0) | (bus->ppu->io_databus & 0x1F);
+            result &= ~0x1F;
+            result |= bus->ppu->io_databus & 0x1F;
             bus->ppu->io_databus = result;
         }
 
@@ -144,12 +145,14 @@ unsigned char read_cpu_bus(cpu_bus_t *bus, address_t address) {
         // Read from PPUDATA (overwrite result with value from VRAM)
         if (ptr == &bus->ppu->data) {
             result = read_ppu_bus(bus->ppu->bus, bus->ppu->v & 0x3FFF);
-            bool inc = bus->ppu->ctrl & PPU_CTRL_VRAM_INC;
-            bus->ppu->v += inc ? 32 : 1;
+            bus->ppu->v++;
+            bus->ppu->v += ((bus->ppu->ctrl >> 2) & 1) * 31;
 
-            // Set the high 2 bits from palette to io latch
+            // Set high 2 bits from palette to io latch and apply PPU effects
             if (bus->ppu->v >= 0x3F00) {
-                result = (result & 0x3F) | (bus->ppu->io_databus & 0xC0);
+                result &= ~0xC0;
+                result |= bus->ppu->io_databus & 0xC0;
+                result = apply_color_effect(bus->ppu, result);
             }
             bus->ppu->io_databus = result;
         }
@@ -241,8 +244,8 @@ void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value) {
         // Write to PPUDATA
         if (ptr == &bus->ppu->data) {
             write_ppu_bus(bus->ppu->bus, bus->ppu->v & 0x3FFF, value);
-            bool inc = bus->ppu->ctrl & PPU_CTRL_VRAM_INC;
-            bus->ppu->v += inc ? 32 : 1;
+            bus->ppu->v++;
+            bus->ppu->v += ((bus->ppu->ctrl >> 2) & 1) * 31;
             bus->ppu->io_databus = value;
 
             // TODO:

@@ -41,6 +41,9 @@ void create_event_tables_ppu(ppu_t *ppu) {
             ppu->vblank_events[dot][i] = PPU_EVENT_IDLE;
         }
 
+        // Skip the first cycle of every scanline
+        if (dot == 0) continue;
+
         // Prerender scanline events
         i = 0;
         if (dot == 1) {
@@ -61,10 +64,10 @@ void create_event_tables_ppu(ppu_t *ppu) {
 
         // Render scanline events
         i = 0;
-        if (dot && (dot <= 257 || dot >= 321)) {
+        if (dot <= 257 || dot >= 321) {
             switch (dot % 8) {
             case 1:
-                if (dot >= 9) {
+                if ((dot >= 9 && dot <= 257) || dot >= 329) {
                     ppu->visible_events[dot][i++] = PPU_EVENT_RELOAD_SHIFTERS;
                 }
                 break;
@@ -85,7 +88,7 @@ void create_event_tables_ppu(ppu_t *ppu) {
         if ((dot >= 2 && dot <= 257) || (dot >= 322 && dot <= 337)) {
             ppu->visible_events[dot][i++] = PPU_EVENT_SHIFT_REGISTERS;
         }
-        if (dot && (dot <= 256 || dot >= 328) && dot % 8 == 0) {
+        if ((dot <= 256 || dot >= 328) && dot % 8 == 0) {
             ppu->visible_events[dot][i++] = PPU_EVENT_INCREMENT_X;
         }
         if (dot == 256) {
@@ -98,6 +101,14 @@ void create_event_tables_ppu(ppu_t *ppu) {
             ppu->visible_events[dot][i++] = PPU_EVENT_CLEAR_OAMADDR;
         }
     }
+}
+
+unsigned char apply_color_effect(ppu_t *ppu, unsigned char color) {
+    // TODO: Implement emphasis
+    if (ppu->mask & PPU_MASK_GREYSCALE) {
+        color &= 0x30;
+    }
+    return color;
 }
 
 void read_state_ppu(ppu_t *ppu, char *buffer, unsigned buffer_size) {
@@ -126,6 +137,8 @@ bool is_rendering_ppu(ppu_t *ppu) {
 void shift_registers_ppu(ppu_t *ppu) {
     ppu->pt_shift[0] <<= 1;
     ppu->pt_shift[1] <<= 1;
+    ppu->pa_shift[0] <<= 1;
+    ppu->pa_shift[1] <<= 1;
 }
 
 void reload_shifters_ppu(ppu_t *ppu) {
@@ -136,34 +149,35 @@ void reload_shifters_ppu(ppu_t *ppu) {
         ppu->pt_shift[i] = pt_old | pt_new;
     }
 
-    // Write the quadrant of the attribute table
-    // TODO: The attribute table is one tile behind the pattern table. Why???
-    bool scroll_x = ppu->v & 0x02;
-    bool scroll_y = ppu->v & 0x40;
-    unsigned char quadrant = (scroll_y << 1) | scroll_x;
-    ppu->pa_shift = (ppu->pa_latch >> (quadrant * 2)) & 0x3;
+    // Write to the palette shift registers
+    for (unsigned i = 0; i < 2; i++) {
+        bool bit = ppu->pa_latch & (i + 1);
+        unsigned short pa_old = ppu->pa_shift[i] & 0xFF00;
+        unsigned short pa_new = bit * 0x00FF;
+        ppu->pa_shift[i] = pa_old | pa_new;
+    }
 }
 
 void fetch_name_ppu(ppu_t *ppu) {
-    address_t nt_base = 0x2000 + 0x400 * (ppu->ctrl & PPU_CTRL_NAMETABLE_BASE);
-    address_t nt_offset = ppu->v & 0x0FFF;
-    address_t nt_address = nt_base + nt_offset;
+    address_t nt_address = 0x2000 | (ppu->v & 0x0FFF);
     ppu->nt_latch = read_ppu_bus(ppu->bus, nt_address);
 }
 
 void fetch_attribute_ppu(ppu_t *ppu) {
-    address_t nt_base = 0x2000 + 0x400 * (ppu->ctrl & PPU_CTRL_NAMETABLE_BASE);
-    address_t at_base = nt_base + 0x3C0;
-    address_t at_address = at_base | (ppu->v & 0x0C00) |
-                           ((ppu->v >> 4) & 0x38) | ((ppu->v >> 2) & 0x07);
-    ppu->pa_latch = read_ppu_bus(ppu->bus, at_address);
+    address_t at_address = 0x23C0 | (ppu->v & 0x0C00) | ((ppu->v >> 4) & 0x38) |
+                           ((ppu->v >> 2) & 0x07);
+    unsigned char at = read_ppu_bus(ppu->bus, at_address);
+    bool scroll_x = ppu->v & 0x02;
+    bool scroll_y = ppu->v & 0x40;
+    unsigned char quadrant = (scroll_y << 1) | scroll_x;
+    ppu->pa_latch = (at >> (quadrant << 1)) & 0x03;
 }
 
 void fetch_pattern_lo_ppu(ppu_t *ppu) {
     bool bg_ctrl = ppu->ctrl & PPU_CTRL_PATTERN_TABLE_BG;
     address_t pt_base = bg_ctrl * 0x1000;
     address_t fine_y = (ppu->v >> 12) & 0x7;
-    address_t pt_offset = ppu->nt_latch * 16 + fine_y;
+    address_t pt_offset = (ppu->nt_latch << 4) | fine_y;
     address_t pt_address = pt_base + pt_offset;
     ppu->pt_latches[0] = read_ppu_bus(ppu->bus, pt_address);
 }
@@ -172,7 +186,7 @@ void fetch_pattern_hi_ppu(ppu_t *ppu) {
     bool bg_ctrl = ppu->ctrl & PPU_CTRL_PATTERN_TABLE_BG;
     address_t pt_base = bg_ctrl * 0x1000;
     address_t fine_y = (ppu->v >> 12) & 0x7;
-    address_t pt_offset = ppu->nt_latch * 16 + fine_y;
+    address_t pt_offset = (ppu->nt_latch << 4) | fine_y;
     address_t pt_address = pt_base + pt_offset + 8;
     ppu->pt_latches[1] = read_ppu_bus(ppu->bus, pt_address);
 }
@@ -228,19 +242,25 @@ void set_vblank_ppu(ppu_t *ppu) {
 }
 
 void draw_dot_ppu(ppu_t *ppu) {
-    // Read color number from pattern table
     unsigned short x_mask = 0x8000 >> ppu->x;
+
+    // Read palette number from attribute table
+    bool pa0 = ppu->pa_shift[0] & x_mask;
+    bool pa1 = ppu->pa_shift[1] & x_mask;
+    unsigned char palette = pa0 | (pa1 << 1);
+
+    // Read color number from pattern table
     bool pt0 = ppu->pt_shift[0] & x_mask;
     bool pt1 = ppu->pt_shift[1] & x_mask;
     unsigned char color = pt0 | (pt1 << 1);
 
     // Fetch the actual color value from the palette
-    address_t color_address = PPU_MAP_PALETTE | (ppu->pa_shift << 2) | color;
+    address_t color_address = PPU_MAP_PALETTE | (palette << 2) | color;
     unsigned char color_index = read_ppu_bus(ppu->bus, color_address);
 
     // Write to the color buffer
     unsigned buffer_index = ppu->scanline * PPU_LINEDOTS + ppu->dot;
-    ppu->color_buffer[buffer_index] = COLOR_PALETTE[color_index];
+    ppu->color_buffer[buffer_index] = apply_color_effect(ppu, color_index);
 }
 
 void execute_events_ppu(ppu_t *ppu, ppu_event_t *events) {

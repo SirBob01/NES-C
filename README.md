@@ -11,7 +11,7 @@ A cycle-accurate NES Emulator built for fun (and education)!
 
 ## TODO
 
-* Fix PPU background rendering
+* Implement PPU color emphasis settings
 * Implement PPU sprite evaluation
 * Implement APU emulation
 
