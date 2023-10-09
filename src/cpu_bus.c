@@ -152,7 +152,9 @@ unsigned char read_cpu_bus(cpu_bus_t *bus, address_t address) {
             if (bus->ppu->v >= 0x3F00) {
                 result &= ~0xC0;
                 result |= bus->ppu->io_databus & 0xC0;
-                result = apply_color_effect(bus->ppu, result);
+                if (bus->ppu->mask & PPU_MASK_GREYSCALE) {
+                    result &= 0x30;
+                }
             }
             bus->ppu->io_databus = result;
         }

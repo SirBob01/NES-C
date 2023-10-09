@@ -1,6 +1,8 @@
 #ifndef PPU_H
 #define PPU_H
 
+#include "./buffer.h"
+#include "./color.h"
 #include "./interrupt.h"
 #include "./memory.h"
 #include "./ppu_bus.h"
@@ -238,7 +240,7 @@ typedef struct {
      * @brief Output color buffer.
      *
      */
-    unsigned char color_buffer[PPU_LINEDOTS * PPU_SCANLINES];
+    color_t color_buffer[PPU_LINEDOTS * PPU_SCANLINES];
 
     /**
      * @brief Pointer to the PPU bus.
@@ -298,10 +300,10 @@ void create_event_tables_ppu(ppu_t *ppu);
  * @brief Apply PPU grayscale and/or emphasis effects to a color.
  *
  * @param ppu
- * @param color
- * @return unsigned char
+ * @param color_index
+ * @return color_t
  */
-unsigned char apply_color_effect(ppu_t *ppu, unsigned char color);
+color_t apply_color_effect(ppu_t *ppu, unsigned char color_index);
 
 /**
  * @brief Read the current state of the CPU for debugging.
