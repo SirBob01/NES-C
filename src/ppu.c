@@ -103,10 +103,28 @@ void create_event_tables_ppu(ppu_t *ppu) {
     }
 }
 
-unsigned char apply_color_effect(ppu_t *ppu, unsigned char color) {
-    // TODO: Implement emphasis
+color_t apply_color_effect(ppu_t *ppu, unsigned char palette_index) {
+    // Apply grayscale
     if (ppu->mask & PPU_MASK_GREYSCALE) {
-        color &= 0x30;
+        palette_index &= 0x30;
+    }
+
+    // Apply emphasis
+    color_t color = COLOR_PALETTE[palette_index];
+    if (ppu->mask & PPU_MASK_EMPHASIZE_RED) {
+        color.r = min(color.r * 1.5, 0xff);
+        color.g = color.g * 0.5;
+        color.b = color.b * 0.5;
+    }
+    if (ppu->mask & PPU_MASK_EMPHASIZE_GREEN) {
+        color.r = color.r * 0.5;
+        color.g = min(color.g * 1.5, 0xff);
+        color.b = color.b * 0.5;
+    }
+    if (ppu->mask & PPU_MASK_EMPHASIZE_BLUE) {
+        color.r = color.r * 0.5;
+        color.g = color.g * 0.5;
+        color.b = min(color.b * 1.5, 0xff);
     }
     return color;
 }
