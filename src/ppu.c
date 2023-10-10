@@ -103,32 +103,6 @@ void create_event_tables_ppu(ppu_t *ppu) {
     }
 }
 
-color_t apply_color_effect(ppu_t *ppu, unsigned char palette_index) {
-    // Apply grayscale
-    if (ppu->mask & PPU_MASK_GREYSCALE) {
-        palette_index &= 0x30;
-    }
-
-    // Apply emphasis
-    color_t color = COLOR_PALETTE[palette_index];
-    if (ppu->mask & PPU_MASK_EMPHASIZE_RED) {
-        color.r = min(color.r * 1.5, 0xff);
-        color.g = color.g * 0.5;
-        color.b = color.b * 0.5;
-    }
-    if (ppu->mask & PPU_MASK_EMPHASIZE_GREEN) {
-        color.r = color.r * 0.5;
-        color.g = min(color.g * 1.5, 0xff);
-        color.b = color.b * 0.5;
-    }
-    if (ppu->mask & PPU_MASK_EMPHASIZE_BLUE) {
-        color.r = color.r * 0.5;
-        color.g = color.g * 0.5;
-        color.b = min(color.b * 1.5, 0xff);
-    }
-    return color;
-}
-
 void read_state_ppu(ppu_t *ppu, char *buffer, unsigned buffer_size) {
     snprintf(buffer,
              buffer_size,
@@ -274,11 +248,16 @@ void draw_dot_ppu(ppu_t *ppu) {
 
     // Fetch the actual color value from the palette
     address_t color_address = PPU_MAP_PALETTE | (palette << 2) | color;
-    unsigned char color_index = read_ppu_bus(ppu->bus, color_address);
+    unsigned char palette_byte = read_ppu_bus(ppu->bus, color_address);
 
     // Write to the color buffer
     unsigned buffer_index = ppu->scanline * PPU_LINEDOTS + ppu->dot;
-    ppu->color_buffer[buffer_index] = apply_color_effect(ppu, color_index);
+    ppu->color_buffer[buffer_index] =
+        create_color(palette_byte,
+                     ppu->mask & PPU_MASK_GREYSCALE,
+                     ppu->mask & PPU_MASK_EMPHASIZE_RED,
+                     ppu->mask & PPU_MASK_EMPHASIZE_GREEN,
+                     ppu->mask & PPU_MASK_EMPHASIZE_BLUE);
 }
 
 void execute_events_ppu(ppu_t *ppu, ppu_event_t *events) {
