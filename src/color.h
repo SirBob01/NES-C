@@ -1,8 +1,12 @@
 #ifndef COLOR_H
 #define COLOR_H
 
+#include <stdbool.h>
+
+#include "./buffer.h"
+
 /**
- * @brief RGB Color.
+ * @brief RGB color, where each component is in the range [0 - 255].
  *
  */
 typedef struct {
@@ -39,5 +43,21 @@ static const color_t COLOR_PALETTE[64] = {
     {0x9a, 0xe8, 0xe6}, {0xaf, 0xaf, 0xaf}, {0x00, 0x00, 0x00},
     {0x00, 0x00, 0x00},
 };
+
+/**
+ * @brief Create an RGB color object.
+ *
+ * @param palette_byte
+ * @param grayscale
+ * @param em_r
+ * @param em_g
+ * @param em_b
+ * @return color_t
+ */
+color_t create_color(unsigned char palette_byte,
+                     bool grayscale,
+                     bool em_r,
+                     bool em_g,
+                     bool em_b);
 
 #endif

@@ -1,7 +1,6 @@
 #ifndef PPU_H
 #define PPU_H
 
-#include "./buffer.h"
 #include "./color.h"
 #include "./interrupt.h"
 #include "./memory.h"
@@ -295,15 +294,6 @@ void destroy_ppu(ppu_t *ppu);
  * @param ppu
  */
 void create_event_tables_ppu(ppu_t *ppu);
-
-/**
- * @brief Apply PPU grayscale and/or emphasis effects to a color.
- *
- * @param ppu
- * @param color_index
- * @return color_t
- */
-color_t apply_color_effect(ppu_t *ppu, unsigned char color_index);
 
 /**
  * @brief Read the current state of the CPU for debugging.
