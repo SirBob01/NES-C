@@ -24,6 +24,8 @@ void write_cpu_nrom(rom_t *rom, address_t address, unsigned char value) {
 }
 
 void write_ppu_nrom(rom_t *rom, address_t address, unsigned char value) {
-    fprintf(stderr, "Error: Attempted to write to PPU memory in NROM\n");
-    exit(1);
+    // If CHR ROM is not present, write to CHR RAM
+    if (rom->header.chr_rom_size == 0) {
+        *get_ppu_memory_nrom(rom, address) = value;
+    }
 }

@@ -260,10 +260,16 @@ typedef struct {
     interrupt_t *interrupt;
 
     /**
-     * @brief Events in the render scanlines.
+     * @brief Events in the visible scanlines.
      *
      */
     ppu_event_t visible_events[PPU_LINEDOTS][PPU_EVENTS_PER_DOT];
+
+    /**
+     * @brief Events in the render and pre-render scanlines.
+     *
+     */
+    ppu_event_t render_events[PPU_LINEDOTS][PPU_EVENTS_PER_DOT];
 
     /**
      * @brief Events in the pre-render scanline.
