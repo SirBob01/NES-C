@@ -70,6 +70,12 @@ typedef struct {
     unsigned char memory[CPU_RAM_SIZE];
 
     /**
+     * @brief Internal buffer for reading from PPU data register.
+     *
+     */
+    unsigned char buffer2007;
+
+    /**
      * @brief Pointer to the ROM.
      *
      */

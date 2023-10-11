@@ -144,18 +144,18 @@ unsigned char read_cpu_bus(cpu_bus_t *bus, address_t address) {
 
         // Read from PPUDATA (overwrite result with value from VRAM)
         if (ptr == &bus->ppu->data) {
-            result = read_ppu_bus(bus->ppu->bus, bus->ppu->v & 0x3FFF);
-            bus->ppu->v++;
-            bus->ppu->v += ((bus->ppu->ctrl >> 2) & 1) * 31;
+            address_t vram_addr = bus->ppu->v & 0x3FFF;
+            result = bus->buffer2007;
+            bus->buffer2007 = read_ppu_bus(bus->ppu->bus, vram_addr);
 
             // Set high 2 bits from palette to io latch and apply PPU effects
-            if (bus->ppu->v >= 0x3F00) {
+            if (bus->ppu->v >= PPU_MAP_PALETTE && !is_rendering_ppu(bus->ppu)) {
+                address_t palette_addr = bus->ppu->v & 0x1F;
+                result = read_palette_ppu(bus->ppu, palette_addr);
                 result &= ~0xC0;
                 result |= bus->ppu->io_databus & 0xC0;
-                if (bus->ppu->mask & PPU_MASK_GREYSCALE) {
-                    result &= 0x30;
-                }
             }
+            increment_vram_address_ppu(bus->ppu);
             bus->ppu->io_databus = result;
         }
 
@@ -245,9 +245,14 @@ void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value) {
 
         // Write to PPUDATA
         if (ptr == &bus->ppu->data) {
-            write_ppu_bus(bus->ppu->bus, bus->ppu->v & 0x3FFF, value);
-            bus->ppu->v++;
-            bus->ppu->v += ((bus->ppu->ctrl >> 2) & 1) * 31;
+            if (bus->ppu->v >= PPU_MAP_PALETTE) {
+                address_t palette_addr = bus->ppu->v & 0x1F;
+                write_palette_ppu(bus->ppu, palette_addr, value);
+            } else {
+                address_t vram_addr = bus->ppu->v & 0x3FFF;
+                write_ppu_bus(bus->ppu->bus, vram_addr, value);
+            }
+            increment_vram_address_ppu(bus->ppu);
             bus->ppu->io_databus = value;
 
             // TODO:

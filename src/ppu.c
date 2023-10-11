@@ -103,6 +103,28 @@ void create_event_tables_ppu(ppu_t *ppu) {
     }
 }
 
+unsigned char read_palette_ppu(ppu_t *ppu, unsigned char palette_index) {
+    unsigned char value = ppu->palette[palette_index];
+    if (ppu->mask & PPU_MASK_GREYSCALE) {
+        value &= 0x30;
+    }
+    return value;
+}
+
+void write_palette_ppu(ppu_t *ppu,
+                       unsigned char palette_index,
+                       unsigned char value) {
+    ppu->palette[palette_index] = value;
+    if ((palette_index & 0x3) == 0) {
+        ppu->palette[palette_index ^ 0x10] = value;
+    }
+}
+
+void increment_vram_address_ppu(ppu_t *ppu) {
+    ppu->v++;
+    ppu->v += ((ppu->ctrl >> 2) & 1) * 31;
+}
+
 void read_state_ppu(ppu_t *ppu, char *buffer, unsigned buffer_size) {
     snprintf(buffer,
              buffer_size,
@@ -247,8 +269,8 @@ void draw_dot_ppu(ppu_t *ppu) {
     unsigned char color = pt0 | (pt1 << 1);
 
     // Fetch the actual color value from the palette
-    address_t color_address = PPU_MAP_PALETTE | (palette << 2) | color;
-    unsigned char palette_byte = read_ppu_bus(ppu->bus, color_address);
+    unsigned char palette_index = (palette << 2) | color;
+    unsigned char palette_byte = read_palette_ppu(ppu, palette_index);
 
     // Write to the color buffer
     unsigned buffer_index = ppu->scanline * PPU_LINEDOTS + ppu->dot;
