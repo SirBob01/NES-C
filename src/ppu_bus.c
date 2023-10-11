@@ -8,7 +8,9 @@ void create_ppu_bus(ppu_bus_t *bus, rom_t *rom, mapper_t *mapper) {
 }
 
 address_t mirror_address_ppu_bus(address_t address, rom_mirroring_t mirroring) {
-    if (address < PPU_MAP_NAMETABLE_MIRROR && address >= PPU_MAP_NAMETABLE_0) {
+    if (address >= PPU_MAP_NAMETABLE_MIRROR) {
+        return mirror_address_ppu_bus(address - 0x1000, mirroring);
+    } else if (address >= PPU_MAP_NAMETABLE_0) {
         // Mirrored nametable regions
         switch (mirroring) {
         case MIRROR_VERTICAL:
@@ -23,18 +25,6 @@ address_t mirror_address_ppu_bus(address_t address, rom_mirroring_t mirroring) {
                        ((address - PPU_MAP_NAMETABLE_2) % 0x400);
             }
         }
-        }
-    } else if (address >= PPU_MAP_PALETTE) {
-        // Mirrored palette table regions
-        address_t norm = PPU_MAP_PALETTE + ((address - PPU_MAP_PALETTE) % 0x20);
-        switch (norm) {
-        case 0x3F10:
-        case 0x3F14:
-        case 0x3F18:
-        case 0x3F1C:
-            return norm - 0x10;
-        default:
-            return norm;
         }
     }
     return address;

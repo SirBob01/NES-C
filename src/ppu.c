@@ -36,9 +36,10 @@ void create_event_tables_ppu(ppu_t *ppu) {
     for (unsigned dot = 0; dot < PPU_LINEDOTS; dot++) {
         // Initialize all events to idle
         for (i = 0; i < PPU_EVENTS_PER_DOT; i++) {
-            ppu->visible_events[dot][i] = PPU_EVENT_IDLE;
+            ppu->render_events[dot][i] = PPU_EVENT_IDLE;
             ppu->prerender_events[dot][i] = PPU_EVENT_IDLE;
             ppu->vblank_events[dot][i] = PPU_EVENT_IDLE;
+            ppu->visible_events[dot][i] = PPU_EVENT_IDLE;
         }
 
         // Skip the first cycle of every scanline
@@ -68,37 +69,37 @@ void create_event_tables_ppu(ppu_t *ppu) {
             switch (dot % 8) {
             case 1:
                 if ((dot >= 9 && dot <= 257) || dot >= 329) {
-                    ppu->visible_events[dot][i++] = PPU_EVENT_RELOAD_SHIFTERS;
+                    ppu->render_events[dot][i++] = PPU_EVENT_RELOAD_SHIFTERS;
                 }
                 break;
             case 2:
-                ppu->visible_events[dot][i++] = PPU_EVENT_FETCH_NAME;
+                ppu->render_events[dot][i++] = PPU_EVENT_FETCH_NAME;
                 break;
             case 4:
-                ppu->visible_events[dot][i++] = PPU_EVENT_FETCH_ATTRIBUTE;
+                ppu->render_events[dot][i++] = PPU_EVENT_FETCH_ATTRIBUTE;
                 break;
             case 6:
-                ppu->visible_events[dot][i++] = PPU_EVENT_FETCH_PATTERN_LO;
+                ppu->render_events[dot][i++] = PPU_EVENT_FETCH_PATTERN_LO;
                 break;
             case 0:
-                ppu->visible_events[dot][i++] = PPU_EVENT_FETCH_PATTERN_HI;
+                ppu->render_events[dot][i++] = PPU_EVENT_FETCH_PATTERN_HI;
                 break;
             }
         }
         if ((dot >= 2 && dot <= 257) || (dot >= 322 && dot <= 337)) {
-            ppu->visible_events[dot][i++] = PPU_EVENT_SHIFT_REGISTERS;
+            ppu->render_events[dot][i++] = PPU_EVENT_SHIFT_REGISTERS;
         }
         if ((dot <= 256 || dot >= 328) && dot % 8 == 0) {
-            ppu->visible_events[dot][i++] = PPU_EVENT_INCREMENT_X;
+            ppu->render_events[dot][i++] = PPU_EVENT_INCREMENT_X;
         }
         if (dot == 256) {
-            ppu->visible_events[dot][i++] = PPU_EVENT_INCREMENT_Y;
+            ppu->render_events[dot][i++] = PPU_EVENT_INCREMENT_Y;
         }
         if (dot == 257) {
-            ppu->visible_events[dot][i++] = PPU_EVENT_COPY_X;
+            ppu->render_events[dot][i++] = PPU_EVENT_COPY_X;
         }
         if (dot >= 257 && dot <= 320) {
-            ppu->visible_events[dot][i++] = PPU_EVENT_CLEAR_OAMADDR;
+            ppu->render_events[dot][i++] = PPU_EVENT_CLEAR_OAMADDR;
         }
     }
 }
@@ -375,14 +376,14 @@ void update_ppu(ppu_t *ppu) {
         break;
     case PPU_SCANLINE_PRERENDER:
         execute_events_ppu(ppu, ppu->prerender_events[ppu->dot]);
-        execute_events_ppu(ppu, ppu->visible_events[ppu->dot]);
+        execute_events_ppu(ppu, ppu->render_events[ppu->dot]);
         break;
     case PPU_SCANLINE_VBLANK:
         execute_events_ppu(ppu, ppu->vblank_events[ppu->dot]);
         break;
     default:
         if (ppu->scanline < PPU_SCANLINE_IDLE) {
-            execute_events_ppu(ppu, ppu->visible_events[ppu->dot]);
+            execute_events_ppu(ppu, ppu->render_events[ppu->dot]);
         }
         break;
     }
