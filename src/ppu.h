@@ -185,13 +185,19 @@ typedef struct {
      * @brief Primary object attribute memory.
      *
      */
-    unsigned char primary_oam[256];
+    unsigned char primary_oam[PPU_PRIMARY_OAM_SIZE];
 
     /**
      * @brief Secondary object attribute memory.
      *
      */
-    unsigned char secondary_oam[32];
+    unsigned char secondary_oam[PPU_SECONDARY_OAM_SIZE];
+
+    /**
+     * @brief Internal palette memory.
+     *
+     */
+    unsigned char palette[PPU_PALETTE_SIZE];
 
     /**
      * @brief Data bus for communicating with the CPU.
@@ -294,6 +300,32 @@ void destroy_ppu(ppu_t *ppu);
  * @param ppu
  */
 void create_event_tables_ppu(ppu_t *ppu);
+
+/**
+ * @brief Read from the internal palette memory.
+ *
+ * @param ppu
+ * @return unsigned char
+ */
+unsigned char read_palette_ppu(ppu_t *ppu, unsigned char palette_index);
+
+/**
+ * @brief Write to the internal palette memory.
+ *
+ * @param ppu
+ * @param palette_index
+ * @param value
+ */
+void write_palette_ppu(ppu_t *ppu,
+                       unsigned char palette_index,
+                       unsigned char value);
+
+/**
+ * @brief Increment the VRAM address.
+ *
+ * @param ppu
+ */
+void increment_vram_address_ppu(ppu_t *ppu);
 
 /**
  * @brief Read the current state of the CPU for debugging.
