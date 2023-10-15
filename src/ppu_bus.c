@@ -30,14 +30,10 @@ address_t mirror_address_ppu_bus(address_t address, rom_mirroring_t mirroring) {
     return address;
 }
 
-unsigned char *get_memory_ppu_bus(ppu_bus_t *bus, address_t address) {
-    rom_mirroring_t mirroring = bus->rom->header.mirroring;
-    return bus->memory + mirror_address_ppu_bus(address, mirroring);
-}
-
 unsigned char read_ppu_bus(ppu_bus_t *bus, address_t address) {
     if (address >= PPU_MAP_NAMETABLE_0) {
-        return *get_memory_ppu_bus(bus, address);
+        address = mirror_address_ppu_bus(address, bus->rom->header.mirroring);
+        return bus->memory[address];
     } else {
         return read_ppu_mapper(bus->mapper, address);
     }
@@ -45,7 +41,8 @@ unsigned char read_ppu_bus(ppu_bus_t *bus, address_t address) {
 
 void write_ppu_bus(ppu_bus_t *bus, address_t address, unsigned char value) {
     if (address >= PPU_MAP_NAMETABLE_0) {
-        *get_memory_ppu_bus(bus, address) = value;
+        address = mirror_address_ppu_bus(address, bus->rom->header.mirroring);
+        bus->memory[address] = value;
     } else {
         write_ppu_mapper(bus->mapper, address, value);
     }
