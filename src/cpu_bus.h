@@ -2,6 +2,7 @@
 #define CPU_BUS_H
 
 #include "./apu.h"
+#include "./controller.h"
 #include "./mapper.h"
 #include "./ppu.h"
 #include "./rom.h"
@@ -57,6 +58,9 @@
 #define PPU_REG_DATA    0x2007
 #define PPU_REG_OAMDMA  0x4014
 
+// Memory mapped controller registers
+#define CTRL_REG_STROBE 0x4016
+
 /**
  * @brief Bus for memory accessing and communication between the CPU and its
  * peripherals.
@@ -98,6 +102,12 @@ typedef struct {
      *
      */
     ppu_t *ppu;
+
+    /**
+     * @brief Pointer to the input controller.
+     *
+     */
+    controller_t *controller;
 } cpu_bus_t;
 
 /**
@@ -108,12 +118,14 @@ typedef struct {
  * @param mapper
  * @param apu
  * @param ppu
+ * @param controller
  */
 void create_cpu_bus(cpu_bus_t *bus,
                     rom_t *rom,
                     mapper_t *mapper,
                     apu_t *apu,
-                    ppu_t *ppu);
+                    ppu_t *ppu,
+                    controller_t *controller);
 
 /**
  * @brief Mirror an address according to the CPU memory map.

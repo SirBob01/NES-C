@@ -51,13 +51,24 @@ int main(int argc, char **argv) {
             }
         }
 
-        // Handle input
+        // Handle debug input
         if (is_keydown_input(&io.input, SDLK_o)) {
             set_debug_io(&io, true);
         }
         if (is_keydown_input(&io.input, SDLK_p)) {
             set_debug_io(&io, false);
         }
+
+        // Handle controller 1 input
+        set_joy1_controller(&emu.controller,
+                            is_keydown_input(&io.input, SDLK_z),
+                            is_keydown_input(&io.input, SDLK_x),
+                            is_keydown_input(&io.input, SDLK_a),
+                            is_keydown_input(&io.input, SDLK_s),
+                            is_keydown_input(&io.input, SDLK_UP),
+                            is_keydown_input(&io.input, SDLK_DOWN),
+                            is_keydown_input(&io.input, SDLK_LEFT),
+                            is_keydown_input(&io.input, SDLK_RIGHT));
 
         // Refresh IO
         bool io_state = refresh_io(&io, &emu);
