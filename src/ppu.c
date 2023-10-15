@@ -115,6 +115,7 @@ unsigned char read_palette_ppu(ppu_t *ppu, unsigned char palette_index) {
 void write_palette_ppu(ppu_t *ppu,
                        unsigned char palette_index,
                        unsigned char value) {
+    value &= 0x3F; // Only include the lower 6 bits
     ppu->palette[palette_index] = value;
     if ((palette_index & 0x3) == 0) {
         ppu->palette[palette_index ^ 0x10] = value;
