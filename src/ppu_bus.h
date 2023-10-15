@@ -65,15 +65,6 @@ void create_ppu_bus(ppu_bus_t *bus, rom_t *rom, mapper_t *mapper);
 address_t mirror_address_ppu_bus(address_t address, rom_mirroring_t mirroring);
 
 /**
- * @brief Get the physical pointer to memory for a given address.
- *
- * @param bus
- * @param address
- * @return unsigned char*
- */
-unsigned char *get_memory_ppu_bus(ppu_bus_t *bus, address_t address);
-
-/**
  * @brief Read a byte from the PPU address bus.
  *
  * @param bus
