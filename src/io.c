@@ -56,8 +56,8 @@ void debug_io(io_t *io, emulator_t *emu) {
                 unsigned char pixel = ((plane0 >> (7 - x)) & 1) |
                                       (((plane1 >> (7 - x)) & 1) << 1);
                 vec2_t position = {
-                    (i % 16) * 8 + x,
-                    (unsigned)(i / 16) * 8 + y,
+                    (i & 15) * 8 + x,
+                    (i >> 4) * 8 + y,
                 };
                 color_t color = {0, 0, 0};
                 switch (pixel) {

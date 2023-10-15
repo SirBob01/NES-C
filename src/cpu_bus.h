@@ -7,7 +7,7 @@
 #include "./rom.h"
 
 // 6502 has a 16-bit address bus (64k)
-#define CPU_RAM_SIZE 1 << 16
+#define CPU_RAM_SIZE (1 << 16)
 
 // CPU memory map address offsets
 #define CPU_MAP_START        0x0000

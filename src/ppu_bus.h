@@ -6,10 +6,10 @@
 #include "./rom.h"
 
 // 2C02 has a 16-bit address bus (64k)
-#define PPU_RAM_SIZE           1 << 16
-#define PPU_PRIMARY_OAM_SIZE   1 << 8
-#define PPU_SECONDARY_OAM_SIZE 1 << 5
-#define PPU_PALETTE_SIZE       1 << 5
+#define PPU_RAM_SIZE           (1 << 16)
+#define PPU_PRIMARY_OAM_SIZE   (1 << 8)
+#define PPU_SECONDARY_OAM_SIZE (1 << 5)
+#define PPU_PALETTE_SIZE       (1 << 5)
 
 // PPU memory map address offsets
 #define PPU_MAP_PATTERNTABLE_0   0x0000
