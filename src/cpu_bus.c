@@ -202,7 +202,7 @@ void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value) {
         // Write to OAMDATA
         if (ptr == &bus->ppu->oam_data) {
             if (is_rendering_ppu(bus->ppu)) {
-                bus->ppu->oam_addr += 0x04;
+                bus->ppu->oam_addr += 0x04; // Bump high 6 bits
             } else {
                 bus->ppu->primary_oam[bus->ppu->oam_addr++] = value;
             }
@@ -245,7 +245,7 @@ void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value) {
 
         // Write to PPUDATA
         if (ptr == &bus->ppu->data) {
-            if (bus->ppu->v >= PPU_MAP_PALETTE) {
+            if (bus->ppu->v >= PPU_MAP_PALETTE && !is_rendering_ppu(bus->ppu)) {
                 address_t palette_addr = bus->ppu->v & 0x1F;
                 write_palette_ppu(bus->ppu, palette_addr, value);
             } else {
