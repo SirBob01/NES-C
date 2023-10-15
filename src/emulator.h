@@ -2,6 +2,7 @@
 #define EMULATOR_H
 
 #include "./apu.h"
+#include "./controller.h"
 #include "./cpu.h"
 #include "./cpu_bus.h"
 #include "./mapper.h"
@@ -44,6 +45,12 @@ typedef struct {
      *
      */
     ppu_t ppu;
+
+    /**
+     * @brief Input controller.
+     *
+     */
+    controller_t controller;
 
     /**
      * @brief CPU bus.

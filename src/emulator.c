@@ -6,11 +6,13 @@ void create_emulator(emulator_t *emu, const char *rom_path) {
     create_cpu(&emu->cpu, &emu->cpu_bus, &emu->interrupt);
     create_apu(&emu->apu, &emu->interrupt);
     create_ppu(&emu->ppu, &emu->ppu_bus, &emu->interrupt);
+    create_controller(&emu->controller);
     create_cpu_bus(&emu->cpu_bus,
                    &emu->rom,
                    &emu->mapper,
                    &emu->apu,
-                   &emu->ppu);
+                   &emu->ppu,
+                   &emu->controller);
     create_ppu_bus(&emu->ppu_bus, &emu->rom, &emu->mapper);
     reset_interrupt(&emu->interrupt);
 
@@ -28,6 +30,7 @@ void destroy_emulator(emulator_t *emu) {
     destroy_cpu(&emu->cpu);
     destroy_apu(&emu->apu);
     destroy_ppu(&emu->ppu);
+    destroy_controller(&emu->controller);
     destroy_mapper(&emu->mapper);
     unload_rom(&emu->rom);
 }

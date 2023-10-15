@@ -4,11 +4,13 @@ void create_cpu_bus(cpu_bus_t *bus,
                     rom_t *rom,
                     mapper_t *mapper,
                     apu_t *apu,
-                    ppu_t *ppu) {
+                    ppu_t *ppu,
+                    controller_t *controller) {
     bus->rom = rom;
     bus->mapper = mapper;
     bus->apu = apu;
     bus->ppu = ppu;
+    bus->controller = controller;
     memset(bus->memory, 0, CPU_RAM_SIZE);
 }
 
@@ -56,6 +58,10 @@ unsigned char read_cpu_bus(cpu_bus_t *bus, address_t address) {
         case PPU_REG_OAMADDR:
         case PPU_REG_OAMDMA:
             return bus->ppu->io_databus;
+        case CTRL_REG_STROBE:
+            return read_joy1_controller(bus->controller);
+        case APU_REG_FRAME_COUNTER:
+            return read_joy2_controller(bus->controller);
         // TODO: Handle APU, controller input registers
         default:
             return bus->memory[address];
@@ -95,7 +101,10 @@ void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value) {
         case PPU_REG_STATUS:
             bus->ppu->io_databus = value;
             break;
-        // TODO: Handle APU, controller input registers
+        case CTRL_REG_STROBE:
+            write_strobe_controller(bus->controller, value);
+            break;
+        // TODO: Handle APU registers
         default:
             bus->memory[address] = value;
             break;
