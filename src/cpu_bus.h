@@ -122,16 +122,7 @@ void create_cpu_bus(cpu_bus_t *bus,
  * @param prg_ram_size
  * @return address_t
  */
-address_t mirror_address_cpu_bus(address_t address, unsigned long prg_ram_size);
-
-/**
- * @brief Get the physical pointer to memory for a given address.
- *
- * @param bus
- * @param address
- * @return unsigned char*
- */
-unsigned char *get_memory_cpu_bus(cpu_bus_t *bus, address_t address);
+address_t mirror_cpu_bus(address_t address, unsigned long prg_ram_size);
 
 /**
  * @brief Read a byte from the CPU's memory map.
