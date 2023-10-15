@@ -4,12 +4,7 @@ void create_ppu(ppu_t *ppu, ppu_bus_t *bus, interrupt_t *interrupt) {
     ppu->ctrl = 0;
     ppu->mask = 0;
     ppu->status = PPU_STATUS_VBLANK | PPU_STATUS_S_OVERFLOW;
-    ppu->oam_addr = 0;
-    ppu->oam_data = 0;
-    ppu->scroll = 0;
-    ppu->addr = 0;
-    ppu->data = 0;
-    ppu->oam_dma = 0;
+    ppu->oamaddr = 0;
 
     ppu->v = 0;
     ppu->t = 0;
@@ -127,19 +122,150 @@ void increment_vram_address_ppu(ppu_t *ppu) {
     ppu->v += ((ppu->ctrl >> 2) & 1) * 31;
 }
 
+unsigned char read_status_ppu(ppu_t *ppu) {
+    // Set low 5 bits of status register to io latch
+    unsigned char result = ppu->status;
+    result &= ~0x1F;
+    result |= ppu->io_databus & 0x1F;
+    ppu->io_databus = result;
+
+    // Update registers
+    ppu->status &= ~PPU_STATUS_VBLANK;
+    ppu->w = false;
+
+    // Suppress setting VBlank and NMI if reading too close
+    if (ppu->scanline == PPU_SCANLINE_VBLANK) {
+        if (ppu->dot <= 1) {
+            ppu->suppress_vbl = true;
+        }
+        if (ppu->dot <= 3) {
+            ppu->suppress_nmi = true;
+        }
+    }
+    return result;
+}
+
+unsigned char read_oamdata_ppu(ppu_t *ppu) {
+    unsigned char result = ppu->primary_oam[ppu->oamaddr];
+    if ((ppu->oamaddr % 4) == 2) {
+        result &= 0xE3;
+    }
+    ppu->io_databus = result;
+    return result;
+}
+
+unsigned char read_data_ppu(ppu_t *ppu) {
+    address_t vram_addr = ppu->v & 0x3FFF;
+    unsigned char result = ppu->buffer2007;
+    ppu->buffer2007 = read_ppu_bus(ppu->bus, vram_addr);
+
+    // Set high 2 bits from palette to io latch and apply PPU effects
+    if (ppu->v >= PPU_MAP_PALETTE && !is_rendering_ppu(ppu)) {
+        address_t palette_addr = ppu->v & 0x1F;
+        result = read_palette_ppu(ppu, palette_addr);
+        result &= ~0xC0;
+        result |= ppu->io_databus & 0xC0;
+    }
+    increment_vram_address_ppu(ppu);
+    ppu->io_databus = result;
+    return result;
+}
+
+void write_ctrl_ppu(ppu_t *ppu, unsigned char value) {
+    unsigned char prev_value = ppu->ctrl;
+    ppu->ctrl = value;
+
+    address_t gh = (value & 0x03) << 10;
+    ppu->t = (ppu->t & 0x73FF) | gh;
+    ppu->io_databus = value;
+
+    // Disable NMI if cleared near VBlank disable
+    if ((prev_value & PPU_CTRL_NMI) && !(ppu->ctrl & PPU_CTRL_NMI) &&
+        ppu->dot <= 3) {
+        set_nmi_interrupt(ppu->interrupt, false);
+    }
+
+    // Trigger NMI if VBlank is set
+    if ((ppu->status & PPU_STATUS_VBLANK) && (ppu->ctrl & PPU_CTRL_NMI) &&
+        !(prev_value & PPU_CTRL_NMI) && ppu->dot != 1) {
+        set_nmi_interrupt(ppu->interrupt, true);
+    }
+}
+
+void write_mask_ppu(ppu_t *ppu, unsigned char value) {
+    ppu->mask = value;
+    ppu->io_databus = value;
+}
+
+void write_oamaddr_ppu(ppu_t *ppu, unsigned char value) {
+    ppu->oamaddr = value;
+    ppu->io_databus = value;
+}
+
+void write_oamdata_ppu(ppu_t *ppu, unsigned char value) {
+    if (is_rendering_ppu(ppu)) {
+        ppu->oamaddr += 0x04; // Bump high 6 bits
+    } else {
+        ppu->primary_oam[ppu->oamaddr++] = value;
+    }
+    ppu->io_databus = value;
+}
+
+void write_scroll_ppu(ppu_t *ppu, unsigned char value) {
+    if (!ppu->w) {
+        address_t abcde = (value & 0xF8) >> 3;
+        address_t fgh = value & 0x07;
+
+        ppu->t = (ppu->t & 0xFFE0) | abcde;
+        ppu->x = fgh;
+    } else {
+        address_t ab = (value & 0xC0) << 2;
+        address_t cde = (value & 0x38) << 2;
+        address_t fgh = (value & 0x07) << 12;
+        address_t tmask = ab | cde | fgh;
+
+        ppu->t = (ppu->t & 0xC1F) | tmask;
+    }
+    ppu->w = !ppu->w;
+    ppu->io_databus = value;
+}
+
+void write_addr_ppu(ppu_t *ppu, unsigned char value) {
+    if (!ppu->w) {
+        address_t hi = value & 0x3F;
+        address_t lo = ppu->t & 0x00FF;
+        ppu->t = (hi << 8) | lo;
+    } else {
+        ppu->t = (ppu->t & 0x7F00) | value;
+        ppu->v = ppu->t;
+    }
+    ppu->w = !ppu->w;
+    ppu->io_databus = value;
+}
+
+void write_data_ppu(ppu_t *ppu, unsigned char value) {
+    if (ppu->v >= PPU_MAP_PALETTE && !is_rendering_ppu(ppu)) {
+        address_t palette_addr = ppu->v & 0x1F;
+        write_palette_ppu(ppu, palette_addr, value);
+    } else {
+        address_t vram_addr = ppu->v & 0x3FFF;
+        write_ppu_bus(ppu->bus, vram_addr, value);
+    }
+    increment_vram_address_ppu(ppu);
+    ppu->io_databus = value;
+
+    // TODO:
+    // https://www.nesdev.org/wiki/PPU_scrolling#$2007_reads_and_writes
+}
+
 void read_state_ppu(ppu_t *ppu, char *buffer, unsigned buffer_size) {
     snprintf(buffer,
              buffer_size,
-             "CTRL:%02X STATUS:%02X MASK:%02X SCROLL:%02X ADDR:%02X DATA:%02X "
-             "OAMADDR:%02X OAMDATA:%02X CYC:%3d,%3d",
+             "CTRL:%02X STATUS:%02X MASK:%02X OAMADDR:%02X CYC:%3d,%3d",
              ppu->ctrl,
              ppu->status,
              ppu->mask,
-             ppu->scroll,
-             ppu->addr,
-             ppu->data,
-             ppu->oam_addr,
-             ppu->oam_data,
+             ppu->oamaddr,
              ppu->scanline,
              ppu->dot);
 }
@@ -341,7 +467,7 @@ void execute_events_ppu(ppu_t *ppu, ppu_event_t *events) {
             break;
         case PPU_EVENT_CLEAR_OAMADDR:
             if (enabled) {
-                ppu->oam_addr = 0;
+                ppu->oamaddr = 0;
             }
             break;
         case PPU_EVENT_CLEAR_FLAGS:

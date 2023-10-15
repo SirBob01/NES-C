@@ -89,37 +89,7 @@ typedef struct {
      * @brief OAMADDR register.
      *
      */
-    unsigned char oam_addr;
-
-    /**
-     * @brief OAMDATA register.
-     *
-     */
-    unsigned char oam_data;
-
-    /**
-     * @brief PPUSCROLL register.
-     *
-     */
-    unsigned char scroll;
-
-    /**
-     * @brief PPUADDR register.
-     *
-     */
-    unsigned char addr;
-
-    /**
-     * @brief PPUDATA register.
-     *
-     */
-    unsigned char data;
-
-    /**
-     * @brief OAMDMA register.
-     *
-     */
-    unsigned char oam_dma;
+    unsigned char oamaddr;
 
     /**
      * @brief Current VRAM address.
@@ -198,6 +168,12 @@ typedef struct {
      *
      */
     unsigned char palette[PPU_PALETTE_SIZE];
+
+    /**
+     * @brief Read buffer for PPUDATA.
+     *
+     */
+    unsigned char buffer2007;
 
     /**
      * @brief Data bus for communicating with the CPU.
@@ -332,6 +308,85 @@ void write_palette_ppu(ppu_t *ppu,
  * @param ppu
  */
 void increment_vram_address_ppu(ppu_t *ppu);
+
+/**
+ * @brief Read from PPUSTATUS.
+ *
+ * @param ppu
+ */
+unsigned char read_status_ppu(ppu_t *ppu);
+
+/**
+ * @brief Read from OAMDATA.
+ *
+ * @param ppu
+ * @return unsigned char
+ */
+unsigned char read_oamdata_ppu(ppu_t *ppu);
+
+/**
+ * @brief Read from PPUDATA.
+ *
+ * @param ppu
+ * @return unsigned char
+ */
+unsigned char read_data_ppu(ppu_t *ppu);
+
+/**
+ * @brief Write to PPUCTRL.
+ *
+ * @param ppu
+ * @param value
+ */
+void write_ctrl_ppu(ppu_t *ppu, unsigned char value);
+
+/**
+ * @brief Write to PPUMASK.
+ *
+ * @param ppu
+ * @param value
+ */
+void write_mask_ppu(ppu_t *ppu, unsigned char value);
+
+/**
+ * @brief Write to OAMADDR.
+ *
+ * @param ppu
+ * @param value
+ */
+void write_oamaddr_ppu(ppu_t *ppu, unsigned char value);
+
+/**
+ * @brief Write to OAMDATA.
+ *
+ * @param ppu
+ * @param value
+ */
+void write_oamdata_ppu(ppu_t *ppu, unsigned char value);
+
+/**
+ * @brief Write to PPUSCROLL.
+ *
+ * @param ppu
+ * @param value
+ */
+void write_scroll_ppu(ppu_t *ppu, unsigned char value);
+
+/**
+ * @brief Write to PPUADDR.
+ *
+ * @param ppu
+ * @param value
+ */
+void write_addr_ppu(ppu_t *ppu, unsigned char value);
+
+/**
+ * @brief Write to PPUDATA.
+ *
+ * @param ppu
+ * @param value
+ */
+void write_data_ppu(ppu_t *ppu, unsigned char value);
 
 /**
  * @brief Read the current state of the CPU for debugging.
