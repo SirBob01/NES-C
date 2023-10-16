@@ -59,7 +59,8 @@
 #define PPU_REG_OAMDMA  0x4014
 
 // Memory mapped controller registers
-#define CTRL_REG_STROBE 0x4016
+#define CTRL_REG_JOYPAD1 0x4016
+#define CTRL_REG_JOYPAD2 0x4017
 
 /**
  * @brief Bus for memory accessing and communication between the CPU and its

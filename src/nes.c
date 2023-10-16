@@ -60,15 +60,17 @@ int main(int argc, char **argv) {
         }
 
         // Handle controller 1 input
-        set_joy1_controller(&emu.controller,
-                            is_keydown_input(&io.input, SDLK_z),
-                            is_keydown_input(&io.input, SDLK_x),
-                            is_keydown_input(&io.input, SDLK_a),
-                            is_keydown_input(&io.input, SDLK_s),
-                            is_keydown_input(&io.input, SDLK_UP),
-                            is_keydown_input(&io.input, SDLK_DOWN),
-                            is_keydown_input(&io.input, SDLK_LEFT),
-                            is_keydown_input(&io.input, SDLK_RIGHT));
+        joypad_t buttons;
+        buttons.a = is_keydown_input(&io.input, SDLK_z);
+        buttons.b = is_keydown_input(&io.input, SDLK_x);
+        buttons.select = is_keydown_input(&io.input, SDLK_a);
+        buttons.start = is_keydown_input(&io.input, SDLK_s);
+        buttons.up = is_keydown_input(&io.input, SDLK_UP);
+        buttons.down = is_keydown_input(&io.input, SDLK_DOWN);
+        buttons.left = is_keydown_input(&io.input, SDLK_LEFT);
+        buttons.right = is_keydown_input(&io.input, SDLK_RIGHT);
+
+        set_joy1_controller(&emu.controller, buttons);
 
         // Refresh IO
         bool io_state = refresh_io(&io, &emu);

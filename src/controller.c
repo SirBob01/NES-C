@@ -1,22 +1,22 @@
 #include "./controller.h"
 
 void create_controller(controller_t *controller) {
-    controller->joy[0] = 0;
-    controller->joy[1] = 0;
+    controller->joypad[0] = 0;
+    controller->joypad[1] = 0;
 
     controller->shift[0] = 0;
     controller->shift[1] = 0;
 
-    controller->strobe = false;
+    controller->joypad_strobe = false;
 }
 
 void destroy_controller(controller_t *controller) {}
 
 void write_strobe_controller(controller_t *controller, unsigned char value) {
-    controller->strobe = value & 1;
-    if (controller->strobe) {
-        controller->shift[0] = controller->joy[0];
-        controller->shift[1] = controller->joy[1];
+    controller->joypad_strobe = value & 1;
+    if (controller->joypad_strobe) {
+        controller->shift[0] = controller->joypad[0];
+        controller->shift[1] = controller->joypad[1];
     }
 }
 
@@ -34,42 +34,26 @@ unsigned char read_joy2_controller(controller_t *controller) {
     return result;
 }
 
-void set_joy1_controller(controller_t *controller,
-                         bool a,
-                         bool b,
-                         bool select,
-                         bool start,
-                         bool up,
-                         bool down,
-                         bool left,
-                         bool right) {
-    controller->joy[0] = 0;
-    controller->joy[0] |= a;
-    controller->joy[0] |= b << 1;
-    controller->joy[0] |= select << 2;
-    controller->joy[0] |= start << 3;
-    controller->joy[0] |= up << 4;
-    controller->joy[0] |= down << 5;
-    controller->joy[0] |= left << 6;
-    controller->joy[0] |= right << 7;
+void set_joy1_controller(controller_t *controller, joypad_t buttons) {
+    controller->joypad[0] = 0;
+    controller->joypad[0] |= buttons.a;
+    controller->joypad[0] |= buttons.b << 1;
+    controller->joypad[0] |= buttons.select << 2;
+    controller->joypad[0] |= buttons.start << 3;
+    controller->joypad[0] |= buttons.up << 4;
+    controller->joypad[0] |= buttons.down << 5;
+    controller->joypad[0] |= buttons.left << 6;
+    controller->joypad[0] |= buttons.right << 7;
 }
 
-void set_joy2_controller(controller_t *controller,
-                         bool a,
-                         bool b,
-                         bool select,
-                         bool start,
-                         bool up,
-                         bool down,
-                         bool left,
-                         bool right) {
-    controller->joy[0] = 0;
-    controller->joy[1] |= a;
-    controller->joy[1] |= b << 1;
-    controller->joy[1] |= select << 2;
-    controller->joy[1] |= start << 3;
-    controller->joy[1] |= up << 4;
-    controller->joy[1] |= down << 5;
-    controller->joy[1] |= left << 6;
-    controller->joy[1] |= right << 7;
+void set_joy2_controller(controller_t *controller, joypad_t buttons) {
+    controller->joypad[0] = 0;
+    controller->joypad[1] |= buttons.a;
+    controller->joypad[1] |= buttons.b << 1;
+    controller->joypad[1] |= buttons.select << 2;
+    controller->joypad[1] |= buttons.start << 3;
+    controller->joypad[1] |= buttons.up << 4;
+    controller->joypad[1] |= buttons.down << 5;
+    controller->joypad[1] |= buttons.left << 6;
+    controller->joypad[1] |= buttons.right << 7;
 }
