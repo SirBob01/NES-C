@@ -107,21 +107,6 @@ unsigned char read_palette_ppu(ppu_t *ppu, unsigned char palette_index) {
     return value;
 }
 
-void write_palette_ppu(ppu_t *ppu,
-                       unsigned char palette_index,
-                       unsigned char value) {
-    value &= 0x3F; // Only include the lower 6 bits
-    ppu->palette[palette_index] = value;
-    if ((palette_index & 0x3) == 0) {
-        ppu->palette[palette_index ^ 0x10] = value;
-    }
-}
-
-void increment_vram_address_ppu(ppu_t *ppu) {
-    ppu->v++;
-    ppu->v += ((ppu->ctrl >> 2) & 1) * 31;
-}
-
 unsigned char read_status_ppu(ppu_t *ppu) {
     // Set low 5 bits of status register to io latch
     unsigned char result = ppu->status;
@@ -166,7 +151,8 @@ unsigned char read_data_ppu(ppu_t *ppu) {
         result &= ~0xC0;
         result |= ppu->io_databus & 0xC0;
     }
-    increment_vram_address_ppu(ppu);
+    ppu->v++;
+    ppu->v += ((ppu->ctrl >> 2) & 1) * 31;
     ppu->io_databus = result;
     return result;
 }
@@ -246,12 +232,16 @@ void write_addr_ppu(ppu_t *ppu, unsigned char value) {
 void write_data_ppu(ppu_t *ppu, unsigned char value) {
     if (ppu->v >= PPU_MAP_PALETTE && !is_rendering_ppu(ppu)) {
         address_t palette_addr = ppu->v & 0x1F;
-        write_palette_ppu(ppu, palette_addr, value);
+        ppu->palette[palette_addr] = value & 0x3F; // Only include lower 6 bits
+        if ((palette_addr & 0x3) == 0) {
+            ppu->palette[palette_addr ^ 0x10] = ppu->palette[palette_addr];
+        }
     } else {
         address_t vram_addr = ppu->v & 0x3FFF;
         write_ppu_bus(ppu->bus, vram_addr, value);
     }
-    increment_vram_address_ppu(ppu);
+    ppu->v++;
+    ppu->v += ((ppu->ctrl >> 2) & 1) * 31;
     ppu->io_databus = value;
 
     // TODO:

@@ -4,15 +4,30 @@
 #include <stdbool.h>
 
 /**
+ * @brief Buttons of the standard NES joypad.
+ *
+ */
+typedef struct {
+    bool a;
+    bool b;
+    bool select;
+    bool start;
+    bool up;
+    bool down;
+    bool left;
+    bool right;
+} joypad_t;
+
+/**
  * @brief NES input controller state.
  *
  */
 typedef struct {
     /**
-     * @brief Button states of the controllers.
+     * @brief Button states of the joypad controllers.
      *
      */
-    unsigned char joy[2];
+    unsigned char joypad[2];
 
     /**
      * @brief Shift registers for each controller.
@@ -24,7 +39,7 @@ typedef struct {
      * @brief Flag that determines if the controller input should be polled.
      *
      */
-    bool strobe;
+    bool joypad_strobe;
 } controller_t;
 
 /**
@@ -69,46 +84,16 @@ unsigned char read_joy2_controller(controller_t *controller);
  * @brief Set the button states of the first controller.
  *
  * @param controller
- * @param a
- * @param b
- * @param select
- * @param start
- * @param up
- * @param down
- * @param left
- * @param right
+ * @param buttons
  */
-void set_joy1_controller(controller_t *controller,
-                         bool a,
-                         bool b,
-                         bool select,
-                         bool start,
-                         bool up,
-                         bool down,
-                         bool left,
-                         bool right);
+void set_joy1_controller(controller_t *controller, joypad_t buttons);
 
 /**
  * @brief Set the button states of the second controller.
  *
  * @param controller
- * @param a
- * @param b
- * @param select
- * @param start
- * @param up
- * @param down
- * @param left
- * @param right
+ * @param buttons
  */
-void set_joy2_controller(controller_t *controller,
-                         bool a,
-                         bool b,
-                         bool select,
-                         bool start,
-                         bool up,
-                         bool down,
-                         bool left,
-                         bool right);
+void set_joy2_controller(controller_t *controller, joypad_t buttons);
 
 #endif

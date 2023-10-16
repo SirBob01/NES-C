@@ -11,7 +11,6 @@ A cycle-accurate NES Emulator built for fun (and education)!
 
 ## TODO
 
-* Fix CPU bus read/write register issues
 * Implement PPU sprite evaluation
 * Implement APU emulation
 

@@ -284,32 +284,6 @@ void destroy_ppu(ppu_t *ppu);
 void create_event_tables_ppu(ppu_t *ppu);
 
 /**
- * @brief Read from the internal palette memory.
- *
- * @param ppu
- * @return unsigned char
- */
-unsigned char read_palette_ppu(ppu_t *ppu, unsigned char palette_index);
-
-/**
- * @brief Write to the internal palette memory.
- *
- * @param ppu
- * @param palette_index
- * @param value
- */
-void write_palette_ppu(ppu_t *ppu,
-                       unsigned char palette_index,
-                       unsigned char value);
-
-/**
- * @brief Increment the VRAM address.
- *
- * @param ppu
- */
-void increment_vram_address_ppu(ppu_t *ppu);
-
-/**
  * @brief Read from PPUSTATUS.
  *
  * @param ppu
