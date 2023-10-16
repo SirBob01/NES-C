@@ -40,6 +40,12 @@ typedef struct {
      *
      */
     display_t pattern_table;
+
+    /**
+     * @brief Nametable display (debug only).
+     *
+     */
+    display_t nametables;
 } io_t;
 
 /**
