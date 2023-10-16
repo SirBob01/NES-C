@@ -10,6 +10,7 @@ void create_io(io_t *io, emulator_t *emu) {
 void destroy_io(io_t *io) {
     if (is_debug_io(io)) {
         destroy_display(&io->pattern_table);
+        destroy_display(&io->nametables);
     }
     destroy_display(&io->display);
     destroy_input(&io->input);
@@ -17,16 +18,19 @@ void destroy_io(io_t *io) {
 }
 
 bool is_debug_io(io_t *io) {
-    // Check if pattern tables are being rendered
-    return !is_free_memory(&io->pattern_table.bitmap);
+    // Check if debug displays are being rendered
+    return !is_free_memory(&io->pattern_table.bitmap) &&
+           !is_free_memory(&io->nametables.bitmap);
 }
 
 void set_debug_io(io_t *io, bool debug) {
     if (is_debug_io(io) == debug) return;
     if (debug) {
         create_display(&io->pattern_table, 128, 256, "Pattern Tables");
+        create_display(&io->nametables, 32 * 2 * 8, 30 * 2 * 8, "Nametables");
     } else {
         destroy_display(&io->pattern_table);
+        destroy_display(&io->nametables);
     }
 }
 
@@ -79,6 +83,47 @@ void debug_io(io_t *io, emulator_t *emu) {
         }
     }
     refresh_display(&io->pattern_table);
+
+    // Draw nametables
+    address_t bases[4] = {
+        0x2000,
+        0x2400,
+        0x2800,
+        0x2C00,
+    };
+    ppu_t *ppu = &io->emu->ppu;
+    for (unsigned b = 0; b < 0x3C0; b++) {
+        for (unsigned n = 0; n < 4; n++) {
+            address_t address = bases[n] + b;
+            unsigned char tile = read_ppu_bus(&emu->ppu_bus, address);
+
+            unsigned x_tile_offset = (b & 31) + (n & 1) * 32;
+            unsigned y_tile_offset = (b >> 5) + (n >> 1) * 30;
+
+            for (unsigned y = 0; y < 8; y++) {
+                bool bg_ctrl = ppu->ctrl & PPU_CTRL_PATTERN_TABLE_BG;
+                address_t pt_address = (bg_ctrl * 0x1000) | (tile << 4) | y;
+                unsigned char lo = read_ppu_bus(ppu->bus, pt_address);
+                unsigned char hi = read_ppu_bus(ppu->bus, pt_address + 8);
+
+                for (unsigned x = 0; x < 8; x++) {
+                    unsigned char palette_index =
+                        ((lo >> (7 - x)) & 1) | (((hi >> (7 - x)) & 1) << 1);
+                    vec2_t position = {
+                        x_tile_offset * 8 + x,
+                        y_tile_offset * 8 + y,
+                    };
+                    color_t color = create_color(ppu->palette[palette_index],
+                                                 false,
+                                                 false,
+                                                 false,
+                                                 false);
+                    draw_display(&io->nametables, position, color);
+                }
+            }
+        }
+    }
+    refresh_display(&io->nametables);
 }
 
 bool refresh_io(io_t *io, emulator_t *emu) {
