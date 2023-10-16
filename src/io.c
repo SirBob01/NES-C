@@ -101,14 +101,23 @@ void debug_io(io_t *io, emulator_t *emu) {
             unsigned y_tile_offset = (b >> 5) + (n >> 1) * 30;
 
             for (unsigned y = 0; y < 8; y++) {
+                address_t at_address = 0x23C0 | (b & 0x0C00) |
+                                       ((b >> 4) & 0x38) | ((b >> 2) & 0x07);
+                unsigned char at = read_ppu_bus(ppu->bus, at_address);
+                bool scroll_x = b & 0x02;
+                bool scroll_y = b & 0x40;
+                unsigned char quadrant = (scroll_y << 1) | scroll_x;
+                unsigned char palette = (at >> (quadrant << 1)) & 0x03;
+
                 bool bg_ctrl = ppu->ctrl & PPU_CTRL_PATTERN_TABLE_BG;
                 address_t pt_address = (bg_ctrl * 0x1000) | (tile << 4) | y;
                 unsigned char lo = read_ppu_bus(ppu->bus, pt_address);
                 unsigned char hi = read_ppu_bus(ppu->bus, pt_address + 8);
 
                 for (unsigned x = 0; x < 8; x++) {
-                    unsigned char palette_index =
-                        ((lo >> (7 - x)) & 1) | (((hi >> (7 - x)) & 1) << 1);
+                    unsigned char palette_index = (palette << 2) |
+                                                  ((lo >> (7 - x)) & 1) |
+                                                  (((hi >> (7 - x)) & 1) << 1);
                     vec2_t position = {
                         x_tile_offset * 8 + x,
                         y_tile_offset * 8 + y,
