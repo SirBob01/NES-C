@@ -16,10 +16,28 @@ typedef struct {
     unsigned char shift_register;
 
     /**
-     * @brief Register group.
+     * @brief Control register.
      *
      */
-    unsigned char registers[4];
+    unsigned char ctrl;
+
+    /**
+     * @brief CHR bank 0 register.
+     *
+     */
+    unsigned char chr_bank_0;
+
+    /**
+     * @brief CHR bank 1 register.
+     *
+     */
+    unsigned char chr_bank_1;
+
+    /**
+     * @brief PRG bank register.
+     *
+     */
+    unsigned char prg_bank;
 } mmc1_t;
 
 /**

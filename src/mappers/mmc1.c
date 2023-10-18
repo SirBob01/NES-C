@@ -2,10 +2,10 @@
 
 void create_mmc1(mmc1_t *mapper) {
     mapper->shift_register = 0;
-    mapper->registers[0] = 0;
-    mapper->registers[1] = 0;
-    mapper->registers[2] = 0;
-    mapper->registers[3] = 0;
+    mapper->ctrl = 0;
+    mapper->chr_bank_0 = 0;
+    mapper->chr_bank_1 = 0;
+    mapper->prg_bank = 0;
 }
 
 void destroy_mmc1(mmc1_t *mapper) {}
@@ -14,7 +14,7 @@ unsigned char read_cpu_mmc1(mmc1_t *mapper, rom_t *rom, address_t address) {
     if (address < 0x8000) {
         return get_prg_ram(rom)[address];
     } else {
-        unsigned char mode = (mapper->registers[0] >> 2) & 0x3;
+        unsigned char mode = (mapper->ctrl >> 2) & 0x3;
         switch (mode) {
         case 0:
         case 1:
@@ -41,8 +41,22 @@ void write_cpu_mmc1(mmc1_t *mapper,
                 mapper->shift_register >>= 1;
                 mapper->shift_register |= bit;
 
+                // Write to the appropriate register
                 unsigned char register_index = (address >> 13) & 0x3;
-                mapper->registers[register_index] = mapper->shift_register;
+                switch (register_index) {
+                case 0:
+                    mapper->ctrl = mapper->shift_register;
+                    break;
+                case 1:
+                    mapper->chr_bank_0 = mapper->shift_register;
+                    break;
+                case 2:
+                    mapper->chr_bank_1 = mapper->shift_register;
+                    break;
+                case 3:
+                    mapper->prg_bank = mapper->shift_register;
+                    break;
+                }
                 mapper->shift_register = 1 << 4;
             } else {
                 unsigned char bit = (value & 1) << 4;
