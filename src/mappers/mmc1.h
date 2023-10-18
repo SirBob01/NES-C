@@ -1,8 +1,6 @@
 #ifndef MAPPER_MMC1_H
 #define MAPPER_MMC1_H
 
-#define MMC1_SERIAL_PORT 0x8000
-
 #include "../memory.h"
 #include "../rom.h"
 
@@ -18,10 +16,10 @@ typedef struct {
     unsigned char shift_register;
 
     /**
-     * @brief Write counter.
+     * @brief Register group.
      *
      */
-    unsigned long write_counter;
+    unsigned char registers[4];
 } mmc1_t;
 
 /**
