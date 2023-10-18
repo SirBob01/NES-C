@@ -13,7 +13,6 @@ A cycle-accurate NES Emulator built for fun (and education)!
 
 - Implement PPU sprite evaluation
 - Implement APU emulation
-- Implement MMC1 mapper
 
 ## License
 
