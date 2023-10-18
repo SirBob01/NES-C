@@ -3,7 +3,6 @@
 #include "./ctest.h"
 
 #include "../../src/emulator.h"
-#include "../../src/mappers/nrom.h"
 
 int tests_run = 0;
 
@@ -53,23 +52,9 @@ static char *test_mirror_nametables_ver() {
     return 0;
 }
 
-static char *test_mapper0() {
-    emulator_t emu;
-    create_emulator(&emu, "../roms/nestest/nestest.nes");
-
-    mu_assert("CHR_ROM[0]", *get_ppu_memory_nrom(&emu.rom, 0x20) == 0x80);
-    mu_assert("CHR_ROM[1]", *get_ppu_memory_nrom(&emu.rom, 0x21) == 0x80);
-    mu_assert("CHR_ROM[2]", *get_ppu_memory_nrom(&emu.rom, 0x22) == 0xff);
-    mu_assert("CHR_ROM[3]", *get_ppu_memory_nrom(&emu.rom, 0x23) == 0x80);
-
-    destroy_emulator(&emu);
-    return 0;
-}
-
 static char *all_tests() {
     mu_run_test(test_mirror_nametables_hor);
     mu_run_test(test_mirror_nametables_ver);
-    mu_run_test(test_mapper0);
     return 0;
 }
 

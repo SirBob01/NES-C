@@ -132,7 +132,7 @@ unsigned char read_status_ppu(ppu_t *ppu) {
 
 unsigned char read_oamdata_ppu(ppu_t *ppu) {
     unsigned char result = ppu->primary_oam[ppu->oamaddr];
-    if ((ppu->oamaddr % 4) == 2) {
+    if ((ppu->oamaddr & 3) == 2) {
         result &= 0xE3;
     }
     ppu->io_databus = result;

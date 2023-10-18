@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "./memory.h"
 
@@ -48,22 +49,34 @@ typedef struct {
     rom_type_t type;
 
     /**
+     * @brief Size of the trainer segment (512-bytes or 0).
+     *
+     */
+    unsigned trainer_size;
+
+    /**
      * @brief Size of the program ROM in bytes.
      *
      */
-    unsigned long prg_rom_size;
-
-    /**
-     * @brief Size of the character ROM in bytes.
-     *
-     */
-    unsigned long chr_rom_size;
+    unsigned prg_rom_size;
 
     /**
      * @brief Size of the program RAM in bytes.
      *
      */
-    unsigned long prg_ram_size;
+    unsigned prg_ram_size;
+
+    /**
+     * @brief Size of the character ROM in bytes.
+     *
+     */
+    unsigned chr_rom_size;
+
+    /**
+     * @brief Size of the character RAM in bytes.
+     *
+     */
+    unsigned chr_ram_size;
 
     /**
      * @brief ROM mirroring mode.
@@ -76,12 +89,6 @@ typedef struct {
      *
      */
     bool battery;
-
-    /**
-     * @brief 512-byte trainer segment exists.
-     *
-     */
-    bool trainer;
 
     /**
      * @brief Hardwired four-screen VRAM.
@@ -104,16 +111,16 @@ typedef struct {
 
 typedef struct {
     /**
-     * @brief Data buffer.
-     *
-     */
-    memory_t data;
-
-    /**
      * @brief ROM metadata.
      *
      */
     rom_header_t header;
+
+    /**
+     * @brief Data buffer.
+     *
+     */
+    memory_t data;
 } rom_t;
 
 /**
@@ -156,12 +163,28 @@ unsigned char *get_trainer_rom(rom_t *rom);
 unsigned char *get_prg_rom(rom_t *rom);
 
 /**
+ * @brief Get the pointer to PRG RAM.
+ *
+ * @param rom
+ * @return unsigned char*
+ */
+unsigned char *get_prg_ram(rom_t *rom);
+
+/**
  * @brief Get the pointer to CHR ROM.
  *
  * @param rom
  * @return unsigned char*
  */
 unsigned char *get_chr_rom(rom_t *rom);
+
+/**
+ * @brief Get the pointer to CHR RAM.
+ *
+ * @param rom
+ * @return unsigned char*
+ */
+unsigned char *get_chr_ram(rom_t *rom);
 
 /**
  * @brief Read the current state of the cartridge ROM for debugging.
