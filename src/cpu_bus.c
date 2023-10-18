@@ -14,16 +14,11 @@ void create_cpu_bus(cpu_bus_t *bus,
     memset(bus->memory, 0, CPU_RAM_SIZE);
 }
 
-address_t mirror_cpu_bus(address_t address, unsigned long prg_ram_size) {
+address_t mirror_cpu_bus(address_t address) {
     if (address < CPU_MAP_PPU_REG) {
-        // Mirrored RAM region
-        return CPU_MAP_START + ((address - CPU_MAP_START) % 0x800);
+        return CPU_MAP_START + (address & 0x7FF);
     } else if (address < CPU_MAP_APU_IO) {
-        // Mirrored PPU register memory
-        return CPU_MAP_PPU_REG + ((address - CPU_MAP_PPU_REG) % 0x8);
-    } else if (address >= CPU_MAP_RAM) {
-        // Mirrored PRG RAM memory
-        return CPU_MAP_RAM + ((address - CPU_MAP_RAM) % prg_ram_size);
+        return CPU_MAP_PPU_REG + (address & 0x7);
     }
     return address;
 }
@@ -40,10 +35,10 @@ void oamdma_cpu_bus(cpu_bus_t *bus, unsigned char value) {
 }
 
 unsigned char read_cpu_bus(cpu_bus_t *bus, address_t address) {
-    if (address >= CPU_MAP_ROM) {
+    if (address >= CPU_MAP_CARTRIDGE) {
         return read_cpu_mapper(bus->mapper, address);
     } else {
-        address = mirror_cpu_bus(address, bus->rom->header.prg_ram_size);
+        address = mirror_cpu_bus(address);
         switch (address) {
         case PPU_REG_STATUS:
             return read_status_ppu(bus->ppu);
@@ -70,10 +65,10 @@ unsigned char read_cpu_bus(cpu_bus_t *bus, address_t address) {
 }
 
 void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value) {
-    if (address >= CPU_MAP_ROM) {
+    if (address >= CPU_MAP_CARTRIDGE) {
         write_cpu_mapper(bus->mapper, address, value);
     } else {
-        address = mirror_cpu_bus(address, bus->rom->header.prg_ram_size);
+        address = mirror_cpu_bus(address);
         switch (address) {
         case PPU_REG_CTRL:
             write_ctrl_ppu(bus->ppu, value);

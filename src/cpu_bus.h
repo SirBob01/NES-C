@@ -132,10 +132,9 @@ void create_cpu_bus(cpu_bus_t *bus,
  * @brief Mirror an address according to the CPU memory map.
  *
  * @param address
- * @param prg_ram_size
  * @return address_t
  */
-address_t mirror_cpu_bus(address_t address, unsigned long prg_ram_size);
+address_t mirror_cpu_bus(address_t address);
 
 /**
  * @brief Read a byte from the CPU's memory map.

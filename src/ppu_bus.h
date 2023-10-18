@@ -5,8 +5,8 @@
 #include "./memory.h"
 #include "./rom.h"
 
-// 2C02 has a 16-bit address bus (64k)
-#define PPU_RAM_SIZE           (1 << 16)
+// 2C02 has a 14-bit address bus (16k)
+#define PPU_RAM_SIZE           (1 << 14)
 #define PPU_PRIMARY_OAM_SIZE   (1 << 8)
 #define PPU_SECONDARY_OAM_SIZE (1 << 5)
 #define PPU_PALETTE_SIZE       (1 << 5)

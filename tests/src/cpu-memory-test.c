@@ -6,51 +6,34 @@
 
 int tests_run = 0;
 
+char message[1024] = {0};
+
 static char *test_mirror_ram() {
-    // RAM
-    mu_assert("RAM (L)", mirror_cpu_bus(0x0000, 0x2000) == 0);
-    mu_assert("RAM (M)", mirror_cpu_bus(0x0050, 0x2000) == 0x050);
-    mu_assert("RAM (H)", mirror_cpu_bus(0x07ff, 0x2000) == 0x07ff);
-
-    // Mirror 0
-    mu_assert("RAM Mirror 0 (L)", mirror_cpu_bus(0x0800, 0x2000) == 0);
-    mu_assert("RAM Mirror 0 (M)", mirror_cpu_bus(0x0900, 0x2000) == 0x0100);
-    mu_assert("RAM Mirror 0 (H)", mirror_cpu_bus(0x0fff, 0x2000) == 0x07ff);
-
-    // Mirror 1
-    mu_assert("RAM Mirror 1 (L)", mirror_cpu_bus(0x1000, 0x2000) == 0);
-    mu_assert("RAM Mirror 1 (M)", mirror_cpu_bus(0x1100, 0x2000) == 0x0100);
-    mu_assert("RAM Mirror 1 (H)", mirror_cpu_bus(0x17ff, 0x2000) == 0x07ff);
-
-    // Mirror 2
-    mu_assert("RAM Mirror 2 (L)", mirror_cpu_bus(0x1800, 0x2000) == 0);
-    mu_assert("RAM Mirror 2 (M)", mirror_cpu_bus(0x1900, 0x2000) == 0x0100);
-    mu_assert("RAM Mirror 2 (H)", mirror_cpu_bus(0x1fff, 0x2000) == 0x07ff);
+    for (address_t addr = 0; addr < 0x2000; addr++) {
+        address_t received = mirror_cpu_bus(addr);
+        address_t expected = addr % 0x800;
+        snprintf(message, sizeof(message), "RAM Mirror (0x%04x)", addr);
+        mu_assert(message, received == expected);
+    }
     return 0;
 }
 
 static char *test_mirror_ppu() {
-    // PPU
-    mu_assert("PPU (L)", mirror_cpu_bus(0x2000, 0x2000) == 0x2000);
-    mu_assert("PPU (M)", mirror_cpu_bus(0x2004, 0x2000) == 0x2004);
-    mu_assert("PPU (H)", mirror_cpu_bus(0x2007, 0x2000) == 0x2007);
-
-    // First Mirror
-    mu_assert("PPU Mirror 0 (L)", mirror_cpu_bus(0x2008, 0x2000) == 0x2000);
-    mu_assert("PPU Mirror 0 (M)", mirror_cpu_bus(0x200c, 0x2000) == 0x2004);
-    mu_assert("PPU Mirror 0 (H)", mirror_cpu_bus(0x200f, 0x2000) == 0x2007);
-
-    // Last Mirror
-    mu_assert("PPU Mirror last (L)", mirror_cpu_bus(0x3ff8, 0x2000) == 0x2000);
-    mu_assert("PPU Mirror last (M)", mirror_cpu_bus(0x3ffc, 0x2000) == 0x2004);
-    mu_assert("PPU Mirror last (H)", mirror_cpu_bus(0x3fff, 0x2000) == 0x2007);
+    for (address_t addr = 0x2000; addr < 0x4000; addr++) {
+        address_t received = mirror_cpu_bus(addr);
+        address_t expected = 0x2000 + (addr % 0x08);
+        snprintf(message, sizeof(message), "PPU Mirror (0x%04x)", addr);
+        mu_assert(message, received == expected);
+    }
     return 0;
 }
 
 static char *test_mirror_apu() {
-    mu_assert("APU I/O (L)", mirror_cpu_bus(0x4000, 0x2000) == 0x4000);
-    mu_assert("APU I/O (M)", mirror_cpu_bus(0x4017, 0x2000) == 0x4017);
-    mu_assert("APU I/O (H)", mirror_cpu_bus(0x4019, 0x2000) == 0x4019);
+    for (address_t addr = 0x4000; addr < 0x4020; addr++) {
+        address_t received = mirror_cpu_bus(addr);
+        snprintf(message, sizeof(message), "APU I/O (0x%04x)", addr);
+        mu_assert(message, received == addr);
+    }
     return 0;
 }
 

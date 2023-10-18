@@ -35,6 +35,15 @@ void set_debug_io(io_t *io, bool debug) {
 }
 
 void debug_io(io_t *io, emulator_t *emu) {
+    unsigned char *chr_rom = get_chr_rom(&emu->rom);
+    ppu_t *ppu = &io->emu->ppu;
+    address_t nt_bases[4] = {
+        0x2000,
+        0x2400,
+        0x2800,
+        0x2C00,
+    };
+
     // Draw tile grid
     const color_t grid_color = {0xff, 0, 0};
     for (unsigned x = 0; x < io->display.size.x; x++) {
@@ -47,12 +56,8 @@ void debug_io(io_t *io, emulator_t *emu) {
     }
 
     // Draw pattern tables
-    unsigned char *chr_rom = get_chr_rom(&emu->rom);
-    // For each tile
     for (unsigned i = 0; i < 512; i++) {
-        // For each row
         for (unsigned y = 0; y < 8; y++) {
-            // For each column
             unsigned char plane0 = chr_rom[i * 16 + y];
             unsigned char plane1 = chr_rom[i * 16 + y + 8];
 
@@ -63,21 +68,11 @@ void debug_io(io_t *io, emulator_t *emu) {
                     (i & 15) * 8 + x,
                     (i >> 4) * 8 + y,
                 };
-                color_t color = {0, 0, 0};
-                switch (pixel) {
-                case 1:
-                    color.r = 0xff;
-                    break;
-                case 2:
-                    color.g = 0xff;
-                    break;
-                case 3:
-                    color.b = 0xff;
-                    break;
-                default:
-                    break;
-                }
-                // Draw the pixel
+                color_t color = create_color(ppu->palette[pixel],
+                                             false,
+                                             false,
+                                             false,
+                                             false);
                 draw_display(&io->pattern_table, position, color);
             }
         }
@@ -85,16 +80,9 @@ void debug_io(io_t *io, emulator_t *emu) {
     refresh_display(&io->pattern_table);
 
     // Draw nametables
-    address_t bases[4] = {
-        0x2000,
-        0x2400,
-        0x2800,
-        0x2C00,
-    };
-    ppu_t *ppu = &io->emu->ppu;
     for (unsigned b = 0; b < 0x3C0; b++) {
         for (unsigned n = 0; n < 4; n++) {
-            address_t address = bases[n] + b;
+            address_t address = nt_bases[n] + b;
             unsigned char tile = read_ppu_bus(&emu->ppu_bus, address);
 
             unsigned x_tile_offset = (b & 31) + (n & 1) * 32;
