@@ -26,7 +26,16 @@ unsigned char read_cpu_mmc1(mmc1_t *mapper, rom_t *rom, address_t address) {
     }
 }
 
-unsigned char read_ppu_mmc1(mmc1_t *mapper, rom_t *rom, address_t address) {}
+unsigned char read_ppu_mmc1(mmc1_t *mapper, rom_t *rom, address_t address) {
+    bool mode = mapper->ctrl & 0x10;
+    if (mode) {
+        address_t mask = rom->header.chr_rom_size - 1;
+        return get_chr_ram(rom)[address & mask];
+    } else {
+        address_t mask = rom->header.chr_rom_size - 1;
+        return get_chr_rom(rom)[address & mask];
+    }
+}
 
 void write_cpu_mmc1(mmc1_t *mapper,
                     rom_t *rom,
