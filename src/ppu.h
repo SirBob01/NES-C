@@ -6,6 +6,7 @@
 #include "./memory.h"
 #include "./ppu_bus.h"
 #include "./rom.h"
+#include "./utils.h"
 
 // Rows and columns of the PPU render target
 #define PPU_SCANLINES 262
@@ -54,7 +55,11 @@ typedef enum {
     PPU_EVENT_FETCH_ATTRIBUTE,
     PPU_EVENT_FETCH_PATTERN_LO,
     PPU_EVENT_FETCH_PATTERN_HI,
+    PPU_EVENT_FETCH_ATTRIBUTE_SPRITE,
+    PPU_EVENT_FETCH_PATTERN_SPRITE_LO,
+    PPU_EVENT_FETCH_PATTERN_SPRITE_HI,
     PPU_EVENT_SHIFT_REGISTERS,
+    PPU_EVENT_SHIFT_SPRITE_REGISTERS,
     PPU_EVENT_RELOAD_SHIFTERS,
     PPU_EVENT_COPY_X,
     PPU_EVENT_COPY_Y,
@@ -64,6 +69,8 @@ typedef enum {
     PPU_EVENT_CLEAR_FLAGS,
     PPU_EVENT_SET_VBLANK,
     PPU_EVENT_SKIP_CYCLE,
+    PPU_EVENT_CLEAR_OAM,
+    PPU_EVENT_EVALUATE_SPRITES,
 } ppu_event_t;
 
 typedef struct {
@@ -152,6 +159,30 @@ typedef struct {
     unsigned short pa_shift[2];
 
     /**
+     * @brief Palette attribute latches for up to 8 sprites.
+     *
+     */
+    unsigned char sprite_latches[8];
+
+    /**
+     * @brief Pattern table shift registers for up to 8 sprites.
+     *
+     */
+    unsigned short sprite_shift[16];
+
+    /**
+     * @brief X-positions for up to 8 sprites.
+     *
+     */
+    unsigned char sprite_counters[8];
+
+    /**
+     * @brief Priority values of the sprites to render.
+     *
+     */
+    unsigned char sprite_indices[8];
+
+    /**
      * @brief Primary object attribute memory.
      *
      */
@@ -180,6 +211,36 @@ typedef struct {
      *
      */
     unsigned char io_databus;
+
+    /**
+     * @brief Buffer for reading from OAM.
+     *
+     */
+    unsigned char buffer_oam;
+
+    /**
+     * @brief Number of sprites in secondary OAM.
+     *
+     */
+    unsigned sprite_count;
+
+    /**
+     * @brief Latch for the sprite counter.
+     *
+     */
+    unsigned sprite_count_latch;
+
+    /**
+     * @brief Index of current evaluating sprite.
+     *
+     */
+    unsigned sprite_index;
+
+    /**
+     * @brief Index within the current sprite OAM.
+     *
+     */
+    unsigned sprite_m;
 
     /**
      * @brief Toggle to suppress setting VBlank.
@@ -234,12 +295,6 @@ typedef struct {
      *
      */
     interrupt_t *interrupt;
-
-    /**
-     * @brief Events in the visible scanlines.
-     *
-     */
-    ppu_event_t visible_events[PPU_LINEDOTS][PPU_EVENTS_PER_DOT];
 
     /**
      * @brief Events in the render and pre-render scanlines.

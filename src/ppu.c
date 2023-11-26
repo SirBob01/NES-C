@@ -34,7 +34,6 @@ void create_event_tables_ppu(ppu_t *ppu) {
             ppu->render_events[dot][i] = PPU_EVENT_IDLE;
             ppu->prerender_events[dot][i] = PPU_EVENT_IDLE;
             ppu->vblank_events[dot][i] = PPU_EVENT_IDLE;
-            ppu->visible_events[dot][i] = PPU_EVENT_IDLE;
         }
 
         // Skip the first cycle of every scanline
@@ -96,6 +95,32 @@ void create_event_tables_ppu(ppu_t *ppu) {
         if (dot >= 257 && dot <= 320) {
             ppu->render_events[dot][i++] = PPU_EVENT_CLEAR_OAMADDR;
         }
+
+        // Sprite events
+        if (dot <= 64 && dot % 2 == 1) {
+            ppu->render_events[dot][i++] = PPU_EVENT_CLEAR_OAM;
+        }
+        if (dot >= 65 && dot <= 256) {
+            ppu->render_events[dot][i++] = PPU_EVENT_EVALUATE_SPRITES;
+        }
+        if (dot <= 256) {
+            ppu->render_events[dot][i++] = PPU_EVENT_SHIFT_SPRITE_REGISTERS;
+        }
+        if (dot >= 257 && dot <= 320) {
+            switch (dot % 8) {
+            case 4:
+                ppu->render_events[dot][i++] = PPU_EVENT_FETCH_ATTRIBUTE_SPRITE;
+                break;
+            case 6:
+                ppu->render_events[dot][i++] =
+                    PPU_EVENT_FETCH_PATTERN_SPRITE_LO;
+                break;
+            case 0:
+                ppu->render_events[dot][i++] =
+                    PPU_EVENT_FETCH_PATTERN_SPRITE_HI;
+                break;
+            }
+        }
     }
 }
 
@@ -105,6 +130,14 @@ unsigned char read_palette_ppu(ppu_t *ppu, unsigned char palette_index) {
         value &= 0x30;
     }
     return value;
+}
+
+unsigned char read_primary_oam_ppu(ppu_t *ppu, unsigned char oam_index) {
+    if (ppu->dot <= 64 && ppu->dot >= 1 && is_rendering_ppu(ppu)) {
+        return 0xFF;
+    } else {
+        return ppu->primary_oam[oam_index];
+    }
 }
 
 unsigned char read_status_ppu(ppu_t *ppu) {
@@ -131,7 +164,7 @@ unsigned char read_status_ppu(ppu_t *ppu) {
 }
 
 unsigned char read_oamdata_ppu(ppu_t *ppu) {
-    unsigned char result = ppu->primary_oam[ppu->oamaddr];
+    unsigned char result = read_primary_oam_ppu(ppu, ppu->oamaddr);
     if ((ppu->oamaddr & 3) == 2) {
         result &= 0xE3;
     }
@@ -273,6 +306,17 @@ void shift_registers_ppu(ppu_t *ppu) {
     ppu->pa_shift[1] <<= 1;
 }
 
+void shift_sprite_registers_ppu(ppu_t *ppu) {
+    for (unsigned i = 0; i < ppu->sprite_count_latch; i++) {
+        if (ppu->sprite_counters[i] == 0) {
+            ppu->sprite_shift[i * 2] <<= 1;
+            ppu->sprite_shift[i * 2 + 1] <<= 1;
+        } else {
+            ppu->sprite_counters[i]--;
+        }
+    }
+}
+
 void reload_shifters_ppu(ppu_t *ppu) {
     // Write to pattern table shift registers
     for (unsigned i = 0; i < 2; i++) {
@@ -309,8 +353,7 @@ void fetch_pattern_lo_ppu(ppu_t *ppu) {
     bool bg_ctrl = ppu->ctrl & PPU_CTRL_PATTERN_TABLE_BG;
     address_t pt_base = bg_ctrl * 0x1000;
     address_t fine_y = (ppu->v >> 12) & 0x7;
-    address_t pt_offset = (ppu->nt_latch << 4) | fine_y;
-    address_t pt_address = pt_base + pt_offset;
+    address_t pt_address = pt_base | (ppu->nt_latch << 4) | fine_y;
     ppu->pt_latches[0] = read_ppu_bus(ppu->bus, pt_address);
 }
 
@@ -318,9 +361,8 @@ void fetch_pattern_hi_ppu(ppu_t *ppu) {
     bool bg_ctrl = ppu->ctrl & PPU_CTRL_PATTERN_TABLE_BG;
     address_t pt_base = bg_ctrl * 0x1000;
     address_t fine_y = (ppu->v >> 12) & 0x7;
-    address_t pt_offset = (ppu->nt_latch << 4) | fine_y;
-    address_t pt_address = pt_base + pt_offset + 8;
-    ppu->pt_latches[1] = read_ppu_bus(ppu->bus, pt_address);
+    address_t pt_address = pt_base | (ppu->nt_latch << 4) | fine_y;
+    ppu->pt_latches[1] = read_ppu_bus(ppu->bus, pt_address + 8);
 }
 
 void increment_x_ppu(ppu_t *ppu) {
@@ -373,27 +415,170 @@ void set_vblank_ppu(ppu_t *ppu) {
     }
 }
 
+void clear_oam_ppu(ppu_t *ppu) {
+    ppu->secondary_oam[(ppu->dot - 1) >> 1] = 0xFF;
+    ppu->sprite_count = 0;
+    ppu->sprite_index = ppu->oamaddr >> 2;
+    ppu->sprite_m = ppu->oamaddr & 3;
+}
+
+bool sprite_in_range_ppu(ppu_t *ppu, unsigned char y) {
+    bool sprite_size = ppu->ctrl & PPU_CTRL_SPRITE_SIZE;
+    unsigned height = (sprite_size + 1) * 8;
+    unsigned max = y + height;
+    return y < 255 && ppu->scanline >= y && ppu->scanline < max;
+}
+
+void evaluate_sprites_ppu(ppu_t *ppu) {
+    if (ppu->sprite_index >= 64) {
+        return;
+    }
+    unsigned pri_index = ppu->sprite_index * 4 + ppu->sprite_m;
+    unsigned sec_index = ppu->sprite_count * 4 + ppu->sprite_m;
+
+    if (ppu->dot % 2) {
+        ppu->buffer_oam = read_primary_oam_ppu(ppu, pri_index);
+    } else {
+        if (ppu->sprite_count < 8) {
+            ppu->secondary_oam[sec_index] = ppu->buffer_oam;
+        }
+        if (ppu->sprite_m == 0) {
+            if (sprite_in_range_ppu(ppu, ppu->buffer_oam)) {
+                if (ppu->sprite_count == 8) {
+                    ppu->status |= PPU_STATUS_S_OVERFLOW;
+                }
+                ppu->sprite_m++;
+            } else {
+                ppu->sprite_index++;
+            }
+        } else {
+            ppu->sprite_m++;
+            if (ppu->sprite_m == 4) {
+                ppu->sprite_indices[ppu->sprite_count] = ppu->sprite_index;
+                ppu->sprite_m = 0;
+                ppu->sprite_index++;
+                ppu->sprite_count++;
+            }
+        }
+    }
+}
+
+void fetch_sprite_attribute_ppu(ppu_t *ppu) {
+    unsigned sprite_index = (ppu->dot - 256) >> 3;
+    unsigned char attr = ppu->secondary_oam[sprite_index * 4 + 2];
+    unsigned char x = ppu->secondary_oam[sprite_index * 4 + 3];
+    ppu->sprite_latches[sprite_index] = attr;
+    ppu->sprite_counters[sprite_index] = x;
+    ppu->sprite_count_latch = ppu->sprite_count;
+}
+
+void fetch_sprite_pattern_lo_ppu(ppu_t *ppu) {
+    unsigned sprite_index = (ppu->dot - 256) >> 3;
+    unsigned char y = ppu->scanline - ppu->secondary_oam[sprite_index * 4];
+    unsigned char tile = ppu->secondary_oam[sprite_index * 4 + 1];
+    unsigned char attr = ppu->sprite_latches[sprite_index];
+
+    bool flip_x = attr & 0x40;
+    bool flip_y = attr & 0x80;
+    bool sprite_size = ppu->ctrl & PPU_CTRL_SPRITE_SIZE;
+    bool sprite_ctrl = ppu->ctrl & PPU_CTRL_PATTERN_TABLE_SPRITE;
+    address_t pt_base = 0x1000;
+    if (sprite_size) {
+        pt_base *= tile & 1;
+        tile >>= 1;
+        if (flip_y) {
+            y = 15 - y;
+        }
+    } else {
+        pt_base *= sprite_ctrl;
+        if (flip_y) {
+            y = 7 - y;
+        }
+    }
+    address_t pt_address = pt_base | (tile << 4) | y;
+    unsigned char byte = read_ppu_bus(ppu->bus, pt_address);
+    if (flip_x) {
+        byte = reverse_bits(byte);
+    }
+    ppu->sprite_shift[sprite_index * 2] = byte;
+}
+
+void fetch_sprite_pattern_hi_ppu(ppu_t *ppu) {
+    unsigned sprite_index = (ppu->dot - 258) >> 3;
+    unsigned char y = ppu->scanline - ppu->secondary_oam[sprite_index * 4];
+    unsigned char tile = ppu->secondary_oam[sprite_index * 4 + 1];
+    unsigned char attr = ppu->sprite_latches[sprite_index];
+
+    bool flip_x = attr & 0x40;
+    bool flip_y = attr & 0x80;
+    bool sprite_size = ppu->ctrl & PPU_CTRL_SPRITE_SIZE;
+    bool sprite_ctrl = ppu->ctrl & PPU_CTRL_PATTERN_TABLE_SPRITE;
+    address_t pt_base = 0x1000;
+    if (sprite_size) {
+        pt_base *= tile & 1;
+        tile >>= 1;
+        if (flip_y) {
+            y = 15 - y;
+        }
+    } else {
+        pt_base *= sprite_ctrl;
+        if (flip_y) {
+            y = 7 - y;
+        }
+    }
+    address_t pt_address = pt_base | (tile << 4) | y;
+    unsigned char byte = read_ppu_bus(ppu->bus, pt_address + 8);
+    if (flip_x) {
+        byte = reverse_bits(byte);
+    }
+    ppu->sprite_shift[sprite_index * 2 + 1] = byte;
+}
+
 void draw_dot_ppu(ppu_t *ppu) {
     unsigned short x_mask = 0x8000 >> ppu->x;
 
-    // Read palette number from attribute table
-    bool pa0 = ppu->pa_shift[0] & x_mask;
-    bool pa1 = ppu->pa_shift[1] & x_mask;
-    unsigned char palette = pa0 | (pa1 << 1);
+    bool bg_pa0 = ppu->pa_shift[0] & x_mask;
+    bool bg_pa1 = ppu->pa_shift[1] & x_mask;
 
-    // Read color number from pattern table
-    bool pt0 = ppu->pt_shift[0] & x_mask;
-    bool pt1 = ppu->pt_shift[1] & x_mask;
-    unsigned char color = pt0 | (pt1 << 1);
+    bool bg_pt0 = ppu->pt_shift[0] & x_mask;
+    bool bg_pt1 = ppu->pt_shift[1] & x_mask;
 
-    // Fetch the actual color value from the palette
-    unsigned char palette_index = (palette << 2) | color;
-    unsigned char palette_byte = read_palette_ppu(ppu, palette_index);
+    unsigned char bg_palette = bg_pa0 | (bg_pa1 << 1);
+    unsigned char bg_color = bg_pt0 | (bg_pt1 << 1);
+
+    // Process each sprite in order of priority
+    unsigned char sp_palette = 0;
+    unsigned char sp_color = 0;
+    bool sp_behind_bg = true;
+
+    unsigned char sp_order = 0xFF;
+    for (int i = 0; i < ppu->sprite_count_latch; i++) {
+        if (ppu->sprite_counters[i] == 0) {
+            bool sp_pt0 = ppu->sprite_shift[i * 2] & 0x100;
+            bool sp_pt1 = ppu->sprite_shift[i * 2 + 1] & 0x100;
+            unsigned char sp_color_tmp = sp_pt0 | (sp_pt1 << 1);
+
+            // Update palette index depending on pixel priority
+            if (ppu->sprite_indices[i] <= sp_order && sp_color_tmp) {
+                sp_palette = (ppu->sprite_latches[i] & 0x3) + 4;
+                sp_color = sp_color_tmp;
+                sp_behind_bg = ppu->sprite_latches[i] & 0x20;
+                sp_order = ppu->sprite_indices[i];
+            }
+        }
+    }
+
+    // Multiplexer
+    unsigned char palette_index = (bg_palette << 2) | bg_color;
+    if (!bg_color || (sp_color && !sp_behind_bg)) {
+        palette_index = (sp_palette << 2) | sp_color;
+    }
 
     // Write to the color buffer
+    unsigned char palette_value = read_palette_ppu(ppu, palette_index);
     unsigned buffer_index = ppu->scanline * PPU_LINEDOTS + ppu->dot;
     ppu->color_buffer[buffer_index] =
-        create_color(palette_byte,
+        create_color(palette_value,
                      ppu->mask & PPU_MASK_GREYSCALE,
                      ppu->mask & PPU_MASK_EMPHASIZE_RED,
                      ppu->mask & PPU_MASK_EMPHASIZE_GREEN,
@@ -455,6 +640,35 @@ void execute_events_ppu(ppu_t *ppu, ppu_event_t *events) {
                 copy_y_ppu(ppu);
             }
             break;
+        case PPU_EVENT_CLEAR_OAM:
+            if (enabled) {
+                clear_oam_ppu(ppu);
+            }
+            break;
+        case PPU_EVENT_EVALUATE_SPRITES:
+            if (enabled) {
+                evaluate_sprites_ppu(ppu);
+            }
+            break;
+        case PPU_EVENT_FETCH_ATTRIBUTE_SPRITE:
+            if (enabled) {
+                fetch_sprite_attribute_ppu(ppu);
+            }
+            break;
+        case PPU_EVENT_FETCH_PATTERN_SPRITE_LO:
+            if (enabled) {
+                fetch_sprite_pattern_lo_ppu(ppu);
+            }
+            break;
+        case PPU_EVENT_FETCH_PATTERN_SPRITE_HI:
+            if (enabled) {
+                fetch_sprite_pattern_hi_ppu(ppu);
+            }
+            break;
+        case PPU_EVENT_SHIFT_SPRITE_REGISTERS:
+            if (enabled) {
+                shift_sprite_registers_ppu(ppu);
+            }
         case PPU_EVENT_CLEAR_OAMADDR:
             if (enabled) {
                 ppu->oamaddr = 0;

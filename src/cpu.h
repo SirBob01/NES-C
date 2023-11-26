@@ -5,6 +5,7 @@
 #include "./cpu_bus.h"
 #include "./interrupt.h"
 #include "./memory.h"
+#include "./ops.h"
 #include "./ppu.h"
 
 // Interrupt vector positions

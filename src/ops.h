@@ -1,7 +1,6 @@
 #ifndef OPS_H
 #define OPS_H
 
-#include "./cpu.h"
 #include "./rom.h"
 
 /**

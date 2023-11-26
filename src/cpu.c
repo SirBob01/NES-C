@@ -1,5 +1,4 @@
 #include "./cpu.h"
-#include "./ops.h"
 
 void create_cpu(cpu_t *cpu, cpu_bus_t *bus, interrupt_t *interrupt) {
     // Set registers
