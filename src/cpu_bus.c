@@ -57,7 +57,8 @@ unsigned char read_cpu_bus(cpu_bus_t *bus, address_t address) {
             return read_joy1_controller(bus->controller);
         case CTRL_REG_JOYPAD2:
             return read_joy2_controller(bus->controller);
-        // TODO: Handle APU registers
+        case APU_REG_STATUS:
+            return read_status_apu(bus->apu);
         default:
             return bus->memory[address];
         }
@@ -100,6 +101,9 @@ void write_cpu_bus(cpu_bus_t *bus, address_t address, unsigned char value) {
             write_strobe_controller(bus->controller, value);
             break;
         // TODO: Handle APU registers
+        case APU_REG_STATUS:
+            write_status_apu(bus->apu, value);
+            break;
         default:
             bus->memory[address] = value;
             break;

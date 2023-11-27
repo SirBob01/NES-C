@@ -5,6 +5,7 @@
 #include "./interrupt.h"
 
 #define AUDIO_BUFFER_SIZE 0x400
+#define APU_DMC_INTERRUPT 0x80
 
 /**
  * @brief APU registers.
@@ -12,28 +13,22 @@
  */
 typedef struct {
     /**
-     * @brief Pulse 1 channel registers.
+     * @brief Pulse (1 and 2) channel registers.
      *
      */
-    unsigned char pulse1[4];
-
-    /**
-     * @brief Pulse 2 channel registers.
-     *
-     */
-    unsigned char pulse2[4];
+    unsigned char pulse[8];
 
     /**
      * @brief Triangle channel registers.
      *
      */
-    unsigned char triangle[4];
+    unsigned char triangle[3];
 
     /**
      * @brief Noise channel registers.
      *
      */
-    unsigned char noise[4];
+    unsigned char noise[3];
 
     /**
      * @brief DMC channel registers.
@@ -98,6 +93,22 @@ void create_apu(apu_t *apu, interrupt_t *interrupt);
  * @param apu
  */
 void destroy_apu(apu_t *apu);
+
+/**
+ * @brief Read the status register of the APU.
+ *
+ * @param apu
+ * @return unsigned char
+ */
+unsigned char read_status_apu(apu_t *apu);
+
+/**
+ * @brief Write to the status register of the APU.
+ *
+ * @param apu
+ * @param value
+ */
+void write_status_apu(apu_t *apu, unsigned char value);
 
 /**
  * @brief Update the APU.
