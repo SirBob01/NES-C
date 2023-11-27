@@ -21,6 +21,11 @@ void create_ppu(ppu_t *ppu, ppu_bus_t *bus, interrupt_t *interrupt) {
     ppu->suppress_vbl = false;
     ppu->suppress_nmi = false;
 
+    ppu->sprite_index = 0;
+    ppu->sprite_m = 0;
+    ppu->sprite_count = 0;
+    ppu->sprite_count_latch = 0;
+
     create_event_tables_ppu(ppu);
 }
 
@@ -430,6 +435,7 @@ bool sprite_in_range_ppu(ppu_t *ppu, unsigned char y) {
 }
 
 void evaluate_sprites_ppu(ppu_t *ppu) {
+    // TODO: This algorithm is iffy
     if (ppu->sprite_index >= 64) {
         return;
     }
@@ -457,7 +463,9 @@ void evaluate_sprites_ppu(ppu_t *ppu) {
                 ppu->sprite_indices[ppu->sprite_count] = ppu->sprite_index;
                 ppu->sprite_m = 0;
                 ppu->sprite_index++;
-                ppu->sprite_count++;
+                if (ppu->sprite_count < 8) {
+                    ppu->sprite_count++;
+                }
             }
         }
     }
@@ -551,19 +559,31 @@ void draw_dot_ppu(ppu_t *ppu) {
     unsigned char sp_color = 0;
     bool sp_behind_bg = true;
 
-    unsigned char sp_order = 0xFF;
+    unsigned char min_sp_index = 0xFF;
     for (int i = 0; i < ppu->sprite_count_latch; i++) {
+        unsigned char sp_index = ppu->sprite_indices[i];
+        unsigned char sp_attr = ppu->sprite_latches[i];
+
         if (ppu->sprite_counters[i] == 0) {
             bool sp_pt0 = ppu->sprite_shift[i * 2] & 0x100;
             bool sp_pt1 = ppu->sprite_shift[i * 2 + 1] & 0x100;
             unsigned char sp_color_tmp = sp_pt0 | (sp_pt1 << 1);
 
+            // Detect sprite 0 hit
+            bool collision = bg_color && sp_color_tmp;
+            bool clip_left = ppu->mask & (PPU_MASK_SHOW_BG_LEFT |
+                                          PPU_MASK_SHOW_SPRITES_LEFT);
+            if (sp_index == 0 && collision && ppu->dot != 255 &&
+                !(ppu->dot <= 7 && clip_left)) {
+                ppu->status |= PPU_STATUS_S0_HIT;
+            }
+
             // Update palette index depending on pixel priority
-            if (ppu->sprite_indices[i] <= sp_order && sp_color_tmp) {
-                sp_palette = (ppu->sprite_latches[i] & 0x3) + 4;
+            if (sp_index <= min_sp_index && sp_color_tmp) {
+                min_sp_index = sp_index;
+                sp_palette = (sp_attr & 0x3) + 4;
                 sp_color = sp_color_tmp;
-                sp_behind_bg = ppu->sprite_latches[i] & 0x20;
-                sp_order = ppu->sprite_indices[i];
+                sp_behind_bg = sp_attr & 0x20;
             }
         }
     }
