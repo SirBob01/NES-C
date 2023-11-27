@@ -108,6 +108,8 @@ void create_event_tables_ppu(ppu_t *ppu) {
         if (dot >= 65 && dot <= 256) {
             ppu->render_events[dot][i++] = PPU_EVENT_EVALUATE_SPRITES;
         }
+
+        ppu->render_events[0][0] = PPU_EVENT_SHIFT_SPRITE_REGISTERS;
         if (dot <= 256) {
             ppu->render_events[dot][i++] = PPU_EVENT_SHIFT_SPRITE_REGISTERS;
         }
