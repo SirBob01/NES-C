@@ -555,6 +555,9 @@ void draw_dot_ppu(ppu_t *ppu) {
 
     unsigned char bg_palette = bg_pa0 | (bg_pa1 << 1);
     unsigned char bg_color = bg_pt0 | (bg_pt1 << 1);
+    if (ppu->dot <= 7 && !(ppu->mask & PPU_MASK_SHOW_BG_LEFT)) {
+        bg_color = 0;
+    }
 
     // Process each sprite in order of priority
     unsigned char sp_palette = 0;
@@ -570,13 +573,12 @@ void draw_dot_ppu(ppu_t *ppu) {
             bool sp_pt0 = ppu->sprite_shift[i * 2] & 0x100;
             bool sp_pt1 = ppu->sprite_shift[i * 2 + 1] & 0x100;
             unsigned char sp_color_tmp = sp_pt0 | (sp_pt1 << 1);
+            if (ppu->dot <= 7 && !(ppu->mask & PPU_MASK_SHOW_SPRITES_LEFT)) {
+                sp_color_tmp = 0;
+            }
 
             // Detect sprite 0 hit
-            bool collision = bg_color && sp_color_tmp;
-            bool clip_left = ppu->mask & (PPU_MASK_SHOW_BG_LEFT |
-                                          PPU_MASK_SHOW_SPRITES_LEFT);
-            if (sp_index == 0 && collision && ppu->dot != 255 &&
-                !(ppu->dot <= 7 && clip_left)) {
+            if (sp_index == 0 && bg_color && sp_color_tmp && ppu->dot != 255) {
                 ppu->status |= PPU_STATUS_S0_HIT;
             }
 
