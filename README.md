@@ -3,6 +3,7 @@
 A cycle-accurate NES Emulator built for fun (and education)!
 
 <img src="./media/donkey_kong.png" alt="Donkey Kong" width="500"/>
+<img src="./media/super_mario_bros.png" alt="Super Mario Bros." width="500"/>
 
 ## Goals
 
