@@ -108,11 +108,6 @@ void create_event_tables_ppu(ppu_t *ppu) {
         if (dot >= 65 && dot <= 256) {
             ppu->render_events[dot][i++] = PPU_EVENT_EVALUATE_SPRITES;
         }
-
-        ppu->render_events[0][0] = PPU_EVENT_SHIFT_SPRITE_REGISTERS;
-        if (dot <= 256) {
-            ppu->render_events[dot][i++] = PPU_EVENT_SHIFT_SPRITE_REGISTERS;
-        }
         if (dot >= 257 && dot <= 320) {
             switch (dot % 8) {
             case 4:
@@ -313,17 +308,6 @@ void shift_registers_ppu(ppu_t *ppu) {
     ppu->pa_shift[1] <<= 1;
 }
 
-void shift_sprite_registers_ppu(ppu_t *ppu) {
-    for (unsigned i = 0; i < ppu->sprite_count_latch; i++) {
-        if (ppu->sprite_counters[i] == 0) {
-            ppu->sprite_shift[i * 2] <<= 1;
-            ppu->sprite_shift[i * 2 + 1] <<= 1;
-        } else {
-            ppu->sprite_counters[i]--;
-        }
-    }
-}
-
 void reload_shifters_ppu(ppu_t *ppu) {
     // Write to pattern table shift registers
     for (unsigned i = 0; i < 2; i++) {
@@ -461,13 +445,11 @@ void evaluate_sprites_ppu(ppu_t *ppu) {
             }
         } else {
             ppu->sprite_m++;
-            if (ppu->sprite_m == 4) {
+            if (ppu->sprite_m == 4 && ppu->sprite_count < 8) {
                 ppu->sprite_indices[ppu->sprite_count] = ppu->sprite_index;
                 ppu->sprite_m = 0;
                 ppu->sprite_index++;
-                if (ppu->sprite_count < 8) {
-                    ppu->sprite_count++;
-                }
+                ppu->sprite_count++;
             }
         }
     }
@@ -553,9 +535,11 @@ void draw_dot_ppu(ppu_t *ppu) {
     bool bg_pt0 = ppu->pt_shift[0] & x_mask;
     bool bg_pt1 = ppu->pt_shift[1] & x_mask;
 
+    // Get background color (and mask if necessary)
     unsigned char bg_palette = bg_pa0 | (bg_pa1 << 1);
     unsigned char bg_color = bg_pt0 | (bg_pt1 << 1);
-    if (ppu->dot <= 7 && !(ppu->mask & PPU_MASK_SHOW_BG_LEFT)) {
+    if ((ppu->dot <= 7 && !(ppu->mask & PPU_MASK_SHOW_BG_LEFT)) ||
+        !(ppu->mask & PPU_MASK_SHOW_BG)) {
         bg_color = 0;
     }
 
@@ -564,30 +548,38 @@ void draw_dot_ppu(ppu_t *ppu) {
     unsigned char sp_color = 0;
     bool sp_behind_bg = true;
 
-    unsigned char min_sp_index = 0xFF;
-    for (int i = 0; i < ppu->sprite_count_latch; i++) {
-        unsigned char sp_index = ppu->sprite_indices[i];
-        unsigned char sp_attr = ppu->sprite_latches[i];
+    if ((ppu->mask & PPU_MASK_SHOW_SPRITES) &&
+        (ppu->dot > 7 || (ppu->mask & PPU_MASK_SHOW_SPRITES_LEFT)) &&
+        ppu->dot < 255) {
+        unsigned char min_sp_index = 0xFF;
+        for (int i = 0; i < ppu->sprite_count_latch; i++) {
+            if (ppu->sprite_counters[i] == 0) {
+                // Shift active sprite registers
+                ppu->sprite_shift[i * 2] <<= 1;
+                ppu->sprite_shift[i * 2 + 1] <<= 1;
 
-        if (ppu->sprite_counters[i] == 0) {
-            bool sp_pt0 = ppu->sprite_shift[i * 2] & 0x100;
-            bool sp_pt1 = ppu->sprite_shift[i * 2 + 1] & 0x100;
-            unsigned char sp_color_tmp = sp_pt0 | (sp_pt1 << 1);
-            if (ppu->dot <= 7 && !(ppu->mask & PPU_MASK_SHOW_SPRITES_LEFT)) {
-                sp_color_tmp = 0;
-            }
+                unsigned char sp_index = ppu->sprite_indices[i];
+                unsigned char sp_attr = ppu->sprite_latches[i];
 
-            // Detect sprite 0 hit
-            if (sp_index == 0 && bg_color && sp_color_tmp && ppu->dot != 255) {
-                ppu->status |= PPU_STATUS_S0_HIT;
-            }
+                // Get sprite color (and mask if necessary)
+                bool sp_pt0 = ppu->sprite_shift[i * 2] & 0x100;
+                bool sp_pt1 = ppu->sprite_shift[i * 2 + 1] & 0x100;
+                unsigned char sp_color_tmp = sp_pt0 | (sp_pt1 << 1);
 
-            // Update palette index depending on pixel priority
-            if (sp_index <= min_sp_index && sp_color_tmp) {
-                min_sp_index = sp_index;
-                sp_palette = (sp_attr & 0x3) + 4;
-                sp_color = sp_color_tmp;
-                sp_behind_bg = sp_attr & 0x20;
+                // Detect sprite 0 hit
+                if (sp_index == 0 && bg_color && sp_color_tmp) {
+                    ppu->status |= PPU_STATUS_S0_HIT;
+                }
+
+                // Update palette index depending on pixel priority
+                if (sp_index <= min_sp_index && sp_color_tmp) {
+                    min_sp_index = sp_index;
+                    sp_palette = (sp_attr & 0x3) + 4;
+                    sp_color = sp_color_tmp;
+                    sp_behind_bg = sp_attr & 0x20;
+                }
+            } else {
+                ppu->sprite_counters[i]--;
             }
         }
     }
@@ -689,10 +681,6 @@ void execute_events_ppu(ppu_t *ppu, ppu_event_t *events) {
                 fetch_sprite_pattern_hi_ppu(ppu);
             }
             break;
-        case PPU_EVENT_SHIFT_SPRITE_REGISTERS:
-            if (enabled) {
-                shift_sprite_registers_ppu(ppu);
-            }
         case PPU_EVENT_CLEAR_OAMADDR:
             if (enabled) {
                 ppu->oamaddr = 0;
